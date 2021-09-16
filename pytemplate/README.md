@@ -44,7 +44,7 @@ Filter config in config.json of Regolith project:
 A fragment of a behavior of an entity that matched provided BP glob pattern
 The value after colon is an identifier of the template, `{"num_variants": 10}`
 is a scope used to evaluate the temlpate.
-```
+```json
 ...
     "component_groups": {
       "TEMPLATE:variants": {"num_variants": 10},
