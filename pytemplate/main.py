@@ -104,6 +104,6 @@ if __name__ == '__main__':
             parent[parent_k] = merge.deep_merge_objects(parent[parent_k], eval(template, curr_scope))
         with fp.open('w') as f:
             if compact:
-                json.dump(data, f, indent='\t', sort_keys=sort_keys)
+                json.dump(data, f, indent='\t', separators=(',', ':'), sort_keys=sort_keys)
             else:
-                json.dump(data, f, indent='\t', separators=(',', ':'))
+                json.dump(data, f, indent='\t', sort_keys=sort_keys)
