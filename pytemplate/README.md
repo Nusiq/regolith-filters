@@ -21,7 +21,7 @@ which can be encoded in JSON.
 "template_path" from config is the identifier of the template.
 ```Py
 {
-    f"nusiq:variant{i}_hehe": {
+    f"nusiq:variant{i}": {
         "minecraft:variant": {
             "value": i
         }
@@ -30,7 +30,7 @@ which can be encoded in JSON.
 ```
 
 Filter config in config.json of Regolith project:
-```json
+```
 ...
                     {
                         "url": "github.com/Nusiq/regolith-filters/pytemplate",
