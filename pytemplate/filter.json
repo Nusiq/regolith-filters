@@ -1,0 +1,9 @@
+{
+    "filters": [
+        {
+            "runWith": "python",
+            "location": "./main.js",
+            "name": "nusiq:pytemplate"
+        }
+    ]
+}
