@@ -6,24 +6,31 @@ from pathlib import Path
 import math
 import uuid
 
-def walk_json(data, parent=None, parent_key=None):
+
+def walk_json(data, json_path=None):
     '''
     Walks JSON file (data) yields tuples: key, parent_key, parent.
 
     Hint: To access child value use parent[parent_key][child_key], in first
     iteration 'parent' and 'parent_key' are None.
     '''
+    if json_path is None:
+        json_path = []
     if isinstance(data, dict):
         for k in data.keys():
             if isinstance(data[k], (dict, list)):
-                yield from walk_json(data[k], parent=data, parent_key=k)
-            yield k, parent_key, parent
+                yield from walk_json(data[k], json_path=json_path)
+            yield json_path + [k]
     elif isinstance(data, list):
         for i in range(len(data)):
             if isinstance(data[i], (dict, list)):
-                yield from walk_json(data[i], parent=data, parent_key=i)
-            yield i, parent_key, parent
+                yield from walk_json(data[i], json_path=json_path)
+            yield json_path + [i]
 
+def access_json(data, path):
+    if len(path) == 0:
+        return data
+    return access_json(data[path[0]], path[1:])
 
 if __name__ == '__main__':
     config = json.loads(sys.argv[1])
@@ -84,8 +91,9 @@ if __name__ == '__main__':
         for k, parent_k, parent in walk_json(data):
             if isinstance(k, str) and k.startswith(trigger_phrase):
                 points_of_interset.append((k, parent_k, parent))
-        for k, parent_k, parent in points_of_interset:
+        for poi in points_of_interset:
             try:
+                k = poi[-1]
                 template_name = k.split(":", 1)[1]
                 template_path = templates_path / (template_name + '.py')
                 with template_path.open('r') as f:
@@ -93,15 +101,16 @@ if __name__ == '__main__':
             except:
                 print(f"Unable to read template {k} from file file {fp.as_posix()}")
                 continue
-            if parent is None:  # Templating root
-                curr_scope = scope | data[k]
-                del data[k]
+            if len(poi) == 1:  # Templating root
+                curr_scope = scope | data[poi[0]]
+                del data[poi[0]]
                 data = merge.deep_merge_objects(data, eval(template, curr_scope))
                 continue
             # Templating offspring
-            curr_scope = scope | parent[parent_k][k]
-            del parent[parent_k][k]
-            parent[parent_k] = merge.deep_merge_objects(parent[parent_k], eval(template, curr_scope))
+            parent = access_json(data, poi[:-2])
+            curr_scope = scope |  access_json(parent, poi[-2:])
+            del parent[poi[-2]]
+            parent[poi[-2]] = merge.deep_merge_objects(parent[poi[-2]], eval(template, curr_scope))
         with fp.open('w') as f:
             if compact:
                 json.dump(data, f, indent='\t', separators=(',', ':'), sort_keys=sort_keys)
