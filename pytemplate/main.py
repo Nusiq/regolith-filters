@@ -18,14 +18,16 @@ def walk_json(data, json_path=None):
         json_path = []
     if isinstance(data, dict):
         for k in data.keys():
+            curr_path = json_path + [k]
             if isinstance(data[k], (dict, list)):
-                yield from walk_json(data[k], json_path=json_path)
-            yield json_path + [k]
+                yield from walk_json(data[k], json_path=curr_path)
+            yield curr_path
     elif isinstance(data, list):
         for i in range(len(data)):
+            curr_path = json_path + [i]
             if isinstance(data[i], (dict, list)):
-                yield from walk_json(data[i], json_path=json_path)
-            yield json_path + [i]
+                yield from walk_json(data[i], json_path=curr_path)
+            yield curr_path
 
 def access_json(data, path):
     if len(path) == 0:
@@ -88,9 +90,10 @@ if __name__ == '__main__':
             continue
         # Gather points of iterests (things that will be replaced)
         points_of_interset = []
-        for k, parent_k, parent in walk_json(data):
+        for poi in walk_json(data):
+            k = poi[-1]
             if isinstance(k, str) and k.startswith(trigger_phrase):
-                points_of_interset.append((k, parent_k, parent))
+                points_of_interset.append(poi)
         for poi in points_of_interset:
             try:
                 k = poi[-1]
@@ -109,7 +112,7 @@ if __name__ == '__main__':
             # Templating offspring
             parent = access_json(data, poi[:-2])
             curr_scope = scope |  access_json(parent, poi[-2:])
-            del parent[poi[-2]]
+            del parent[poi[-2]][poi[-1]]
             parent[poi[-2]] = merge.deep_merge_objects(parent[poi[-2]], eval(template, curr_scope))
         with fp.open('w') as f:
             if compact:
