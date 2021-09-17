@@ -1,3 +1,4 @@
+from typing import Dict, List
 import merge
 import json
 import sys
@@ -34,6 +35,78 @@ def access_json(data, path):
         return data
     return access_json(data[path[0]], path[1:])
 
+def main(
+        bp_patterns: List[str], rp_patterns: List[str],
+        trigger_phrase: str, sort_keys: bool, compact: bool, scope: Dict):
+    '''
+    Main function of the project. Adds filters to behavior- and resource-pack
+    files. Read README for mor information.
+    '''
+    default_scope = {'true': True, 'false': False, 'math': math, 'uuid': uuid}
+    scope = scope | default_scope
+
+    # Resolve glob patterns
+    bp_paths = []
+    for i in bp_patterns:
+        bp_paths.extend(j for j in Path('BP').glob(i))
+    bp_paths = list(set(bp_paths))
+    rp_paths = []
+    for i in rp_patterns:
+        rp_paths.extend(j for j in Path('RP').glob(i))
+    rp_paths = list(set(rp_paths))
+
+    fp: Path
+    # Replace values in file using templates
+    for fp in chain(bp_paths, rp_paths):
+        if not fp.exists() or not fp.is_file():
+            continue 
+        try:
+            with fp.open('r') as f:
+                data = json.load(f)
+        except:
+            print(f"Unable to load file {fp.as_posix()}")
+            continue
+        # Gather points of iterests (things that will be replaced)
+        points_of_interset = []
+        for poi in walk_json(data):
+            k = poi[-1]
+            if isinstance(k, str) and k.startswith(trigger_phrase):
+                points_of_interset.append(poi)
+        if len(points_of_interset) == 0:
+            continue  # Skip the file if there is nothing to edit
+        for poi in points_of_interset:
+            try:
+                k = poi[-1]
+                template_name = k.split(":", 1)[1]
+                template_path = templates_path / (template_name + '.py')
+                with template_path.open('r') as f:
+                    template = f.read()
+            except:
+                print(
+                    f"Unable to read template {k} from file file"
+                    f" {fp.as_posix()}")
+                continue
+            if len(poi) == 1:  # Templating root
+                curr_scope = scope | data[poi[0]]
+                del data[poi[0]]
+                data = merge.deep_merge_objects(
+                    data, eval(template, curr_scope))
+                continue
+            # Templating offspring
+            parent = access_json(data, poi[:-2])
+            curr_scope = scope |  access_json(parent, poi[-2:])
+            del parent[poi[-2]][poi[-1]]
+            parent[poi[-2]] = merge.deep_merge_objects(
+                parent[poi[-2]], eval(template, curr_scope))
+        with fp.open('w') as f:
+            if compact:
+                json.dump(
+                    data, f, indent='\t',
+                    separators=(',', ':'), sort_keys=sort_keys)
+            else:
+                json.dump(data, f, indent='\t', sort_keys=sort_keys)
+
+
 if __name__ == '__main__':
     config = json.loads(sys.argv[1])
     # Glob patters for finding JSON files to edit
@@ -63,59 +136,8 @@ if __name__ == '__main__':
     else:
         compact = False
 
-    # Default scope for eval
-    scope = {'true': True, 'false': False, 'math': math, 'uuid': uuid}
+    # Add scope
+    scope = {}
     if 'scope' in config:
         scope = scope | config['scope']
-    # Resolve glob patterns
-    bp_paths = []
-    for i in bp_patterns:
-        bp_paths.extend(j for j in Path('BP').glob(i))
-    bp_paths = list(set(bp_paths))
-    rp_paths = []
-    for i in rp_patterns:
-        rp_paths.extend(j for j in Path('RP').glob(i))
-    rp_paths = list(set(rp_paths))
-
-    fp: Path
-    # Replace values in file using templates
-    for fp in chain(bp_paths, rp_paths):
-        if not fp.exists() or not fp.is_file():
-            continue 
-        try:
-            with fp.open('r') as f:
-                data = json.load(f)
-        except:
-            print(f"Unable to load file {fp.as_posix()}")
-            continue
-        # Gather points of iterests (things that will be replaced)
-        points_of_interset = []
-        for poi in walk_json(data):
-            k = poi[-1]
-            if isinstance(k, str) and k.startswith(trigger_phrase):
-                points_of_interset.append(poi)
-        for poi in points_of_interset:
-            try:
-                k = poi[-1]
-                template_name = k.split(":", 1)[1]
-                template_path = templates_path / (template_name + '.py')
-                with template_path.open('r') as f:
-                    template = f.read()
-            except:
-                print(f"Unable to read template {k} from file file {fp.as_posix()}")
-                continue
-            if len(poi) == 1:  # Templating root
-                curr_scope = scope | data[poi[0]]
-                del data[poi[0]]
-                data = merge.deep_merge_objects(data, eval(template, curr_scope))
-                continue
-            # Templating offspring
-            parent = access_json(data, poi[:-2])
-            curr_scope = scope |  access_json(parent, poi[-2:])
-            del parent[poi[-2]][poi[-1]]
-            parent[poi[-2]] = merge.deep_merge_objects(parent[poi[-2]], eval(template, curr_scope))
-        with fp.open('w') as f:
-            if compact:
-                json.dump(data, f, indent='\t', separators=(',', ':'), sort_keys=sort_keys)
-            else:
-                json.dump(data, f, indent='\t', sort_keys=sort_keys)
+    main(bp_patterns, rp_patterns, trigger_phrase, sort_keys, compact, scope)
