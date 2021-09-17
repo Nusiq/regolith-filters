@@ -36,7 +36,7 @@ def access_json(data, path):
     return access_json(data[path[0]], path[1:])
 
 def main(
-        bp_patterns: List[str], rp_patterns: List[str],
+        bp_patterns: List[str], rp_patterns: List[str], templates_path: str,
         trigger_phrase: str, sort_keys: bool, compact: bool, scope: Dict):
     '''
     Main function of the project. Adds filters to behavior- and resource-pack
@@ -78,7 +78,7 @@ def main(
             try:
                 k = poi[-1]
                 template_name = k.split(":", 1)[1]
-                template_path = templates_path / (template_name + '.py')
+                template_path = Path('data') / templates_path / (template_name + '.py')
                 with template_path.open('r') as f:
                     template = f.read()
             except:
@@ -120,7 +120,7 @@ if __name__ == '__main__':
         rp_patterns = ['**/*.json']
 
     # File path to the templates folder
-    templates_path = Path(config['templates_path'])
+    templates_path = config['templates_path']
 
     # Trigger phrase
     if 'trigger_phrase' in config:
@@ -140,4 +140,4 @@ if __name__ == '__main__':
     scope = {}
     if 'scope' in config:
         scope = scope | config['scope']
-    main(bp_patterns, rp_patterns, trigger_phrase, sort_keys, compact, scope)
+    main(bp_patterns, rp_patterns, templates_path, trigger_phrase, sort_keys, compact, scope)
