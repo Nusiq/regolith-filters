@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import merge
 import json
 import sys
@@ -35,6 +35,45 @@ def access_json(data, path):
         return data
     return access_json(data[path[0]], path[1:])
 
+def replace_templates(data, scope) -> Tuple[Dict, bool]:
+    # Gather points of iterests (things that will be replaced)
+    points_of_interset = []
+    for poi in walk_json(data):
+        k = poi[-1]
+        if isinstance(k, str) and k.startswith(trigger_phrase):
+            points_of_interset.append(poi)
+    if len(points_of_interset) == 0:
+        return data, False
+    for poi in points_of_interset:
+        try:
+            k = poi[-1]
+            template_name = k.split(":", 1)[1]
+            template_path = Path('data') / templates_path / (template_name + '.py')
+            with template_path.open('r') as f:
+                template = f.read()
+        except Exception as e:
+            raise RuntimeError(
+                f"Unable to read template {k}") from e
+        if len(poi) == 1:  # Templating root
+            curr_scope = scope | data[poi[0]]
+            del data[poi[0]]
+            data = merge.deep_merge_objects(
+                data, eval(template, curr_scope))
+            # Support recursive templates
+            data, _ = replace_templates(
+                data, curr_scope)
+            continue
+        # Templating offspring
+        parent = access_json(data, poi[:-2])
+        curr_scope = scope |  access_json(parent, poi[-2:])
+        del parent[poi[-2]][poi[-1]]
+        parent[poi[-2]] = merge.deep_merge_objects(
+            parent[poi[-2]], eval(template, curr_scope))
+        # Support ecursive templates
+        parent[poi[-2]], _ = replace_templates(
+            parent[poi[-2]], curr_scope)
+    return data, True
+
 def main(
         bp_patterns: List[str], rp_patterns: List[str], templates_path: str,
         trigger_phrase: str, sort_keys: bool, compact: bool, scope: Dict):
@@ -66,38 +105,14 @@ def main(
         except:
             print(f"Unable to load file {fp.as_posix()}")
             continue
-        # Gather points of iterests (things that will be replaced)
-        points_of_interset = []
-        for poi in walk_json(data):
-            k = poi[-1]
-            if isinstance(k, str) and k.startswith(trigger_phrase):
-                points_of_interset.append(poi)
-        if len(points_of_interset) == 0:
-            continue  # Skip the file if there is nothing to edit
-        for poi in points_of_interset:
-            try:
-                k = poi[-1]
-                template_name = k.split(":", 1)[1]
-                template_path = Path('data') / templates_path / (template_name + '.py')
-                with template_path.open('r') as f:
-                    template = f.read()
-            except:
-                print(
-                    f"Unable to read template {k} from file file"
-                    f" {fp.as_posix()}")
-                continue
-            if len(poi) == 1:  # Templating root
-                curr_scope = scope | data[poi[0]]
-                del data[poi[0]]
-                data = merge.deep_merge_objects(
-                    data, eval(template, curr_scope))
-                continue
-            # Templating offspring
-            parent = access_json(data, poi[:-2])
-            curr_scope = scope |  access_json(parent, poi[-2:])
-            del parent[poi[-2]][poi[-1]]
-            parent[poi[-2]] = merge.deep_merge_objects(
-                parent[poi[-2]], eval(template, curr_scope))
+
+        try:
+            data, modified = replace_templates(data, scope)
+        except Exception as e:
+            raise RuntimeError(f"File: {fp.as_posix()}: {str(e)}") from e
+        if not modified:
+            continue  # Data not modified. Don't edit the file.
+
         with fp.open('w') as f:
             if compact:
                 json.dump(
@@ -105,7 +120,6 @@ def main(
                     separators=(',', ':'), sort_keys=sort_keys)
             else:
                 json.dump(data, f, indent='\t', sort_keys=sort_keys)
-
 
 if __name__ == '__main__':
     config = json.loads(sys.argv[1])
