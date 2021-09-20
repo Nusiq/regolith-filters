@@ -58,7 +58,7 @@ def replace_templates(data, scope) -> Tuple[Dict, bool]:
             curr_scope = scope | data[poi[0]]
             del data[poi[0]]
             data = merge.deep_merge_objects(
-                data, eval(template, curr_scope))
+                data, eval(template, curr_scope),  merge.ListMergePolicy.APPEND)
             # Support recursive templates
             data, _ = replace_templates(
                 data, curr_scope)
@@ -68,7 +68,7 @@ def replace_templates(data, scope) -> Tuple[Dict, bool]:
         curr_scope = scope |  access_json(parent, poi[-2:])
         del parent[poi[-2]][poi[-1]]
         parent[poi[-2]] = merge.deep_merge_objects(
-            parent[poi[-2]], eval(template, curr_scope))
+            parent[poi[-2]], eval(template, curr_scope),  merge.ListMergePolicy.APPEND)
         # Support ecursive templates
         parent[poi[-2]], _ = replace_templates(
             parent[poi[-2]], curr_scope)

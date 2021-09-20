@@ -5,6 +5,7 @@ class ListMergePolicy(Enum):
     GREATER_LENGHT = auto()
     SMALLER_LENGHT = auto()
     B_LENGHT = auto()
+    APPEND = auto()
 
 def deep_merge_objects(a, b, list_merge_policy=ListMergePolicy.GREATER_LENGHT):
     '''
@@ -57,12 +58,17 @@ def deep_merge_lists(
         list_len = min(len(a), len(b))
     elif list_merge_policy is ListMergePolicy.B_LENGHT:
         list_len = len(b)
+    elif list_merge_policy is ListMergePolicy.APPEND:
+        for b_item in b:
+            a.append(b_item)
+        return a
     result = [None]*list_len
     for i in range(list_len):
         if i < len(b):
             if i >= len(a): # in B not in A
                 result[i] = b[i]
                 continue
+            # in B and in A
             result[i] = deep_merge_objects(a[i], b[i], list_merge_policy)
         elif i < len(a):  # in A not in B
             result[i] = a[i]
