@@ -65,7 +65,13 @@ def replace_templates(data, scope) -> Tuple[Dict, bool]:
             continue
         # Templating offspring
         parent = access_json(data, poi[:-2])
-        curr_scope = scope |  access_json(parent, poi[-2:])
+        try:
+            curr_scope = scope |  access_json(parent, poi[-2:])
+        except KeyError:
+            # This key must have been replaced already by the recursive
+            # template support (it happens sometimes because the recursive)
+            # templates can add items at the same depth level as they are.
+            continue
         del parent[poi[-2]][poi[-1]]
         parent[poi[-2]] = merge.deep_merge_objects(
             parent[poi[-2]], eval(template, curr_scope),  merge.ListMergePolicy.APPEND)
