@@ -55,7 +55,13 @@ def replace_templates(data, scope) -> Tuple[Dict, bool]:
             raise RuntimeError(
                 f"Unable to read template {k}") from e
         if len(poi) == 1:  # Templating root
-            curr_scope = scope | data[poi[0]]
+            try:
+                curr_scope = scope | data[poi[0]]
+            except KeyError:
+                # This key must have been replaced already by the recursive
+                # template support (it happens sometimes because the recursive)
+                # templates can add items at the same depth level as they are.
+                continue
             del data[poi[0]]
             data = merge.deep_merge_objects(
                 data, eval(template, curr_scope),  merge.ListMergePolicy.APPEND)
