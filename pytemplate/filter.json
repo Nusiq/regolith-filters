@@ -2,7 +2,7 @@
     "filters": [
         {
             "runWith": "python",
-            "location": "./main.py",
+            "script": "./main.py",
             "name": "nusiq:pytemplate"
         }
     ]
