@@ -16,7 +16,7 @@ if __name__ == '__main__':
     for path in paths_set:
         with path.open('r') as f:
             data = f.read()
-        func_name = path.as_posix()[len('BP/functions'):]
+        func_name = path.as_posix()[len('BP/functions/'):-len(".mcfunction")]
         data = f"say {func_name}\n" + data
         with path.open('w') as f:
             f.write(data)
