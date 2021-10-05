@@ -3,7 +3,7 @@
         {
             "runWith": "python",
             "script": "./main.py",
-            "name": "nusiq:insert_text"
+            "name": "nusiq:subfunctions"
         }
     ]
 }
