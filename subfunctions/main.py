@@ -70,7 +70,7 @@ def modify_function(
     if modified:
         function_name = path.relative_to(
             FUNCTIONS_PATH).with_suffix("").as_posix()
-        print("Modified function {function_name}.")
+        print(f"Modified function {function_name}.")
         with path.open('w') as f:
             f.write("\n".join(new_func_text))
     return cursor
