@@ -25,7 +25,7 @@ class McfuncitonFile(NamedTuple):
     '''
     path: Path
     body: List[str]
-    is_root: bool=False
+    is_root_block: bool=False
 
 def get_function_name(path: Path):
     '''
@@ -62,7 +62,7 @@ def eval_line_of_code(line: str, scope: Dict[str, int]):
 class CommandsWalker:
     def __init__(
             self, path: Path, func_text: List[str],
-            scope: Optional[Dict[str,int]]=None):
+            scope: Optional[Dict[str,int]]=None, is_root_file=True):
         '''
         :param path: path to the root file.
         :param func_text: the list with lines of code from the root file.
@@ -71,9 +71,10 @@ class CommandsWalker:
         self.path = path
         self.func_text = func_text
         self.scope = {} if scope is None else scope
+        self.is_root_file = is_root_file
 
 
-    def walk_function(self, is_root=True) -> Iterator[McfuncitonFile]:
+    def walk_function(self) -> Iterator[McfuncitonFile]:
         '''
         Walks the commands of a function and looks for custom subfunction
         syntax. Yields new files to create.
@@ -81,23 +82,23 @@ class CommandsWalker:
         :param path: path to the root file.
         :param func_text: the list with lines of code from the root file.
         '''
-        yield from self._walk_function(self.path, is_root=is_root)
+        yield from self._walk_function(self.path)
 
     def walk_code_block(
             self, zero_indent: int,
-            is_root: bool) -> Iterator[Tuple[str, int, int]]:
+            is_root_block: bool) -> Iterator[Tuple[str, int, int]]:
         '''
         Yields lines of code for current code block.
 
         :param zero_indent: the indentation depth that defines this code block
             everything below or equal to that indentation is considered out of
             code block and ends the iteration.
-        :param is_root: whether the current code block is root (the outermost
-            code block). If this value is set to true the iteration will go
-            until the end of file
+        :param is_root_block: whether the current code block is root
+            (the outermost code block). If this value is set to true the
+            iteration will go until the end of file
         '''
         first_indent = None
-        if is_root:
+        if is_root_block:
             while self.cursor < len(self.func_text):
                 line, indent = strip_line(self.func_text[self.cursor])
                 yield line, indent, 0
@@ -118,21 +119,22 @@ class CommandsWalker:
 
     def _walk_function(
             self, path: Path, zero_indent=0,
-            is_root=True) -> Iterator[McfuncitonFile]:
-        if not is_root and path.exists():
+            is_root_block=True) -> Iterator[McfuncitonFile]:
+        if not is_root_block and path.exists():
             raise RuntimeError(
                 "The function file can't be created because "
                 "it already exists!")
         new_func_text = []
-        modified = not is_root  # new file is considered to be modified
+        modified = not is_root_block  # new file is considered to be modified
 
         for no_indent_line, indent, base_indent in self.walk_code_block(
-                zero_indent, is_root):
+                zero_indent, is_root_block):
             if match := JUST_DEFINE.fullmatch(no_indent_line):
                 self.cursor += 1
                 yield from self._walk_function(
                     get_subfunction_path(path, match[1]),
-                    zero_indent=indent, is_root=False)
+                    zero_indent=indent, is_root_block=False)
+                self.cursor -= 1
                 modified = True
             elif match := SUBFUNCTION.fullmatch(no_indent_line):
                 subfunction_name = f'{get_function_name(path)}/{match[2]}'
@@ -141,7 +143,8 @@ class CommandsWalker:
                 self.cursor += 1
                 yield from self._walk_function(
                     get_subfunction_path(path, match[2]),
-                    zero_indent=indent, is_root=False)
+                    zero_indent=indent, is_root_block=False)
+                self.cursor -= 1
                 modified = True
             elif match := FUNCTION_TREE.fullmatch(no_indent_line):
                 m_name = match[1]
@@ -153,13 +156,16 @@ class CommandsWalker:
                 yield from self.create_function_tree(
                     path, m_name, m_var, m_min, m_max, m_step, zero_indent,
                     new_func_text)
+                self.cursor -= 1
                 modified = True
             else:  # comment, normal line or blank line
                 new_func_text.append(
                     " "*(indent-base_indent) +  # Python goes "b"+"r"*10
                     eval_line_of_code(no_indent_line, self.scope))
         if modified:
-            yield McfuncitonFile(path, new_func_text, is_root=is_root)
+            yield McfuncitonFile(
+                path, new_func_text,
+                is_root_block=is_root_block and self.is_root_file)
 
     def create_function_tree(
             self, path: Path, name: str, variable: str, min_: int, max_: int,
@@ -170,12 +176,12 @@ class CommandsWalker:
         '''
         def yield_splits(
                 list: List[T],
-                is_root=True) -> Iterator[Tuple[T, T, T, T, bool]]:
+                is_root_block=True) -> Iterator[Tuple[T, T, T, T, bool]]:
             if len(list) <= 1:
                 return
             split = len(list)//2
             left, right = list[:split], list[split:]
-            yield list[0], left[-1], right[0], list[-1], is_root
+            yield list[0], left[-1], right[0], list[-1], is_root_block
             yield from yield_splits(left, False)
             yield from yield_splits(right, False)
         body_list: List[str] = []
@@ -188,7 +194,7 @@ class CommandsWalker:
             raise RuntimeError(
                 f'Missing body for function tree "{name}" of '
                 f'"{get_function_name(path)}" function')
-        for left_min, left_max, right_min, right_max, is_root in yield_splits(
+        for left_min, left_max, right_min, right_max, is_root_block in yield_splits(
                 leaf_values):
             # Sorting items if of reverse iteration
             left_min, left_max, right_min, right_max = sorted(
@@ -218,8 +224,8 @@ class CommandsWalker:
                     f'function {get_function_name(left_branch_path)}')
                 yield from CommandsWalker(
                     left_branch_path, body_list,
-                    {**self.scope, variable: left_min}
-                ).walk_function(False)
+                    {**self.scope, variable: left_min}, is_root_file=False
+                ).walk_function()
 
             # Right branch half
             if right_min != right_max:
@@ -237,18 +243,18 @@ class CommandsWalker:
                     f'function {get_function_name(right_branch_path)}')
                 yield from CommandsWalker(
                     right_branch_path, body_list,
-                    {**self.scope, variable: right_min}
-                ).walk_function(False)
+                    {**self.scope, variable: right_min}, is_root_file=False
+                ).walk_function()
 
 
-            if is_root:
+            if is_root_block:
                 parent_function_text.append(f'{left_prefix}{left_suffix}')
                 parent_function_text.append(f'{right_prefix}{right_suffix}')
             else:
                 body = [
                     f'{left_prefix}{left_suffix}',
                     f'{right_prefix}{right_suffix}']
-                yield McfuncitonFile(branch_path, body, is_root=False)
+                yield McfuncitonFile(branch_path, body, is_root_block=False)
 
 
 if __name__ == '__main__':
@@ -264,5 +270,5 @@ if __name__ == '__main__':
             func_file.path.parent.mkdir(exist_ok=True, parents=True)
             with func_file.path.open('w') as f:
                 f.write("\n".join(func_file.body))
-            if func_file.is_root:
+            if func_file.is_root_block:
                 print(f"Modified function: {get_function_name(func_file.path)}")
