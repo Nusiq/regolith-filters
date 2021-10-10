@@ -25,6 +25,7 @@ class McfuncitonFile(NamedTuple):
     '''
     path: Path
     body: List[str]
+    is_root: bool=False
 
 def get_function_name(path: Path):
     '''
@@ -80,7 +81,7 @@ class CommandsWalker:
         :param path: path to the root file.
         :param func_text: the list with lines of code from the root file.
         '''
-        yield from self._walk_function(self.path)
+        yield from self._walk_function(self.path, is_root=is_root)
 
     def walk_code_block(
             self, zero_indent: int,
@@ -158,7 +159,7 @@ class CommandsWalker:
                     " "*(indent-base_indent) +  # Python goes "b"+"r"*10
                     eval_line_of_code(no_indent_line, self.scope))
         if modified:
-            yield McfuncitonFile(path, new_func_text)
+            yield McfuncitonFile(path, new_func_text, is_root=is_root)
 
     def create_function_tree(
             self, path: Path, name: str, variable: str, min_: int, max_: int,
@@ -247,7 +248,7 @@ class CommandsWalker:
                 body = [
                     f'{left_prefix}{left_suffix}',
                     f'{right_prefix}{right_suffix}']
-                yield McfuncitonFile(branch_path, body)
+                yield McfuncitonFile(branch_path, body, is_root=False)
 
 
 if __name__ == '__main__':
@@ -263,4 +264,5 @@ if __name__ == '__main__':
             func_file.path.parent.mkdir(exist_ok=True, parents=True)
             with func_file.path.open('w') as f:
                 f.write("\n".join(func_file.body))
-            print(f"Created new function: {get_function_name(func_file.path)}")
+            if func_file.is_root:
+                print(f"Modified function: {get_function_name(func_file.path)}")
