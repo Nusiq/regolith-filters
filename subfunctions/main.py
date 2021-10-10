@@ -1,13 +1,20 @@
 from pathlib import Path
-from typing import Iterator, List, Tuple, NamedTuple
+from typing import Dict, Iterator, List, Optional, Tuple, NamedTuple, TypeVar
 import re
 from collections import deque
+from copy import copy
+from safe_eval import safe_eval
 
 FUNCTIONS_PATH = Path('BP/functions')
 
 JUST_DEFINE = re.compile("definefunction <([a-zA-Z_0-9]+)>:")
 SUBFUNCTION = re.compile("(.* )?function <([a-zA-Z_0-9]+)>:")
 FUNCTION_TREE = re.compile("functiontree <([a-zA-Z_0-9]+)><([a-zA-Z_0-9]+) *([0-9]+)\.\.([0-9]+)(?: *([0-9]+))?>:")
+
+
+EVAL = re.compile("`eval:([a-zA-Z_0-9+\-/*+ ()]+)`")
+T = TypeVar("T")
+
 
 class McfuncitonFile(NamedTuple):
     '''
@@ -45,8 +52,16 @@ def strip_line(line) -> Tuple[str, int]:
     indent = len(line)-len(stripped_line)
     return stripped_line, indent
 
+def eval_line_of_code(line: str, scope: Dict[str, int]):
+    while match := EVAL.search(line):
+        l, r = match.span()
+        line = line[:l] + str(safe_eval(match[1], scope)) + line[r:]
+    return line
+
 class CommandsWalker:
-    def __init__(self, path: Path, func_text: List[str]):
+    def __init__(
+            self, path: Path, func_text: List[str],
+            scope: Optional[Dict[str,int]]=None):
         '''
         :param path: path to the root file.
         :param func_text: the list with lines of code from the root file.
@@ -54,8 +69,10 @@ class CommandsWalker:
         self.cursor = 0
         self.path = path
         self.func_text = func_text
+        self.scope = {} if scope is None else scope
 
-    def walk_function(self) -> Iterator[McfuncitonFile]:
+
+    def walk_function(self, is_root=True) -> Iterator[McfuncitonFile]:
         '''
         Walks the commands of a function and looks for custom subfunction
         syntax. Yields new files to create.
@@ -67,7 +84,7 @@ class CommandsWalker:
 
     def walk_code_block(
             self, zero_indent: int,
-            is_root: bool) -> Iterator[Tuple[str, int]]:
+            is_root: bool) -> Iterator[Tuple[str, int, int]]:
         '''
         Yields lines of code for current code block.
 
@@ -81,7 +98,8 @@ class CommandsWalker:
         first_indent = None
         if is_root:
             while self.cursor < len(self.func_text):
-                yield strip_line(self.func_text[self.cursor])
+                line, indent = strip_line(self.func_text[self.cursor])
+                yield line, indent, 0
                 self.cursor += 1
         else:
             _, first_indent = strip_line(self.func_text[self.cursor])
@@ -94,7 +112,7 @@ class CommandsWalker:
                 if indent < first_indent:  # The end of subfunction reached
                     break
 
-                yield no_indent_line, indent
+                yield no_indent_line, indent, first_indent
                 self.cursor += 1
 
     def _walk_function(
@@ -107,13 +125,13 @@ class CommandsWalker:
         new_func_text = []
         modified = not is_root  # new file is considered to be modified
 
-        for no_indent_line, indent in self.walk_code_block(
+        for no_indent_line, indent, base_indent in self.walk_code_block(
                 zero_indent, is_root):
             if match := JUST_DEFINE.fullmatch(no_indent_line):
                 self.cursor += 1
                 yield from self._walk_function(
-                    get_subfunction_path(path, match[1]), zero_indent=indent,
-                    is_root=False)
+                    get_subfunction_path(path, match[1]),
+                    zero_indent=indent, is_root=False)
                 modified = True
             elif match := SUBFUNCTION.fullmatch(no_indent_line):
                 subfunction_name = f'{get_function_name(path)}/{match[2]}'
@@ -121,19 +139,116 @@ class CommandsWalker:
                 new_func_text.append(f"{prefix}function {subfunction_name}")
                 self.cursor += 1
                 yield from self._walk_function(
-                    get_subfunction_path(path, match[2]), zero_indent=indent,
-                    is_root=False)
+                    get_subfunction_path(path, match[2]),
+                    zero_indent=indent, is_root=False)
                 modified = True
-            # elif match := FUNCTION_TREE.fullmatch(no_indent_line):
-            #     m_name = match[1]
-            #     m_var = match[2]
-            #     m_min = int(match[3])
-            #     m_max = int(match[4])
-            #     m_step = match[5] if match[5] is None else int(match[5])
+            elif match := FUNCTION_TREE.fullmatch(no_indent_line):
+                m_name = match[1]
+                m_var = match[2]
+                m_min = int(match[3])
+                m_max = int(match[4])
+                m_step = 1 if match[5] is None else int(match[5])
+                self.cursor += 1
+                yield from self.create_function_tree(
+                    path, m_name, m_var, m_min, m_max, m_step, zero_indent,
+                    new_func_text)
+                modified = True
             else:  # comment, normal line or blank line
-                new_func_text.append(no_indent_line)
+                new_func_text.append(
+                    " "*(indent-base_indent) +  # Python goes "b"+"r"*10
+                    eval_line_of_code(no_indent_line, self.scope))
         if modified:
             yield McfuncitonFile(path, new_func_text)
+
+    def create_function_tree(
+            self, path: Path, name: str, variable: str, min_: int, max_: int,
+            step: int, zero_indent: int, parent_function_text: List[str]
+            ) -> Iterator[McfuncitonFile]:
+        '''
+        Yields the functions from function tree.
+        '''
+        def yield_splits(
+                list: List[T],
+                is_root=True) -> Iterator[Tuple[T, T, T, T, bool]]:
+            if len(list) <= 1:
+                return
+            split = len(list)//2
+            left, right = list[:split], list[split:]
+            yield list[0], left[-1], right[0], list[-1], is_root
+            yield from yield_splits(left, False)
+            yield from yield_splits(right, False)
+        body_list: List[str] = []
+        leaf_values: List[int] = [i for i in range(min_, max_, step)]
+
+        for no_indent_line, indent, base_indent in self.walk_code_block(
+                zero_indent, False):
+            body_list.append(" "*(indent-base_indent) + no_indent_line)
+        if len(body_list) == 0:
+            raise RuntimeError(
+                f'Missing body for function tree "{name}" of '
+                f'"{get_function_name(path)}" function')
+        for left_min, left_max, right_min, right_max, is_root in yield_splits(
+                leaf_values):
+            # Sorting items if of reverse iteration
+            left_min, left_max, right_min, right_max = sorted(
+                (left_min, left_max, right_min, right_max))
+            branch_path = get_subfunction_path(
+                path, f'{name}_{left_min}_{right_max}')
+            left_prefix = (
+                f'execute @s[scores={{{variable}={left_min}..{left_max}}}]'
+                ' ~ ~ ~ ')
+            right_prefix = (
+                f'execute @s[scores={{{variable}={right_min}..{right_max}}}]'
+                ' ~ ~ ~ ')
+            
+            # Left branch half
+            if left_min != left_max:  # go deeper into tree branches
+                left_branch_path = get_subfunction_path(
+                    path, f'{name}_{left_min}_{left_max}')
+                left_suffix = (
+                    f'function {get_function_name(left_branch_path)}')
+            elif len(body_list) == 1:  # Add leaf command
+                left_suffix = eval_line_of_code(
+                    body_list[0], {**self.scope, variable: left_min})
+            else:  # Add leaf function
+                left_branch_path = get_subfunction_path(
+                    path, f'{name}_{left_min}_{left_max}')
+                left_suffix = (
+                    f'function {get_function_name(left_branch_path)}')
+                yield from CommandsWalker(
+                    left_branch_path, body_list,
+                    {**self.scope, variable: left_min}
+                ).walk_function(False)
+
+            # Right branch half
+            if right_min != right_max:
+                right_branch_path = get_subfunction_path(
+                    path, f'{name}_{right_min}_{right_max}')
+                right_suffix = (
+                    f'function {get_function_name(right_branch_path)}')
+            elif len(body_list) == 1:  # Add leaf command
+                right_suffix = eval_line_of_code(
+                    body_list[0], {**self.scope, variable: right_min})
+            else:  # Add leaf function
+                right_branch_path = get_subfunction_path(
+                    path, f'{name}_{right_min}_{right_max}')
+                right_suffix = (
+                    f'function {get_function_name(right_branch_path)}')
+                yield from CommandsWalker(
+                    right_branch_path, body_list,
+                    {**self.scope, variable: right_min}
+                ).walk_function(False)
+
+
+            if is_root:
+                parent_function_text.append(f'{left_prefix}{left_suffix}')
+                parent_function_text.append(f'{right_prefix}{right_suffix}')
+            else:
+                body = [
+                    f'{left_prefix}{left_suffix}',
+                    f'{right_prefix}{right_suffix}']
+                yield McfuncitonFile(branch_path, body)
+
 
 if __name__ == '__main__':
     # glob pattern result changed to list to avoid going over newly created
