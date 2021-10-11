@@ -6,7 +6,7 @@ inside other function files.
 Copy this code to your list of the filters.
 ```
                     {
-                        "url": "github.com/Nusiq/regolith-filters/subfunctions",
+                        "url": "github.com/Nusiq/regolith-filters/subfunctions"
                     },
 ```
 
