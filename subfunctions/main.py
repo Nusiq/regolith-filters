@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple, NamedTuple, TypeVar
 import re
 from collections import deque
-from copy import copy
 from safe_eval import safe_eval
 
 FUNCTIONS_PATH = Path('BP/functions')
@@ -215,16 +214,18 @@ class CommandsWalker:
                 left_suffix = (
                     f'function {get_function_name(left_branch_path)}')
             elif len(body_list) == 1:  # Add leaf command
+                self.scope[variable] = left_min
                 left_suffix = eval_line_of_code(
-                    body_list[0], {**self.scope, variable: left_min})
+                    body_list[0], self.scope)
             else:  # Add leaf function
                 left_branch_path = get_subfunction_path(
                     path, f'{name}_{left_min}_{left_max}')
                 left_suffix = (
                     f'function {get_function_name(left_branch_path)}')
+                self.scope[variable] = left_min
                 yield from CommandsWalker(
                     left_branch_path, body_list,
-                    {**self.scope, variable: left_min}, is_root_file=False
+                    self.scope, is_root_file=False
                 ).walk_function()
 
             # Right branch half
@@ -234,16 +235,18 @@ class CommandsWalker:
                 right_suffix = (
                     f'function {get_function_name(right_branch_path)}')
             elif len(body_list) == 1:  # Add leaf command
+                self.scope[variable] = right_min
                 right_suffix = eval_line_of_code(
-                    body_list[0], {**self.scope, variable: right_min})
+                    body_list[0], self.scope)
             else:  # Add leaf function
                 right_branch_path = get_subfunction_path(
                     path, f'{name}_{right_min}_{right_max}')
                 right_suffix = (
                     f'function {get_function_name(right_branch_path)}')
+                self.scope[variable] = right_min
                 yield from CommandsWalker(
                     right_branch_path, body_list,
-                    {**self.scope, variable: right_min}, is_root_file=False
+                    self.scope, is_root_file=False
                 ).walk_function()
 
 
