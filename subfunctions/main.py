@@ -8,10 +8,11 @@ FUNCTIONS_PATH = Path('BP/functions')
 
 JUST_DEFINE = re.compile("definefunction <([a-zA-Z_0-9]+)>:")
 SUBFUNCTION = re.compile("(.* )?function <([a-zA-Z_0-9]+)>:")
-FUNCTION_TREE = re.compile("functiontree <([a-zA-Z_0-9]+)><([a-zA-Z_0-9]+) *([0-9]+)\.\.([0-9]+)(?: *([0-9]+))?>:")
+FUNCTION_TREE = re.compile("functiontree <([a-zA-Z_0-9]+)><([a-zA-Z_0-9]+) +([0-9]+)\.\.([0-9]+)(?: +([0-9]+))?>:")
+FOR = re.compile("for <([a-zA-Z_0-9]+) +([0-9]+)\.\.([0-9]+)(?: +([0-9]+))?>:")
 
 
-EVAL = re.compile("`eval:([a-zA-Z_0-9+\-/*+ ()]+)`")
+EVAL = re.compile("`eval: *([a-zA-Z_0-9+\-/*+ ()]+) *`")
 T = TypeVar("T")
 
 
@@ -21,10 +22,15 @@ class McfuncitonFile(NamedTuple):
 
     :param path: a path to the file
     :param body: a body of the function as a list of strings
+    :param is_root_block: whether this function is based on a root code block
+        of CommandWalker
+    :param is_modified: whether thif function was modified in relation to the
+        original block it was based on.
     '''
     path: Path
     body: List[str]
     is_root_block: bool=False
+    is_modified: bool=True
 
 def get_function_name(path: Path):
     '''
@@ -52,11 +58,13 @@ def strip_line(line) -> Tuple[str, int]:
     indent = len(line)-len(stripped_line)
     return stripped_line, indent
 
-def eval_line_of_code(line: str, scope: Dict[str, int]):
+def eval_line_of_code(line: str, scope: Dict[str, int]) -> Tuple[str, bool]:
+    modified = False
     while match := EVAL.search(line):
         l, r = match.span()
         line = line[:l] + str(safe_eval(match[1], scope)) + line[r:]
-    return line
+        modified = True
+    return line, modified
 
 class CommandsWalker:
     def __init__(
@@ -157,14 +165,55 @@ class CommandsWalker:
                     new_func_text)
                 self.cursor -= 1
                 modified = True
+            elif match := FOR.fullmatch(no_indent_line):
+                m_var = match[1]
+                m_min = int(match[2])
+                m_max = int(match[3])
+                m_step = 1 if match[4] is None else int(match[4])
+                self.cursor += 1
+                yield from self.create_for(
+                    path, m_var, m_min, m_max, m_step, zero_indent,
+                    new_func_text
+                )
+                self.cursor -= 1
             else:  # comment, normal line or blank line
+                eval_line, line_modified = eval_line_of_code(
+                    no_indent_line, self.scope)
+                modified = modified or line_modified
                 new_func_text.append(
                     " "*(indent-base_indent) +  # Python goes "b"+"r"*10
-                    eval_line_of_code(no_indent_line, self.scope))
-        if modified:
-            yield McfuncitonFile(
-                path, new_func_text,
-                is_root_block=is_root_block and self.is_root_file)
+                    eval_line)
+        yield McfuncitonFile(
+            path, new_func_text,
+            is_root_block=is_root_block and self.is_root_file,
+            is_modified=modified)
+
+    def create_for(
+            self, path: Path, variable: str, min_: int, max_: int,
+            step: int, zero_indent: int, parent_function_text: List[str]
+            ) -> Iterator[McfuncitonFile]:
+        '''
+        Yields the functions from function tree.
+        '''
+        block_text: List[str] = []
+        leaf_values: List[int] = [i for i in range(min_, max_, step)]
+
+        for no_indent_line, indent, base_indent in self.walk_code_block(
+                zero_indent, False):
+            block_text.append(" "*(indent-base_indent) + no_indent_line)
+        if len(block_text) == 0:
+            raise RuntimeError(
+                f'Missing body for for-block of '
+                f'"{get_function_name(path)}" function')
+        for i in range(min_, max_, step):
+            self.scope[variable] = i
+            for function in CommandsWalker(
+                    self.path, func_text=block_text,
+                    scope=self.scope).walk_function():
+                if function.is_root_block:  # Apped this to real root function
+                    parent_function_text.extend(function.body)
+                else:  # yield subfunction
+                    yield function
 
     def create_function_tree(
             self, path: Path, name: str, variable: str, min_: int, max_: int,
@@ -206,7 +255,7 @@ class CommandsWalker:
             right_prefix = (
                 f'execute @s[scores={{{variable}={right_min}..{right_max}}}]'
                 ' ~ ~ ~ ')
-            
+
             # Left branch half
             if left_min != left_max:  # go deeper into tree branches
                 left_branch_path = get_subfunction_path(
@@ -215,8 +264,7 @@ class CommandsWalker:
                     f'function {get_function_name(left_branch_path)}')
             elif len(body_list) == 1:  # Add leaf command
                 self.scope[variable] = left_min
-                left_suffix = eval_line_of_code(
-                    body_list[0], self.scope)
+                left_suffix, _ = eval_line_of_code(body_list[0], self.scope)
             else:  # Add leaf function
                 left_branch_path = get_subfunction_path(
                     path, f'{name}_{left_min}_{left_max}')
@@ -236,8 +284,7 @@ class CommandsWalker:
                     f'function {get_function_name(right_branch_path)}')
             elif len(body_list) == 1:  # Add leaf command
                 self.scope[variable] = right_min
-                right_suffix = eval_line_of_code(
-                    body_list[0], self.scope)
+                right_suffix, _ = eval_line_of_code(body_list[0], self.scope)
             else:  # Add leaf function
                 right_branch_path = get_subfunction_path(
                     path, f'{name}_{right_min}_{right_max}')
@@ -270,6 +317,8 @@ if __name__ == '__main__':
             func_text = f.readlines()
 
         for func_file in CommandsWalker(path, func_text).walk_function():
+            if not func_file.is_modified:
+                continue
             func_file.path.parent.mkdir(exist_ok=True, parents=True)
             with func_file.path.open('w') as f:
                 f.write("\n".join(func_file.body))
