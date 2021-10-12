@@ -161,13 +161,13 @@ for <[variable] [start]..[stop] [step]>:
 ```
 ### Example:
 Source:
-```
+```mcfunction
 for <i 0..25 5>:
     say hello `eval:i`*100=`eval:i*100`
 ```
 
 Compiled code (added to the same function):
-```
+```mcfunction
 say hello 0*100=0
 say hello 5*100=500
 say hello 10*100=1000
