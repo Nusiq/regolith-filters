@@ -8,8 +8,8 @@ FUNCTIONS_PATH = Path('BP/functions')
 
 JUST_DEFINE = re.compile("definefunction <([a-zA-Z_0-9]+)>:")
 SUBFUNCTION = re.compile("(.* )?function <([a-zA-Z_0-9]+)>:")
-FUNCTION_TREE = re.compile("functiontree <([a-zA-Z_0-9]+)><([a-zA-Z_0-9]+) +([0-9]+)\.\.([0-9]+)(?: +([0-9]+))?>:")
-FOR = re.compile("for <([a-zA-Z_0-9]+) +([0-9]+)\.\.([0-9]+)(?: +([0-9]+))?>:")
+FUNCTION_TREE = re.compile("functiontree <([a-zA-Z_0-9]+)><([a-zA-Z_0-9]+) +(-?[0-9]+)\.\.(-?[0-9]+)(?: +(-?[0-9]+))?>:")
+FOR = re.compile("for <([a-zA-Z_0-9]+) +(-?[0-9]+)\.\.(-?[0-9]+)(?: +(-?[0-9]+))?>:")
 
 
 EVAL = re.compile("`eval: *([a-zA-Z_0-9+\-/*+ ()]+) *`")
