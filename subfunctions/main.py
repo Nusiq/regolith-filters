@@ -180,6 +180,7 @@ class CommandsWalker:
                     path, m_var, m_min, m_max, m_step, zero_indent,
                     new_func_text
                 )
+                modified = True
                 self.cursor -= 1
             else:  # normal line
                 eval_line, line_modified = eval_line_of_code(
