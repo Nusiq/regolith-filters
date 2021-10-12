@@ -136,7 +136,12 @@ class CommandsWalker:
 
         for no_indent_line, indent, base_indent in self.walk_code_block(
                 zero_indent, is_root_block):
-            if match := JUST_DEFINE.fullmatch(no_indent_line):
+            # blank line or comment
+            if no_indent_line.startswith("#") or no_indent_line == "":
+                new_func_text.append(
+                    " "*(indent-base_indent) +  # Python goes "b"+"r"*10
+                    no_indent_line)
+            elif match := JUST_DEFINE.fullmatch(no_indent_line):
                 self.cursor += 1
                 yield from self._walk_function(
                     get_subfunction_path(path, match[1]),
@@ -176,7 +181,7 @@ class CommandsWalker:
                     new_func_text
                 )
                 self.cursor -= 1
-            else:  # comment, normal line or blank line
+            else:  # normal line
                 eval_line, line_modified = eval_line_of_code(
                     no_indent_line, self.scope)
                 modified = modified or line_modified
