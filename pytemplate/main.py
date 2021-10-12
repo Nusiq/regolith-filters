@@ -35,13 +35,14 @@ def access_json(data, path):
         return data
     return access_json(data[path[0]], path[1:])
 
-def replace_templates(data, scope) -> Tuple[Dict, bool]:
+def replace_templates(data, scope, trigger_phrases: List[str]) -> Tuple[Dict, bool]:
     # Gather points of iterests (things that will be replaced)
     points_of_interset = []
     for poi in walk_json(data):
         k = poi[-1]
-        if isinstance(k, str) and k.startswith(trigger_phrase):
-            points_of_interset.append(poi)
+        for trigger_phrase in trigger_phrases:
+            if isinstance(k, str) and k.startswith(trigger_phrase):
+                points_of_interset.append(poi)
     if len(points_of_interset) == 0:
         return data, False
     for poi in points_of_interset:
@@ -67,7 +68,7 @@ def replace_templates(data, scope) -> Tuple[Dict, bool]:
                 eval(template, curr_scope), data,  merge.ListMergePolicy.APPEND)
             # Support recursive templates
             data, _ = replace_templates(
-                data, curr_scope)
+                data, curr_scope, trigger_phrases)
             continue
         # Templating offspring
         parent = access_json(data, poi[:-2])
@@ -83,12 +84,12 @@ def replace_templates(data, scope) -> Tuple[Dict, bool]:
             eval(template, curr_scope), parent[poi[-2]],  merge.ListMergePolicy.APPEND)
         # Support ecursive templates
         parent[poi[-2]], _ = replace_templates(
-            parent[poi[-2]], curr_scope)
+            parent[poi[-2]], curr_scope, trigger_phrases)
     return data, True
 
 def main(
         bp_patterns: List[str], rp_patterns: List[str], templates_path: str,
-        trigger_phrase: str, sort_keys: bool, compact: bool, scope: Dict):
+        trigger_phrases: List[str], sort_keys: bool, compact: bool, scope: Dict):
     '''
     Main function of the project. Adds filters to behavior- and resource-pack
     files. Read README for mor information.
@@ -119,7 +120,7 @@ def main(
             continue
 
         try:
-            data, modified = replace_templates(data, scope)
+            data, modified = replace_templates(data, scope, trigger_phrases)
         except Exception as e:
             raise RuntimeError(f"File: {fp.as_posix()}: {str(e)}") from e
         if not modified:
@@ -146,13 +147,13 @@ if __name__ == '__main__':
         rp_patterns = ['**/*.json']
 
     # File path to the templates folder
-    templates_path = config['templates_path']
+    templates_path = 'pytemplate'
 
     # Trigger phrase
-    if 'trigger_phrase' in config:
-        trigger_phrase = config['trigger_phrase']
+    if 'trigger_phrases' in config:
+        trigger_phrases = config['trigger_phrases']
     else:
-        trigger_phrase = "TEMPLATE"
+        trigger_phrases = ["TEMPLATE"]
     if 'sort_keys' in config:
         sort_keys = config['sort_keys']
     else:
@@ -166,4 +167,4 @@ if __name__ == '__main__':
     scope = {}
     if 'scope' in config:
         scope = scope | config['scope']
-    main(bp_patterns, rp_patterns, templates_path, trigger_phrase, sort_keys, compact, scope)
+    main(bp_patterns, rp_patterns, templates_path, trigger_phrases, sort_keys, compact, scope)

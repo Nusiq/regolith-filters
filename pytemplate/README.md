@@ -8,10 +8,11 @@ The template files are files with Python expression that evaluates to a value
 which can be encoded in JSON.
 
 # Configuration settings
-- `templates_path: str` - a path to a directory with template files (relative to data folder in regolith working directory)
 - `bp_patterns: str` - optional glob patterns for matching JSON files in behavior pack (`**/*.json` by default)
 - `rp_patterns: List[str]` - optional glob patterns for matching JSON files in resource pack (`**/*.json` by default)
-- `trigger_phrase: str` - optional string used to trigger the template replacement. The default value is "TEMPLATE".
+- `trigger_phrases: List[str]` - optional list of strings used to trigger the template replacement. The default value is `["TEMPLATE"]`.
+  defining multiple trigger phrases can be useful when you want to use the same template multiple times in the same place with different
+  parameters. 
 - `sort_keys: bool` - optional value which decides whether the keys of the modified JSON file should be sorted. True by default.
 - `compact: bool` - optional value which decides whether the modified JSON should be compact (with white spaces removed). False by default.
 - `scope` - a scope of variables provided for the template during the evaluation. This property is merged with the scope provided directly in the modified JSON file and with the default value: `{'true': True, 'false': False, 'math': math, 'uuid': uuid}` where math and uuid are standard python modules.
@@ -31,14 +32,12 @@ which can be encoded in JSON.
 
 Filter config in config.json of Regolith project:
 ```
-...
                     {
                         "url": "github.com/Nusiq/regolith-filters/pytemplate",
                         "settings": {
-                            "templates_path": "nusiq-pytemplates"
+                            "trigger_phrases": ["TEMPLATE", "TEMPLATE_1"]
                         }
                     },
-...
 ```
 
 A fragment of a behavior of an entity that matched provided BP glob pattern
