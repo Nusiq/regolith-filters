@@ -13,10 +13,11 @@ SUBFUNCTION = re.compile("(.* )?function <([a-zA-Z_0-9]+)>:")
 FUNCTION_TREE = re.compile("functiontree <([a-zA-Z_0-9]+)><([a-zA-Z_0-9]+) +(-?[0-9]+)\.\.(-?[0-9]+)(?: +(-?[0-9]+))?>:")
 FOR = re.compile("for <([a-zA-Z_0-9]+) +(-?[0-9]+)\.\.(-?[0-9]+)(?: +(-?[0-9]+))?>:")
 
-
-EXPRESSION_PATTERN = '[\'\\[\\]"%!=a-zA-Z_0-9+\\-/*+ ()]+'
+EXPRESSION_PATTERN = '[\'\\[\\]"%><!=a-zA-Z_0-9+\\-/*+ ()]+'
 IF = re.compile(f"if <({EXPRESSION_PATTERN})>:")
+FOREACH = re.compile(f"foreach <([a-zA-Z_0-9]+) +([a-zA-Z_0-9]+) +({EXPRESSION_PATTERN})>:")
 EVAL = re.compile(f"`eval: *({EXPRESSION_PATTERN}) *`")
+
 T = TypeVar("T")
 
 
@@ -182,8 +183,16 @@ class CommandsWalker:
                 self.cursor += 1
                 yield from self.create_for(
                     path, m_var, m_min, m_max, m_step, zero_indent,
-                    new_func_text
-                )
+                    new_func_text)
+                modified = True
+                self.cursor -= 1
+            elif match := FOREACH.fullmatch(no_indent_line):
+                m_index = match[1]
+                m_var = match[2]
+                m_itrerable = match[3]
+                self.cursor += 1
+                yield from self.create_foreach(
+                    path, m_index, m_var, m_itrerable, zero_indent, new_func_text)
                 modified = True
                 self.cursor -= 1
             elif match := IF.fullmatch(no_indent_line):
@@ -224,6 +233,33 @@ class CommandsWalker:
                 f'"{get_function_name(path)}" function')
         for i in range(min_, max_, step):
             self.scope[variable] = i
+            for function in CommandsWalker(
+                    self.path, func_text=block_text,
+                    scope=self.scope).walk_function():
+                if function.is_root_block:  # Apped this to real root function
+                    parent_function_text.extend(function.body)
+                else:  # yield subfunction
+                    yield function
+
+    def create_foreach(
+            self, path: Path, index: str, variable: str, iterable: str,
+            zero_indent: int, parent_function_text: List[str]
+            ) -> Iterator[McfuncitonFile]:
+        '''
+        Yields the functions from for loop.
+        '''
+        block_text: List[str] = []
+
+        for no_indent_line, indent, base_indent in self.walk_code_block(
+                zero_indent, False):
+            block_text.append(" "*(indent-base_indent) + no_indent_line)
+        if len(block_text) == 0:
+            raise RuntimeError(
+                f'Missing body for for-block of '
+                f'"{get_function_name(path)}" function')
+        for i, item in enumerate(safe_eval(iterable, self.scope)):
+            self.scope[variable] = item
+            self.scope[index] = i
             for function in CommandsWalker(
                     self.path, func_text=block_text,
                     scope=self.scope).walk_function():
