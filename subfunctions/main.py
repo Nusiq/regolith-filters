@@ -8,15 +8,19 @@ from safe_eval import safe_eval
 
 FUNCTIONS_PATH = Path('BP/functions')
 
-JUST_DEFINE = re.compile("definefunction <([a-zA-Z_0-9]+)>:")
-SUBFUNCTION = re.compile("(.* )?function <([a-zA-Z_0-9]+)>:")
-FUNCTION_TREE = re.compile("functiontree <([a-zA-Z_0-9]+)><([a-zA-Z_0-9]+) +(-?[0-9]+)\.\.(-?[0-9]+)(?: +(-?[0-9]+))?>:")
-FOR = re.compile("for <([a-zA-Z_0-9]+) +(-?[0-9]+)\.\.(-?[0-9]+)(?: +(-?[0-9]+))?>:")
+NAME_P = "[a-zA-Z_0-9]+"
+INT_P = "-?[0-9]+"
+EXPR_P = '[\'\\[\\]"%><!=a-zA-Z_0-9+\\-/*+ ()]+'
+JUST_DEFINE = re.compile(f"definefunction <({NAME_P})>:")
+SUBFUNCTION = re.compile(f"(.* )?function <({NAME_P})>:")
+FUNCTION_TREE = re.compile(
+    f"functiontree <({NAME_P})><({NAME_P}) +({INT_P})\.\.({INT_P})(?: +({INT_P}))?>:")
+FOR = re.compile(f"for <({NAME_P}) +({INT_P})\.\.({INT_P})(?: +({INT_P}))?>:")
 
-EXPRESSION_PATTERN = '[\'\\[\\]"%><!=a-zA-Z_0-9+\\-/*+ ()]+'
-IF = re.compile(f"if <({EXPRESSION_PATTERN})>:")
-FOREACH = re.compile(f"foreach <([a-zA-Z_0-9]+) +([a-zA-Z_0-9]+) +({EXPRESSION_PATTERN})>:")
-EVAL = re.compile(f"`eval: *({EXPRESSION_PATTERN}) *`")
+VAR = re.compile(f"var +({NAME_P}) *= *({EXPR_P})")
+IF = re.compile(f"if <({EXPR_P})>:")
+FOREACH = re.compile(f"foreach <({NAME_P}) +({NAME_P}) +({EXPR_P})>:")
+EVAL = re.compile(f"`eval: *({EXPR_P}) *`")
 
 T = TypeVar("T")
 
@@ -84,7 +88,6 @@ class CommandsWalker:
         self.func_text = func_text
         self.scope = {} if scope is None else scope
         self.is_root_file = is_root_file
-
 
     def walk_function(self) -> Iterator[McfuncitonFile]:
         '''
@@ -203,6 +206,11 @@ class CommandsWalker:
                     new_func_text)
                 modified = True
                 self.cursor -= 1
+            elif match := VAR.fullmatch(no_indent_line):
+                m_name = match[1]
+                m_expr = match[2]
+                self.scope[m_name] = safe_eval(m_expr, self.scope)
+                modified = True
             else:  # normal line
                 eval_line, line_modified = eval_line_of_code(
                     no_indent_line, self.scope)
