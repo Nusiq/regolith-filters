@@ -175,6 +175,17 @@ say hello 15*100=1500
 say hello 20*100=2000
 ```
 
+## `if` - generating code based on condition
+### Syntax
+```
+if <[condition]>:
+    [body]
+- variable - the expressin with a condition which decides whether the body
+  of the if block should be included in the function.
+- body - multiline body of the if block. The body ends
+  with the line that doesn't have enough indentation (like in Python
+  programming language)
+```
 ## `eval` - static code generation based on simple expressions
 ### Syntax
 ```

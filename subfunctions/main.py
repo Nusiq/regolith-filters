@@ -12,7 +12,9 @@ FUNCTION_TREE = re.compile("functiontree <([a-zA-Z_0-9]+)><([a-zA-Z_0-9]+) +(-?[
 FOR = re.compile("for <([a-zA-Z_0-9]+) +(-?[0-9]+)\.\.(-?[0-9]+)(?: +(-?[0-9]+))?>:")
 
 
-EVAL = re.compile("`eval: *([a-zA-Z_0-9+\-/*+ ()]+) *`")
+EXPRESSION_PATTERN = r'["%!=a-zA-Z_0-9+\-/*+ ()]+'
+IF = re.compile(f"if <({EXPRESSION_PATTERN})>:")
+EVAL = re.compile(f"`eval: *({EXPRESSION_PATTERN}) *`")
 T = TypeVar("T")
 
 
@@ -182,6 +184,14 @@ class CommandsWalker:
                 )
                 modified = True
                 self.cursor -= 1
+            elif match := IF.fullmatch(no_indent_line):
+                m_condition = match[1]
+                self.cursor += 1
+                yield from self.create_if(
+                    path, m_condition, zero_indent,
+                    new_func_text)
+                modified = True
+                self.cursor -= 1
             else:  # normal line
                 eval_line, line_modified = eval_line_of_code(
                     no_indent_line, self.scope)
@@ -199,10 +209,9 @@ class CommandsWalker:
             step: int, zero_indent: int, parent_function_text: List[str]
             ) -> Iterator[McfuncitonFile]:
         '''
-        Yields the functions from function tree.
+        Yields the functions from for loop.
         '''
         block_text: List[str] = []
-        leaf_values: List[int] = [i for i in range(min_, max_, step)]
 
         for no_indent_line, indent, base_indent in self.walk_code_block(
                 zero_indent, False):
@@ -213,6 +222,30 @@ class CommandsWalker:
                 f'"{get_function_name(path)}" function')
         for i in range(min_, max_, step):
             self.scope[variable] = i
+            for function in CommandsWalker(
+                    self.path, func_text=block_text,
+                    scope=self.scope).walk_function():
+                if function.is_root_block:  # Apped this to real root function
+                    parent_function_text.extend(function.body)
+                else:  # yield subfunction
+                    yield function
+
+    def create_if(
+            self, path: Path, condition: str, zero_indent: int,
+            parent_function_text: List[str]) -> Iterator[McfuncitonFile]:
+        '''
+        Yields the functions from the if block if its condition is true.
+        '''
+        eval_condition = bool(safe_eval(condition, self.scope))
+        block_text: List[str] = []
+        for no_indent_line, indent, base_indent in self.walk_code_block(
+                zero_indent, False):
+            block_text.append(" "*(indent-base_indent) + no_indent_line)
+        if len(block_text) == 0:
+            raise RuntimeError(
+                f'Missing body for if-block of '
+                f'"{get_function_name(path)}" function')
+        if eval_condition:
             for function in CommandsWalker(
                     self.path, func_text=block_text,
                     scope=self.scope).walk_function():
