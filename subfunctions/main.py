@@ -14,7 +14,7 @@ FUNCTION_TREE = re.compile("functiontree <([a-zA-Z_0-9]+)><([a-zA-Z_0-9]+) +(-?[
 FOR = re.compile("for <([a-zA-Z_0-9]+) +(-?[0-9]+)\.\.(-?[0-9]+)(?: +(-?[0-9]+))?>:")
 
 
-EXPRESSION_PATTERN = r'["%!=a-zA-Z_0-9+\-/*+ ()]+'
+EXPRESSION_PATTERN = '[\'\\[\\]"%!=a-zA-Z_0-9+\\-/*+ ()]+'
 IF = re.compile(f"if <({EXPRESSION_PATTERN})>:")
 EVAL = re.compile(f"`eval: *({EXPRESSION_PATTERN}) *`")
 T = TypeVar("T")

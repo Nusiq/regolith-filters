@@ -41,6 +41,7 @@ operators = {
     # class ast.Or
 
     # IfExp (hardcoded)
+    # Subscript (hardcoded)
 }
 
 def safe_eval(expr, scope: Dict[str, int]):
@@ -49,14 +50,14 @@ def safe_eval(expr, scope: Dict[str, int]):
 def _eval(node, scope: Dict[str, int]):
     if isinstance(node, ast.Constant):
         return node.value
-    elif isinstance(node, ast.Name):
+    if isinstance(node, ast.Name):
         try:
             return scope[node.id]
         except KeyError:
             raise NameError(f"Unknown variable '{node.id}'")
-    elif isinstance(node, ast.BinOp):
+    if isinstance(node, ast.BinOp):
         return operators[type(node.op)](_eval(node.left, scope), _eval(node.right, scope))
-    elif isinstance(node, ast.Compare):
+    if isinstance(node, ast.Compare):
         curr_val = _eval(node.left, scope)
         for i in range(len(node.ops)):
             next_val = _eval(node.comparators[i], scope)
@@ -65,22 +66,23 @@ def _eval(node, scope: Dict[str, int]):
                 return False
             curr_val = next_val
         return True
-    elif isinstance(node, ast.IfExp):
+    if isinstance(node, ast.IfExp):
         if _eval(node.test, scope):
             return _eval(node.body, scope)
         else:  # TODO - other values should be checked to see if they're in scope (but not evaluated)
             return _eval(node.orelse, scope)
-    elif isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
+    if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
         for val in node.values:
             eval_val = _eval(val, scope)
             if eval_val:  # TODO - other values should be checked to see if they're in scope (but not evaluated)
                 return eval_val
-    elif isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
+    if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
         for val in node.values:
             eval_val = _eval(val, scope)
             if not eval_val:  # TODO - other values should be checked to see if they're in scope (but not evaluated)
                 return eval_val
-    elif isinstance(node, ast.UnaryOp): # <operator> <operand> e.g., -1
+    if isinstance(node, ast.Subscript):
+        return _eval(node.value, scope)[_eval(node.slice, scope)]
+    if isinstance(node, ast.UnaryOp): # <operator> <operand> e.g., -1
         return operators[type(node.op)](_eval(node.operand, scope))
-    else:
-        raise TypeError(node)
+    raise TypeError(node)
