@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple, NamedTuple, TypeVar
 import re
+import json
+import sys
 from collections import deque
 from safe_eval import safe_eval
 
@@ -347,6 +349,14 @@ class CommandsWalker:
 
 
 if __name__ == '__main__':
+    config = json.loads(sys.argv[1])
+    # Add scope
+    scope = {'true': True, 'false': False}
+    if 'scope_path' not in config:
+        config['scope_path'] = 'pytemplate/scope.json'
+    with (Path('data') / config['scope_path']).open('r') as f:
+        scope = scope | json.load(f)
+
     # glob pattern result changed to list to avoid going over newly created
     # files
     for path in list(FUNCTIONS_PATH.glob("**/*.mcfunction")):
@@ -355,7 +365,8 @@ if __name__ == '__main__':
         with path.open('r') as f:
             func_text = f.readlines()
 
-        for func_file in CommandsWalker(path, func_text).walk_function():
+        for func_file in CommandsWalker(
+                path, func_text, scope=scope).walk_function():
             if not func_file.is_modified:
                 continue
             func_file.path.parent.mkdir(exist_ok=True, parents=True)

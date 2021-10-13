@@ -9,6 +9,11 @@ Copy this code to your list of the filters.
                         "url": "github.com/Nusiq/regolith-filters/subfunctions"
                     },
 ```
+# Configuration settings
+- `scope_path: str` - a path to JSON file that diefines the scope of
+  variables provided to the template during its evaluation. The default value
+  of this property is `subfunctions/scope.json`. The path is relative to
+  data folder in working directory of regolith.
 
 # Features
 

@@ -94,9 +94,6 @@ def main(
     Main function of the project. Adds filters to behavior- and resource-pack
     files. Read README for mor information.
     '''
-    default_scope = {'true': True, 'false': False, 'math': math, 'uuid': uuid}
-    scope = scope | default_scope
-
     # Resolve glob patterns
     bp_paths = []
     for i in bp_patterns:
@@ -164,7 +161,10 @@ if __name__ == '__main__':
         compact = False
 
     # Add scope
-    scope = {}
-    if 'scope' in config:
-        scope = scope | config['scope']
+    scope = {'true': True, 'false': False, 'math': math, 'uuid': uuid}
+    if 'scope_path' not in config:
+        config['scope_path'] = 'pytemplate/scope.json'
+    with (Path('data') / config['scope_path']).open('r') as f:
+        scope = scope | json.load(f)
+
     main(bp_patterns, rp_patterns, templates_path, trigger_phrases, sort_keys, compact, scope)
