@@ -164,7 +164,7 @@ for <[variable] [start]..[stop] [step]>:
   with the line that doesn't have enough indentation (like in Python
   programming language)
 ```
-### Example:
+### Example
 Source:
 ```mcfunction
 for <i 0..25 5>:
@@ -180,17 +180,56 @@ say hello 15*100=1500
 say hello 20*100=2000
 ```
 
+## `foreach` - generating code from collections
+### Syntax
+```
+for <[index] [variable] [expression]>:
+    [body]
+- variable - the variable used in the for loop added to the scope for `eval`
+- index - a name of variable used to keep track of the item index in collection
+  (starting from index 0). The value is added to scope and accessible in `eval`
+- body - multiline body of the for block. The body ends
+  with the line that doesn't have enough indentation (like in Python
+  programming language)
+```
+### Example
+Source:
+```mcfunction
+foreach <i animal ["cat", "dog", "parrot"]>:
+    say `eval:i` `eval:animal`
+```
+
+Compiled code (added to the same function):
+```mcfunction
+say 0 cat
+say 1 dog
+say 2 parrot
+```
+
 ## `if` - generating code based on condition
 ### Syntax
 ```
-if <[condition]>:
+if <[expression]>:
     [body]
-- variable - the expressin with a condition which decides whether the body
+- expression - the expressin with a condition which decides whether the body
   of the if block should be included in the function.
 - body - multiline body of the if block. The body ends
   with the line that doesn't have enough indentation (like in Python
   programming language)
 ```
+## `var` - defining variables for later use in the same function
+### Syntax
+```
+var [identifier] = [expression]
+- identifier - the name of the variable
+- expression - expression whose value is assigned to the variable
+```
+### Example
+```
+var pi = 3.14
+```
+
+
 ## `eval` - static code generation based on simple expressions
 ### Syntax
 ```
