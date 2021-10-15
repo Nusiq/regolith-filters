@@ -44,6 +44,12 @@ operators = {
     # Subscript (hardcoded)
 }
 
+simple_collections = {
+    ast.List: list,
+    ast.Tuple: tuple,
+    ast.Set: set
+}
+
 scope_funcs = {
     "abs": abs, # Returns the absolute value of a number
     "all": all, # Returns True if all items in an iterable object are true
@@ -114,4 +120,11 @@ def _eval(node, scope: Dict[str, int]):
         return _eval(node.value, scope)[_eval(node.slice, scope)]
     if isinstance(node, ast.UnaryOp): # <operator> <operand> e.g., -1
         return operators[type(node.op)](_eval(node.operand, scope))
+    if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+        return simple_collections[type(node)](_eval(i, scope) for i in node.elts)
+    if isinstance(node, ast.Dict):
+        return {
+            _eval(k, scope): _eval(v, scope)
+            for k, v in zip(node.keys, node.values)
+        }
     raise TypeError(node)

@@ -3,14 +3,14 @@ from typing import Dict, Iterator, List, Optional, Tuple, NamedTuple, TypeVar
 import re
 import json
 import sys
-from collections import deque
+from copy import deepcopy
 from safe_eval import safe_eval
 
 FUNCTIONS_PATH = Path('BP/functions')
 
 NAME_P = "[a-zA-Z_0-9]+"
 INT_P = "-?[0-9]+"
-EXPR_P = '[\'\\[\\]"%><!=a-zA-Z_0-9+\\-/*+ ()]+'
+EXPR_P = '[\'\\[\\]"%><,\\.!=a-zA-Z_0-9+\\-/*+ ()]+'
 JUST_DEFINE = re.compile(f"definefunction <({NAME_P})>:")
 SUBFUNCTION = re.compile(f"(.* )?function <({NAME_P})>:")
 FUNCTION_TREE = re.compile(
@@ -86,8 +86,18 @@ class CommandsWalker:
         self.cursor = 0
         self.path = path
         self.func_text = func_text
-        self.scope = {} if scope is None else scope
+        self._scope = {} if scope is None else scope
+        self._scope_copied = False
         self.is_root_file = is_root_file
+
+    @property
+    def scope(self):  # First use of scope triggers deepcopy; no reassignment
+        if not self._scope_copied:
+            # copy makes sure that the variables from different mcfunction
+            # files won't leak to each other
+            self._scope = deepcopy(self._scope)
+            self._scope_copied = True
+        return self._scope
 
     def walk_function(self) -> Iterator[McfuncitonFile]:
         '''
@@ -144,12 +154,19 @@ class CommandsWalker:
 
         for no_indent_line, indent, base_indent in self.walk_code_block(
                 zero_indent, is_root_block):
+                
             # blank line or comment
             if no_indent_line.startswith("#") or no_indent_line == "":
                 new_func_text.append(
                     " "*(indent-base_indent) +  # Python goes "b"+"r"*10
                     no_indent_line)
-            elif match := JUST_DEFINE.fullmatch(no_indent_line):
+                continue
+            # Evaluate eval expressions in this line
+            no_indent_line, line_modified = eval_line_of_code(
+                no_indent_line, self.scope)
+            modified = modified or line_modified
+
+            if match := JUST_DEFINE.fullmatch(no_indent_line):
                 self.cursor += 1
                 yield from self._walk_function(
                     get_subfunction_path(path, match[1]),
@@ -212,12 +229,9 @@ class CommandsWalker:
                 self.scope[m_name] = safe_eval(m_expr, self.scope)
                 modified = True
             else:  # normal line
-                eval_line, line_modified = eval_line_of_code(
-                    no_indent_line, self.scope)
-                modified = modified or line_modified
                 new_func_text.append(
                     " "*(indent-base_indent) +  # Python goes "b"+"r"*10
-                    eval_line)
+                    no_indent_line)
         yield McfuncitonFile(
             path, new_func_text,
             is_root_block=is_root_block and self.is_root_file,
