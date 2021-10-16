@@ -5,6 +5,7 @@ import json
 import sys
 from copy import deepcopy
 from safe_eval import safe_eval
+from enum import Enum, auto
 
 FUNCTIONS_PATH = Path('BP/functions')
 
@@ -16,7 +17,8 @@ SUBFUNCTION = re.compile(f"(.* )?function <({NAME_P})>:")
 FUNCTION_TREE = re.compile(
     f"functiontree <({NAME_P})><({NAME_P}) +({INT_P})\.\.({INT_P})(?: +({INT_P}))?>:")
 FOR = re.compile(f"for <({NAME_P}) +({INT_P})\.\.({INT_P})(?: +({INT_P}))?>:")
-
+UNPACK_HERE = re.compile("UNPACK:HERE")
+UNPACK_SUBFUNCTION = re.compile("UNPACK:SUBFUNCTION")
 VAR = re.compile(f"var +({NAME_P}) *= *({EXPR_P})")
 IF = re.compile(f"if <({EXPR_P})>:")
 FOREACH = re.compile(f"foreach <({NAME_P}) +({NAME_P}) +({EXPR_P})>:")
@@ -24,6 +26,10 @@ EVAL = re.compile(f"`eval: *({EXPR_P}) *`")
 
 T = TypeVar("T")
 
+class UnpackMode(Enum):
+    NONE = auto()
+    SUBFUNCTION = auto()
+    HERE = auto()
 
 class McfuncitonFile(NamedTuple):
     '''
@@ -32,14 +38,16 @@ class McfuncitonFile(NamedTuple):
     :param path: a path to the file
     :param body: a body of the function as a list of strings
     :param is_root_block: whether this function is based on a root code block
-        of CommandWalker
+        of root CommandWalker
     :param is_modified: whether thif function was modified in relation to the
         original block it was based on.
+    :param delete_file: if true, the file should be deleted
     '''
     path: Path
     body: List[str]
     is_root_block: bool=False
     is_modified: bool=True
+    delete_file: bool=False
 
 def get_function_name(path: Path):
     '''
@@ -68,27 +76,49 @@ def strip_line(line) -> Tuple[str, int]:
     return stripped_line, indent
 
 def eval_line_of_code(line: str, scope: Dict[str, int]) -> Tuple[str, bool]:
-    modified = False
-    while match := EVAL.search(line):
-        l, r = match.span()
-        line = line[:l] + str(safe_eval(match[1], scope)) + line[r:]
-        modified = True
-    return line, modified
+    cursor = 0
+    replace = []
+    while cursor < len(line) and (match := EVAL.search(line[cursor:])):
+        start, end = cursor+match.start(), cursor+match.end()
+        replace.append((start, end, str(safe_eval(match[1], scope)))) 
+        cursor = end
+    if len(replace) > 0:
+        result_list = []
+        prev_end = 0
+        for r in replace:
+            result_list.append(line[prev_end:r[0]])  # prefix
+            result_list.append(r[2])  # value
+            prev_end = r[1]
+        # Last item (python's variable scope is weeeird :O, but awesome)
+        result_list.append(line[r[1]:])  # sufix
+        return "".join(result_list), True
+    return line, False
 
 class CommandsWalker:
     def __init__(
-            self, path: Path, func_text: List[str],
-            scope: Optional[Dict[str,int]]=None, is_root_file=True):
+            self, path: Path, source_func_text: List[str],
+            scope: Optional[Dict[str,int]]=None, is_root=True,
+            cursor_offset=0, root_path: Optional[Path]=None):
         '''
-        :param path: path to the root file.
-        :param func_text: the list with lines of code from the root file.
+        :param path: path of the output file
+        :param source_func_text: the list with lines of code from the root file.
+        :param scope: the scope that provides variables that can be used by
+            in evaluated parts of code
+        :is_root: whether this CommandWalker walks through the root code block
+            of a source mcfunction file (not subfunction)
+        :cursor_offset: the offset  of the cursor for nested CommandWalkers
+            used in combination wiht 'cursor' to tell which line is
+            being proccessed at given moment
+        :root_path: a pth of the source file used for printing errors
         '''
         self.cursor = 0
+        self.cursor_offset=cursor_offset
         self.path = path
-        self.func_text = func_text
+        self.root_path = path if root_path is None else root_path 
+        self.source_func_text = source_func_text
         self._scope = {} if scope is None else scope
         self._scope_copied = False
-        self.is_root_file = is_root_file
+        self.is_root = is_root
 
     @property
     def scope(self):  # First use of scope triggers deepcopy; no reassignment
@@ -105,7 +135,6 @@ class CommandsWalker:
         syntax. Yields new files to create.
 
         :param path: path to the root file.
-        :param func_text: the list with lines of code from the root file.
         '''
         yield from self._walk_function(self.path)
 
@@ -124,18 +153,19 @@ class CommandsWalker:
         '''
         first_indent = None
         if is_root_block:
-            while self.cursor < len(self.func_text):
-                line, indent = strip_line(self.func_text[self.cursor])
+            while self.cursor < len(self.source_func_text):
+                line, indent = strip_line(self.source_func_text[self.cursor])
                 yield line, indent, 0
                 self.cursor += 1
         else:
-            _, first_indent = strip_line(self.func_text[self.cursor])
+            _, first_indent = strip_line(self.source_func_text[self.cursor])
             # empty subfunction
             if first_indent <= zero_indent:
                 return
             # not empty subfunction
-            while self.cursor < len(self.func_text):
-                no_indent_line, indent = strip_line(self.func_text[self.cursor])
+            while self.cursor < len(self.source_func_text):
+                no_indent_line, indent = strip_line(
+                    self.source_func_text[self.cursor])
                 if indent < first_indent:  # The end of subfunction reached
                     break
 
@@ -152,6 +182,7 @@ class CommandsWalker:
         new_func_text = []
         modified = not is_root_block  # new file is considered to be modified
 
+        unpack_mode = UnpackMode.NONE
         for no_indent_line, indent, base_indent in self.walk_code_block(
                 zero_indent, is_root_block):
                 
@@ -174,6 +205,10 @@ class CommandsWalker:
                 self.cursor -= 1
                 modified = True
             elif match := SUBFUNCTION.fullmatch(no_indent_line):
+                if unpack_mode in (UnpackMode.SUBFUNCTION, UnpackMode.HERE):
+                    raise RuntimeError(
+                        "Using 'function' keyword is not allowed in "
+                        "functions using UNPACK:HERE or UNPACK:SUBFUNCTION!")
                 subfunction_name = f'{get_function_name(path)}/{match[2]}'
                 prefix = "" if match[1] is None else match[1]
                 new_func_text.append(f"{prefix}function {subfunction_name}")
@@ -184,6 +219,10 @@ class CommandsWalker:
                 self.cursor -= 1
                 modified = True
             elif match := FUNCTION_TREE.fullmatch(no_indent_line):
+                if unpack_mode in (UnpackMode.SUBFUNCTION, UnpackMode.HERE):
+                    raise RuntimeError(
+                        "Using 'functiontree' keyword is not allowed in "
+                        "functions using UNPACK:HERE or UNPACK:SUBFUNCTION!")
                 m_name = match[1]
                 m_var = match[2]
                 m_min = int(match[3])
@@ -228,14 +267,36 @@ class CommandsWalker:
                 m_expr = match[2]
                 self.scope[m_name] = safe_eval(m_expr, self.scope)
                 modified = True
+            elif match := UNPACK_HERE.fullmatch(no_indent_line):
+                if not (self.cursor + self.cursor_offset == 0):  # first line?
+                    raise RuntimeError(
+                        "'UNPACK:HERE' can be used only in the "
+                        "first line of code of a function!")
+                # Replace the path with a path of a fake file to change the
+                # target directory of the defined functions
+                self.path = self.path.parent.with_suffix(".mcfunction")
+                unpack_mode = UnpackMode.HERE
+            elif match := UNPACK_SUBFUNCTION.fullmatch(no_indent_line):
+                if not (self.cursor + self.cursor_offset == 0):  # first line?
+                    raise RuntimeError(
+                        "'UNPACK:SUBFUNCTION' can be used only in the "
+                        "first line of code of a function!")
+                unpack_mode = UnpackMode.SUBFUNCTION
             else:  # normal line
+                if unpack_mode in (UnpackMode.SUBFUNCTION, UnpackMode.HERE):
+                    raise RuntimeError(
+                        "Every command must be closed inside 'definefunction'"
+                        " block when using UNPACK:HERE or UNPACK:SUBFUNCTION!")
                 new_func_text.append(
                     " "*(indent-base_indent) +  # Python goes "b"+"r"*10
                     no_indent_line)
+        delete_file = (
+            self.is_root and
+            unpack_mode in (UnpackMode.SUBFUNCTION, UnpackMode.HERE))
         yield McfuncitonFile(
             path, new_func_text,
-            is_root_block=is_root_block and self.is_root_file,
-            is_modified=modified)
+            is_root_block=is_root_block and self.is_root,
+            is_modified=modified, delete_file=delete_file)
 
     def create_for(
             self, path: Path, variable: str, min_: int, max_: int,
@@ -245,7 +306,7 @@ class CommandsWalker:
         Yields the functions from for loop.
         '''
         block_text: List[str] = []
-
+        cursor_offset = self.cursor
         for no_indent_line, indent, base_indent in self.walk_code_block(
                 zero_indent, False):
             block_text.append(" "*(indent-base_indent) + no_indent_line)
@@ -256,8 +317,9 @@ class CommandsWalker:
         for i in range(min_, max_, step):
             self.scope[variable] = i
             for function in CommandsWalker(
-                    self.path, func_text=block_text,
-                    scope=self.scope).walk_function():
+                    self.path, source_func_text=block_text,
+                    scope=self.scope, cursor_offset=cursor_offset,
+                    root_path=self.root_path).walk_function():
                 if function.is_root_block:  # Apped this to real root function
                     parent_function_text.extend(function.body)
                 else:  # yield subfunction
@@ -271,7 +333,7 @@ class CommandsWalker:
         Yields the functions from for loop.
         '''
         block_text: List[str] = []
-
+        cursor_offset = self.cursor
         for no_indent_line, indent, base_indent in self.walk_code_block(
                 zero_indent, False):
             block_text.append(" "*(indent-base_indent) + no_indent_line)
@@ -283,8 +345,9 @@ class CommandsWalker:
             self.scope[variable] = item
             self.scope[index] = i
             for function in CommandsWalker(
-                    self.path, func_text=block_text,
-                    scope=self.scope).walk_function():
+                    self.path, source_func_text=block_text,
+                    scope=self.scope, cursor_offset=cursor_offset,
+                    root_path=self.root_path).walk_function():
                 if function.is_root_block:  # Apped this to real root function
                     parent_function_text.extend(function.body)
                 else:  # yield subfunction
@@ -298,6 +361,7 @@ class CommandsWalker:
         '''
         eval_condition = bool(safe_eval(condition, self.scope))
         block_text: List[str] = []
+        cursor_offset = self.cursor_offset
         for no_indent_line, indent, base_indent in self.walk_code_block(
                 zero_indent, False):
             block_text.append(" "*(indent-base_indent) + no_indent_line)
@@ -307,8 +371,9 @@ class CommandsWalker:
                 f'"{get_function_name(path)}" function')
         if eval_condition:
             for function in CommandsWalker(
-                    self.path, func_text=block_text,
-                    scope=self.scope).walk_function():
+                    self.path, source_func_text=block_text,
+                    scope=self.scope, cursor_offset=cursor_offset,
+                    root_path=self.root_path).walk_function():
                 if function.is_root_block:  # Apped this to real root function
                     parent_function_text.extend(function.body)
                 else:  # yield subfunction
@@ -331,6 +396,7 @@ class CommandsWalker:
             yield list[0], left[-1], right[0], list[-1], is_root_block
             yield from yield_splits(left, False)
             yield from yield_splits(right, False)
+        cursor_offset=self.cursor
         body_list: List[str] = []
         leaf_values: List[int] = [i for i in range(min_, max_, step)]
 
@@ -372,7 +438,8 @@ class CommandsWalker:
                 self.scope[variable] = left_min
                 yield from CommandsWalker(
                     left_branch_path, body_list,
-                    self.scope, is_root_file=False
+                    self.scope, is_root=False, cursor_offset=cursor_offset,
+                    root_path=self.root_path
                 ).walk_function()
 
             # Right branch half
@@ -392,7 +459,8 @@ class CommandsWalker:
                 self.scope[variable] = right_min
                 yield from CommandsWalker(
                     right_branch_path, body_list,
-                    self.scope, is_root_file=False
+                    self.scope, is_root=False, cursor_offset=cursor_offset,
+                    root_path=self.root_path
                 ).walk_function()
 
 
@@ -425,6 +493,10 @@ if __name__ == '__main__':
 
         for func_file in CommandsWalker(
                 path, func_text, scope=scope).walk_function():
+            if func_file.delete_file:  # The file should be deleted if exists
+                func_file.path.unlink(missing_ok=True)
+                print(f"Deleted function: {get_function_name(func_file.path)} and created subfunctions")
+                continue
             if not func_file.is_modified:
                 continue
             func_file.path.parent.mkdir(exist_ok=True, parents=True)
