@@ -197,7 +197,7 @@ class CommandsWalker:
         except (SafeEvalException, SubfunctionSyntaxError) as e:
             raise FinalCommandsWalkerError(
                 root_path=self.root_path,
-                cursor=self.cursor+self.cursor_offset,
+                cursor=self.cursor+self.cursor_offset+1,
                 errors=e.errors)
         except FinalCommandsWalkerError as e:
             raise e
@@ -208,7 +208,7 @@ class CommandsWalker:
         except Exception as e:
             raise FinalCommandsWalkerError(
                 root_path=self.root_path,
-                cursor=self.cursor+self.cursor_offset,
+                cursor=self.cursor+self.cursor_offset+1,
                 errors=["An unexpected error occured", str(e)])
 
     def walk_code_block(
@@ -396,7 +396,7 @@ class CommandsWalker:
         Yields the functions from for loop.
         '''
         block_text: List[str] = []
-        cursor_offset = self.cursor
+        cursor_offset = self.cursor + self.cursor_offset
         for no_indent_line, indent, base_indent in self.walk_code_block(
                 zero_indent, False):
             block_text.append(" "*(indent-base_indent) + no_indent_line)
@@ -423,7 +423,7 @@ class CommandsWalker:
         Yields the functions from for loop.
         '''
         block_text: List[str] = []
-        cursor_offset = self.cursor
+        cursor_offset = self.cursor + self.cursor_offset
         for no_indent_line, indent, base_indent in self.walk_code_block(
                 zero_indent, False):
             block_text.append(" "*(indent-base_indent) + no_indent_line)
@@ -451,7 +451,7 @@ class CommandsWalker:
         '''
         eval_condition = condition
         block_text: List[str] = []
-        cursor_offset = self.cursor_offset
+        cursor_offset = self.cursor + self.cursor_offset
         for no_indent_line, indent, base_indent in self.walk_code_block(
                 zero_indent, False):
             block_text.append(" "*(indent-base_indent) + no_indent_line)
@@ -486,7 +486,7 @@ class CommandsWalker:
             yield list[0], left[-1], right[0], list[-1], is_root_block
             yield from yield_splits(left, False)
             yield from yield_splits(right, False)
-        cursor_offset=self.cursor
+        cursor_offset = self.cursor + self.cursor_offset
         body_list: List[str] = []
         leaf_values: List[int] = [i for i in range(min_, max_, step)]
 
