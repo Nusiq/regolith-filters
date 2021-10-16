@@ -1,10 +1,10 @@
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional, Tuple, NamedTuple, TypeVar
+from typing import Dict, Iterable, Iterator, List, Optional, Tuple, NamedTuple, TypeVar
 import re
 import json
 import sys
 from copy import deepcopy
-from safe_eval import safe_eval
+from safe_eval import SafeEvalException, safe_eval
 from enum import Enum, auto
 
 FUNCTIONS_PATH = Path('BP/functions')
@@ -49,6 +49,9 @@ class McfuncitonFile(NamedTuple):
     is_modified: bool=True
     delete_file: bool=False
 
+def print_red(text):
+    print("\033[91m {}\033[00m" .format(text))
+
 def get_function_name(path: Path):
     '''
     Returns the name of a function based on its path.
@@ -75,12 +78,35 @@ def strip_line(line) -> Tuple[str, int]:
     indent = len(line)-len(stripped_line)
     return stripped_line, indent
 
+def line_error_message(line, start, stop, max_len=50):
+    '''
+    
+    '''
+    start, stop = sorted((start, stop))
+    max_len = min(len(line), max_len)
+    start = max(0, start)
+    stop = min(len(line), stop)
+    if stop-start >= max_len:
+        up = line[start:start+max_len]
+        down = "^"*max_len
+    elif stop-max_len-1 >= 0:
+        up = line[stop-max_len:stop]
+        down = " "*(stop-1-max_len) + "^"*(stop-start)
+    else:
+        up = line[0:max_len]
+        down = " "*start + "^"*(stop-start)+" "*(max_len-stop)
+    return up, down
+
 def eval_line_of_code(line: str, scope: Dict[str, int]) -> Tuple[str, bool]:
     cursor = 0
     replace = []
     while cursor < len(line) and (match := EVAL.search(line[cursor:])):
         start, end = cursor+match.start(), cursor+match.end()
-        replace.append((start, end, str(safe_eval(match[1], scope)))) 
+        try:
+            replace.append((start, end, str(safe_eval(match[1], scope)))) 
+        except SafeEvalException as e:
+            u, d = line_error_message(line, start, end, max_len=50)
+            raise SafeEvalException(e.errors + [u, d])
         cursor = end
     if len(replace) > 0:
         result_list = []
@@ -93,6 +119,36 @@ def eval_line_of_code(line: str, scope: Dict[str, int]) -> Tuple[str, bool]:
         result_list.append(line[r[1]:])  # sufix
         return "".join(result_list), True
     return line, False
+
+class SubfunctionError(Exception):
+    def __init__(self, errors: List[str]=None):
+        self.errors = [] if errors is None else errors
+
+    def __str__(self):
+        return "\n".join(self.errors)
+
+class SubfunctionSyntaxError(SubfunctionError):
+    pass
+
+class FinalCommandsWalkerError(Exception):
+    def __init__(
+            self, root_path: Path,
+            cursor: Optional[int]=None, errors: List[str]=None):
+        func_name = get_function_name(root_path)
+        if cursor is None:
+            first_err = (
+                'An error has occured while processing '
+                f'{root_path.as_posix()}" file')
+        else:
+            first_err = (
+                'An error has occured while processing '
+                f'"{root_path.as_posix()}" file, at line {cursor}.')
+        self.errors = [
+            first_err
+        ] + errors
+
+    def __str__(self) -> str:
+        return "\n".join(self.errors)
 
 class CommandsWalker:
     def __init__(
@@ -136,7 +192,24 @@ class CommandsWalker:
 
         :param path: path to the root file.
         '''
-        yield from self._walk_function(self.path)
+        try:
+            yield from self._walk_function(self.path)
+        except (SafeEvalException, SubfunctionSyntaxError) as e:
+            raise FinalCommandsWalkerError(
+                root_path=self.root_path,
+                cursor=self.cursor+self.cursor_offset,
+                errors=e.errors)
+        except FinalCommandsWalkerError as e:
+            raise e
+        except SubfunctionError as e:
+            raise FinalCommandsWalkerError(
+                root_path=self.root_path,
+                errors=e.errors)
+        except Exception as e:
+            raise FinalCommandsWalkerError(
+                root_path=self.root_path,
+                cursor=self.cursor+self.cursor_offset,
+                errors=["An unexpected error occured", str(e)])
 
     def walk_code_block(
             self, zero_indent: int,
@@ -176,9 +249,9 @@ class CommandsWalker:
             self, path: Path, zero_indent=0,
             is_root_block=True) -> Iterator[McfuncitonFile]:
         if not is_root_block and path.exists():
-            raise RuntimeError(
-                "The function file can't be created because "
-                "it already exists!")
+            raise SubfunctionError([
+                f"The function file \"{get_function_name(path)}\" can't be "
+                "created because it already exists!"])
         new_func_text = []
         modified = not is_root_block  # new file is considered to be modified
 
@@ -206,9 +279,9 @@ class CommandsWalker:
                 modified = True
             elif match := SUBFUNCTION.fullmatch(no_indent_line):
                 if unpack_mode in (UnpackMode.SUBFUNCTION, UnpackMode.HERE):
-                    raise RuntimeError(
+                    raise SubfunctionSyntaxError([
                         "Using 'function' keyword is not allowed in "
-                        "functions using UNPACK:HERE or UNPACK:SUBFUNCTION!")
+                        "functions using UNPACK:HERE or UNPACK:SUBFUNCTION!"])
                 subfunction_name = f'{get_function_name(path)}/{match[2]}'
                 prefix = "" if match[1] is None else match[1]
                 new_func_text.append(f"{prefix}function {subfunction_name}")
@@ -220,9 +293,9 @@ class CommandsWalker:
                 modified = True
             elif match := FUNCTION_TREE.fullmatch(no_indent_line):
                 if unpack_mode in (UnpackMode.SUBFUNCTION, UnpackMode.HERE):
-                    raise RuntimeError(
+                    raise SubfunctionSyntaxError([
                         "Using 'functiontree' keyword is not allowed in "
-                        "functions using UNPACK:HERE or UNPACK:SUBFUNCTION!")
+                        "functions using UNPACK:HERE or UNPACK:SUBFUNCTION!"])
                 m_name = match[1]
                 m_var = match[2]
                 m_min = int(match[3])
@@ -248,14 +321,26 @@ class CommandsWalker:
             elif match := FOREACH.fullmatch(no_indent_line):
                 m_index = match[1]
                 m_var = match[2]
-                m_itrerable = match[3]
+                try:
+                    m_itrerable = safe_eval(match[3], self.scope)
+                except SafeEvalException as e:
+                    start, stop = match.regs[3]
+                    u, d = line_error_message(
+                        no_indent_line, start, stop, max_len=50)
+                    raise SafeEvalException(e.errors + [u, d])
                 self.cursor += 1
                 yield from self.create_foreach(
                     path, m_index, m_var, m_itrerable, zero_indent, new_func_text)
                 modified = True
                 self.cursor -= 1
             elif match := IF.fullmatch(no_indent_line):
-                m_condition = match[1]
+                try:
+                    m_condition = bool(safe_eval(match[1], self.scope))
+                except SafeEvalException as e:
+                    start, stop = match.regs[1]
+                    u, d = line_error_message(
+                        no_indent_line, start, stop, max_len=50)
+                    raise SafeEvalException(e.errors + [u, d])
                 self.cursor += 1
                 yield from self.create_if(
                     path, m_condition, zero_indent,
@@ -265,28 +350,33 @@ class CommandsWalker:
             elif match := VAR.fullmatch(no_indent_line):
                 m_name = match[1]
                 m_expr = match[2]
-                self.scope[m_name] = safe_eval(m_expr, self.scope)
+                try:
+                    self.scope[m_name] = safe_eval(m_expr, self.scope)
+                except SafeEvalException as e:
+                    u, d = line_error_message(
+                        no_indent_line, 0, len(no_indent_line), max_len=50)
+                    raise SafeEvalException(e.errors + [u, d])
                 modified = True
             elif match := UNPACK_HERE.fullmatch(no_indent_line):
                 if not (self.cursor + self.cursor_offset == 0):  # first line?
-                    raise RuntimeError(
-                        "'UNPACK:HERE' can be used only in the "
-                        "first line of code of a function!")
+                    raise SubfunctionSyntaxError([
+                        "'UNPACK:HERE' can be used only at the "
+                        "first line of code of a function!"])
                 # Replace the path with a path of a fake file to change the
                 # target directory of the defined functions
                 self.path = self.path.parent.with_suffix(".mcfunction")
                 unpack_mode = UnpackMode.HERE
             elif match := UNPACK_SUBFUNCTION.fullmatch(no_indent_line):
                 if not (self.cursor + self.cursor_offset == 0):  # first line?
-                    raise RuntimeError(
-                        "'UNPACK:SUBFUNCTION' can be used only in the "
-                        "first line of code of a function!")
+                    raise SubfunctionSyntaxError([
+                        "'UNPACK:SUBFUNCTION' can be used only at the "
+                        "first line of code of a function!"])
                 unpack_mode = UnpackMode.SUBFUNCTION
             else:  # normal line
                 if unpack_mode in (UnpackMode.SUBFUNCTION, UnpackMode.HERE):
-                    raise RuntimeError(
+                    raise SubfunctionSyntaxError([
                         "Every command must be closed inside 'definefunction'"
-                        " block when using UNPACK:HERE or UNPACK:SUBFUNCTION!")
+                        " block when using UNPACK:HERE or UNPACK:SUBFUNCTION!"])
                 new_func_text.append(
                     " "*(indent-base_indent) +  # Python goes "b"+"r"*10
                     no_indent_line)
@@ -311,9 +401,9 @@ class CommandsWalker:
                 zero_indent, False):
             block_text.append(" "*(indent-base_indent) + no_indent_line)
         if len(block_text) == 0:
-            raise RuntimeError(
-                f'Missing body for for-block of '
-                f'"{get_function_name(path)}" function')
+            raise SubfunctionSyntaxError([
+                f'Missing body of the for code block of '
+                f'"{get_function_name(path)}" function'])
         for i in range(min_, max_, step):
             self.scope[variable] = i
             for function in CommandsWalker(
@@ -326,7 +416,7 @@ class CommandsWalker:
                     yield function
 
     def create_foreach(
-            self, path: Path, index: str, variable: str, iterable: str,
+            self, path: Path, index: str, variable: str, iterable: Iterable,
             zero_indent: int, parent_function_text: List[str]
             ) -> Iterator[McfuncitonFile]:
         '''
@@ -338,10 +428,10 @@ class CommandsWalker:
                 zero_indent, False):
             block_text.append(" "*(indent-base_indent) + no_indent_line)
         if len(block_text) == 0:
-            raise RuntimeError(
-                f'Missing body for for-block of '
-                f'"{get_function_name(path)}" function')
-        for i, item in enumerate(safe_eval(iterable, self.scope)):
+            raise SubfunctionSyntaxError([
+                f'Missing body of the foreach code block of '
+                f'"{get_function_name(path)}" function'])
+        for i, item in enumerate(iterable):
             self.scope[variable] = item
             self.scope[index] = i
             for function in CommandsWalker(
@@ -354,21 +444,21 @@ class CommandsWalker:
                     yield function
 
     def create_if(
-            self, path: Path, condition: str, zero_indent: int,
+            self, path: Path, condition: bool, zero_indent: int,
             parent_function_text: List[str]) -> Iterator[McfuncitonFile]:
         '''
         Yields the functions from the if block if its condition is true.
         '''
-        eval_condition = bool(safe_eval(condition, self.scope))
+        eval_condition = condition
         block_text: List[str] = []
         cursor_offset = self.cursor_offset
         for no_indent_line, indent, base_indent in self.walk_code_block(
                 zero_indent, False):
             block_text.append(" "*(indent-base_indent) + no_indent_line)
         if len(block_text) == 0:
-            raise RuntimeError(
-                f'Missing body for if-block of '
-                f'"{get_function_name(path)}" function')
+            raise SubfunctionSyntaxError([
+                f'Missing body of the if code block of '
+                f'"{get_function_name(path)}" function'])
         if eval_condition:
             for function in CommandsWalker(
                     self.path, source_func_text=block_text,
@@ -404,9 +494,9 @@ class CommandsWalker:
                 zero_indent, False):
             body_list.append(" "*(indent-base_indent) + no_indent_line)
         if len(body_list) == 0:
-            raise RuntimeError(
-                f'Missing body for function tree "{name}" of '
-                f'"{get_function_name(path)}" function')
+            raise SubfunctionSyntaxError([
+                f'Missing body for function tree code block "{name}" of '
+                f'"{get_function_name(path)}" function'])
         for left_min, left_max, right_min, right_max, is_root_block in yield_splits(
                 leaf_values):
             # Sorting items if of reverse iteration
@@ -491,16 +581,21 @@ if __name__ == '__main__':
         with path.open('r') as f:
             func_text = f.readlines()
 
-        for func_file in CommandsWalker(
-                path, func_text, scope=scope).walk_function():
-            if func_file.delete_file:  # The file should be deleted if exists
-                func_file.path.unlink(missing_ok=True)
-                print(f"Deleted function: {get_function_name(func_file.path)} and created subfunctions")
-                continue
-            if not func_file.is_modified:
-                continue
-            func_file.path.parent.mkdir(exist_ok=True, parents=True)
-            with func_file.path.open('w') as f:
-                f.write("\n".join(func_file.body))
-            if func_file.is_root_block:
-                print(f"Modified function: {get_function_name(func_file.path)}")
+        try:
+            for func_file in CommandsWalker(
+                    path, func_text, scope=scope).walk_function():
+                if func_file.delete_file:  # The file should be deleted if exists
+                    func_file.path.unlink(missing_ok=True)
+                    print(f"Deleted function: {get_function_name(func_file.path)} and created subfunctions")
+                    continue
+                if not func_file.is_modified:
+                    continue
+                func_file.path.parent.mkdir(exist_ok=True, parents=True)
+                with func_file.path.open('w') as f:
+                    f.write("\n".join(func_file.body))
+                if func_file.is_root_block:
+                    print(f"Modified function: {get_function_name(func_file.path)}")
+        except FinalCommandsWalkerError as e:
+            for err in e.errors:
+                print_red(err)
+            sys.exit(1)

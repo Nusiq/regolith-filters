@@ -1,6 +1,6 @@
 import ast
 import operator as op
-from typing import Dict
+from typing import Dict, List
 
 operators = {
     # BinOp
@@ -73,8 +73,31 @@ scope_funcs = {
     "zip": zip, # Returns an iterator, from two or more iterators
 }
 
+class SafeEvalException(Exception):
+    def __init__(self, errors: List[str]=None):
+        self.errors = [] if errors is None else errors
+    
+    def __str__(self):
+        return "\n".join(self.errors)
+
 def safe_eval(expr, scope: Dict[str, int]):
-    return _eval(ast.parse(expr, mode='eval').body, scope)
+    try:
+        syntax_tree = ast.parse(expr, mode='eval').body
+    except SyntaxError as e:
+        raise SafeEvalException([
+            "Expression evaluation failed due to invalid Python syntax in "
+            f'following expression:', expr
+        ])
+
+    try:
+        return _eval(syntax_tree, scope)
+    except SafeEvalException as e:
+        raise SafeEvalException(["Expression evaluation failed."] + e.errors)
+    except Exception as e:
+        raise SafeEvalException([
+            "Expression evaluation failed.",
+            f"Unexpected error occured: {type(e)}",
+        ])
 
 def _eval(node, scope: Dict[str, int]):
     scope = scope_funcs | scope
@@ -84,7 +107,7 @@ def _eval(node, scope: Dict[str, int]):
         try:
             return scope[node.id]
         except KeyError:
-            raise NameError(f"Unknown variable '{node.id}'")
+            raise SafeEvalException([f"You tried to access unknown variable: {node.id}"])
     if isinstance(node, ast.BinOp):
         return operators[type(node.op)](_eval(node.left, scope), _eval(node.right, scope))
     if isinstance(node, ast.Compare):
@@ -127,4 +150,4 @@ def _eval(node, scope: Dict[str, int]):
             _eval(k, scope): _eval(v, scope)
             for k, v in zip(node.keys, node.values)
         }
-    raise TypeError(node)
+    raise SafeEvalException([f"Expression uses an unsuported node type: {type(node)}"])
