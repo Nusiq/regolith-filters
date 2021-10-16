@@ -242,5 +242,19 @@ var pi = 3.14
 Eval is to generate code based on basic math expressions. It can also access
 the variables from `for` and `functiontree`.
 
-## Important
+## `UNPACK:HERE` and `UNPACK:SUBFUNCTION`
+### Description
+`UNPACK:HERE` and `UNPACK:SUBFUNCTION` are special annotations that you can put
+at the first line of the mcfunction file. The files with these annotations
+are deleted from the pack. They can be used to create multiple function
+definitions in one place using `definefunction`. Using `function <>:` and
+normal commands in files with these annotations, outside of `definefunction`
+code block is not allowed.
+
+`UNPACK:HERE` unpacks the functions defined with definefunction in the same
+path as the source file.
+
+`UNPACK:SUBFUNCTION` doesn't modify the default behavior of `definefunction`
+
+## Other notes
 The indentation must be created with spaces. Tabs are not supported.
