@@ -1,6 +1,7 @@
 import ast
 import operator as op
 from typing import Dict, List
+import traceback
 
 operators = {
     # BinOp
@@ -73,6 +74,14 @@ scope_funcs = {
     "zip": zip, # Returns an iterator, from two or more iterators
 }
 
+f_string_format_spec = {
+    # https://docs.python.org/3/library/ast.html#ast.FormattedValue
+    -1: str, # lambda x: x,  # no formatting  CHANGED TO STR TO RETURN STRINGS
+    115: str,  # string formatting ("!s")
+    114: repr,  # repr formatting ("!r")
+    97: ascii,  # ascii formatting ("!a")
+}
+
 class SafeEvalException(Exception):
     def __init__(self, errors: List[str]=None):
         self.errors = [] if errors is None else errors
@@ -96,7 +105,8 @@ def safe_eval(expr, scope: Dict[str, int]):
     except Exception as e:
         raise SafeEvalException([
             "Expression evaluation failed.",
-            f"Unexpected error occured: {type(e)}",
+            f"Unexpected error occured:",
+            *traceback.format_exc().split("\n")
         ])
 
 def _eval(node, scope: Dict[str, int]):
@@ -150,4 +160,18 @@ def _eval(node, scope: Dict[str, int]):
             _eval(k, scope): _eval(v, scope)
             for k, v in zip(node.keys, node.values)
         }
+    if isinstance(node, ast.JoinedStr):
+        parsed_values = []
+        for val in node.values:
+            if isinstance(val, ast.FormattedValue):
+                value = val.value
+                conversion = f_string_format_spec[val.conversion]
+                if val.format_spec is not None:  # Disabled because of possible code injection
+                    raise SafeEvalException([f"f-string 'format_spec' not supported: {type(node)}"])
+                parsed_values.append(conversion(_eval(value, scope)))
+            elif isinstance(val, ast.Constant):
+                parsed_values.append(val.value)
+            else:  # Shouldn't happen
+                raise SafeEvalException([f"f-string expression uses an unsuported node type: {type(node)}"])
+        return "".join(parsed_values)
     raise SafeEvalException([f"Expression uses an unsuported node type: {type(node)}"])

@@ -10,10 +10,11 @@ from enum import Enum, auto
 FUNCTIONS_PATH = Path('BP/functions')
 
 NAME_P = "[a-zA-Z_0-9]+"
+FUNCTION_NAME_P = f"{NAME_P}(?:/{NAME_P})*"
 INT_P = "-?[0-9]+"
-EXPR_P = '[\'\\[\\]"%><,\\.!=a-zA-Z_0-9+\\-/*+ ()]+'
-JUST_DEFINE = re.compile(f"definefunction <({NAME_P})>:")
-SUBFUNCTION = re.compile(f"(.* )?function <({NAME_P})>:")
+EXPR_P = '[\'\\[\\]"%><,}{\\.!=a-zA-Z_0-9+\\-/*+ ()]+'
+JUST_DEFINE = re.compile(f"definefunction <({FUNCTION_NAME_P})>:")
+SUBFUNCTION = re.compile(f"(.* )?function <({FUNCTION_NAME_P})>:")
 FUNCTION_TREE = re.compile(
     f"functiontree <({NAME_P})><({NAME_P}) +({INT_P})\.\.({INT_P})(?: +({INT_P}))?>:")
 FOR = re.compile(f"for <({NAME_P}) +({INT_P})\.\.({INT_P})(?: +({INT_P}))?>:")
@@ -185,7 +186,10 @@ class CommandsWalker:
             self._scope_copied = True
         return self._scope
 
-    def walk_function(self) -> Iterator[McfuncitonFile]:
+    def walk_function(
+            self,
+            parent_unpack_mode: Optional[UnpackMode]=None
+            ) -> Iterator[McfuncitonFile]:
         '''
         Walks the commands of a function and looks for custom subfunction
         syntax. Yields new files to create.
@@ -193,7 +197,8 @@ class CommandsWalker:
         :param path: path to the root file.
         '''
         try:
-            yield from self._walk_function(self.path)
+            yield from self._walk_function(
+                self.path, parent_unpack_mode=parent_unpack_mode)
         except (SafeEvalException, SubfunctionSyntaxError) as e:
             raise FinalCommandsWalkerError(
                 root_path=self.root_path,
@@ -231,7 +236,14 @@ class CommandsWalker:
                 yield line, indent, 0
                 self.cursor += 1
         else:
-            _, first_indent = strip_line(self.source_func_text[self.cursor])
+            # Skip empty lines
+            while self.cursor < len(self.source_func_text):
+                first_line, first_indent = strip_line(
+                    self.source_func_text[self.cursor])
+                if first_line != "":
+                    break
+                yield first_line, first_indent, first_indent
+                self.cursor += 1
             # empty subfunction
             if first_indent <= zero_indent:
                 return
@@ -239,15 +251,18 @@ class CommandsWalker:
             while self.cursor < len(self.source_func_text):
                 no_indent_line, indent = strip_line(
                     self.source_func_text[self.cursor])
-                if indent < first_indent:  # The end of subfunction reached
-                    break
+
+                # Empty lines can have any indent
+                if indent < first_indent and no_indent_line != "":
+                    break    # The end of subfunction reached
 
                 yield no_indent_line, indent, first_indent
                 self.cursor += 1
 
     def _walk_function(
             self, path: Path, zero_indent=0,
-            is_root_block=True) -> Iterator[McfuncitonFile]:
+            is_root_block=True, parent_unpack_mode: Optional[UnpackMode]=None
+            ) -> Iterator[McfuncitonFile]:
         if not is_root_block and path.exists():
             raise SubfunctionError([
                 f"The function file \"{get_function_name(path)}\" can't be "
@@ -255,7 +270,7 @@ class CommandsWalker:
         new_func_text = []
         modified = not is_root_block  # new file is considered to be modified
 
-        unpack_mode = UnpackMode.NONE
+        unpack_mode = parent_unpack_mode or UnpackMode.NONE
         for no_indent_line, indent, base_indent in self.walk_code_block(
                 zero_indent, is_root_block):
                 
@@ -315,7 +330,7 @@ class CommandsWalker:
                 self.cursor += 1
                 yield from self.create_for(
                     path, m_var, m_min, m_max, m_step, zero_indent,
-                    new_func_text)
+                    new_func_text, unpack_mode)
                 modified = True
                 self.cursor -= 1
             elif match := FOREACH.fullmatch(no_indent_line):
@@ -330,7 +345,8 @@ class CommandsWalker:
                     raise SafeEvalException(e.errors + [u, d])
                 self.cursor += 1
                 yield from self.create_foreach(
-                    path, m_index, m_var, m_itrerable, zero_indent, new_func_text)
+                    path, m_index, m_var, m_itrerable, zero_indent,
+                    new_func_text, unpack_mode)
                 modified = True
                 self.cursor -= 1
             elif match := IF.fullmatch(no_indent_line):
@@ -344,7 +360,7 @@ class CommandsWalker:
                 self.cursor += 1
                 yield from self.create_if(
                     path, m_condition, zero_indent,
-                    new_func_text)
+                    new_func_text, unpack_mode)
                 modified = True
                 self.cursor -= 1
             elif match := VAR.fullmatch(no_indent_line):
@@ -390,8 +406,8 @@ class CommandsWalker:
 
     def create_for(
             self, path: Path, variable: str, min_: int, max_: int,
-            step: int, zero_indent: int, parent_function_text: List[str]
-            ) -> Iterator[McfuncitonFile]:
+            step: int, zero_indent: int, parent_function_text: List[str],
+            parent_unpack_mode: UnpackMode) -> Iterator[McfuncitonFile]:
         '''
         Yields the functions from for loop.
         '''
@@ -409,7 +425,8 @@ class CommandsWalker:
             for function in CommandsWalker(
                     self.path, source_func_text=block_text,
                     scope=self.scope, cursor_offset=cursor_offset,
-                    root_path=self.root_path).walk_function():
+                    root_path=self.root_path
+                    ).walk_function(parent_unpack_mode):
                 if function.is_root_block:  # Apped this to real root function
                     parent_function_text.extend(function.body)
                 else:  # yield subfunction
@@ -417,8 +434,8 @@ class CommandsWalker:
 
     def create_foreach(
             self, path: Path, index: str, variable: str, iterable: Iterable,
-            zero_indent: int, parent_function_text: List[str]
-            ) -> Iterator[McfuncitonFile]:
+            zero_indent: int, parent_function_text: List[str],
+            parent_unpack_mode: UnpackMode) -> Iterator[McfuncitonFile]:
         '''
         Yields the functions from for loop.
         '''
@@ -437,7 +454,8 @@ class CommandsWalker:
             for function in CommandsWalker(
                     self.path, source_func_text=block_text,
                     scope=self.scope, cursor_offset=cursor_offset,
-                    root_path=self.root_path).walk_function():
+                    root_path=self.root_path
+                    ).walk_function(parent_unpack_mode):
                 if function.is_root_block:  # Apped this to real root function
                     parent_function_text.extend(function.body)
                 else:  # yield subfunction
@@ -445,7 +463,8 @@ class CommandsWalker:
 
     def create_if(
             self, path: Path, condition: bool, zero_indent: int,
-            parent_function_text: List[str]) -> Iterator[McfuncitonFile]:
+            parent_function_text: List[str],
+            parent_unpack_mode: UnpackMode) -> Iterator[McfuncitonFile]:
         '''
         Yields the functions from the if block if its condition is true.
         '''
@@ -463,7 +482,8 @@ class CommandsWalker:
             for function in CommandsWalker(
                     self.path, source_func_text=block_text,
                     scope=self.scope, cursor_offset=cursor_offset,
-                    root_path=self.root_path).walk_function():
+                    root_path=self.root_path
+                    ).walk_function(parent_unpack_mode):
                 if function.is_root_block:  # Apped this to real root function
                     parent_function_text.extend(function.body)
                 else:  # yield subfunction
