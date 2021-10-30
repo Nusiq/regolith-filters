@@ -1,6 +1,7 @@
 import ast
 import operator as op
-from typing import Dict, List
+import copy
+from typing import Dict, List, Optional
 import traceback
 
 operators = {
@@ -117,9 +118,11 @@ def _eval(node, scope: Dict[str, int]):
         try:
             return scope[node.id]
         except KeyError:
-            raise SafeEvalException([f"You tried to access unknown variable: {node.id}"])
+            raise SafeEvalException(
+                [f"You tried to access unknown variable: {node.id}"])
     if isinstance(node, ast.BinOp):
-        return operators[type(node.op)](_eval(node.left, scope), _eval(node.right, scope))
+        return operators[
+            type(node.op)](_eval(node.left, scope), _eval(node.right, scope))
     if isinstance(node, ast.Compare):
         curr_val = _eval(node.left, scope)
         for i in range(len(node.ops)):
@@ -154,7 +157,8 @@ def _eval(node, scope: Dict[str, int]):
     if isinstance(node, ast.UnaryOp): # <operator> <operand> e.g., -1
         return operators[type(node.op)](_eval(node.operand, scope))
     if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
-        return simple_collections[type(node)](_eval(i, scope) for i in node.elts)
+        return simple_collections[
+            type(node)](_eval(i, scope) for i in node.elts)
     if isinstance(node, ast.Dict):
         return {
             _eval(k, scope): _eval(v, scope)
@@ -167,11 +171,77 @@ def _eval(node, scope: Dict[str, int]):
                 value = val.value
                 conversion = f_string_format_spec[val.conversion]
                 if val.format_spec is not None:  # Disabled because of possible code injection
-                    raise SafeEvalException([f"f-string 'format_spec' not supported: {type(node)}"])
+                    raise SafeEvalException([
+                        f"f-string 'format_spec' not supported: {type(node)}"])
                 parsed_values.append(conversion(_eval(value, scope)))
             elif isinstance(val, ast.Constant):
                 parsed_values.append(val.value)
             else:  # Shouldn't happen
-                raise SafeEvalException([f"f-string expression uses an unsuported node type: {type(node)}"])
+                raise SafeEvalException([
+                    f"f-string expression uses an unsuported node type: "
+                    f"{type(node)}"])
         return "".join(parsed_values)
+    if isinstance(node, ast.ListComp):
+        result = []
+        for generator_scope in _yield_eval_comprehensions(
+                node.generators, scope):
+            result.append(_eval(node.elt, generator_scope))
+        return result
+    if isinstance(node, ast.SetComp):
+        result = set()
+        for generator_scope in _yield_eval_comprehensions(
+                node.generators, scope):
+            result.add(_eval(node.elt, generator_scope))
+        return result
+    if isinstance(node, ast.GeneratorExp):
+        def result():
+            for generator_scope in _yield_eval_comprehensions(
+                    node.generators, scope):
+                yield _eval(node.elt, generator_scope)
+        return result
+    if isinstance(node, ast.DictComp):
+        result = {}
+        for generator_scope in _yield_eval_comprehensions(
+                node.generators, scope):
+            result[_eval(node.key, generator_scope)] = _eval(
+                node.value, generator_scope)
+        return result
     raise SafeEvalException([f"Expression uses an unsuported node type: {type(node)}"])
+
+def _yield_eval_comprehensions(
+        generators: List[ast.comprehension], scope: Dict,
+        generator_scope: Optional[Dict]=None):
+    '''
+    Yields scopes created by comprehension generators.
+
+    :param generators: list of comprehension generators
+    :param scope: base scope
+    :param generator_scope: scope used only inside the generators
+    '''
+    if generator_scope is None:
+        generator_scope = {}
+    if len(generators) <= 0:
+        yield generator_scope
+    else:
+        comprehension = generators[0]
+        if comprehension.is_async:
+            raise SafeEvalException([f"Async list comprehensions not "
+                f"supported: {type(comprehension)}"])
+        if isinstance(comprehension.target, ast.Name):
+            targets: List[str] = [comprehension.target.id]
+        elif isinstance(comprehension.target, ast.Tuple):
+            targets = [i.id for i in comprehension.target.elts]
+        else:
+            raise SafeEvalException(
+                [f"Unsupported list comprehension target: "
+                f"{type(comprehension.target)}"])
+        for item in _eval(comprehension.iter, generator_scope):
+            for name in targets:
+                generator_scope[name] = item
+            eval_scope = scope | generator_scope
+            for condition in comprehension.ifs:
+                if not _eval(condition, eval_scope):
+                    break  # TODO - check if all variables used in conditions are in scope
+            else:  # All conditions are true
+                yield from _yield_eval_comprehensions(
+                    generators[1:], scope, generator_scope)

@@ -12,7 +12,7 @@ FUNCTIONS_PATH = Path('BP/functions')
 NAME_P = "[a-zA-Z_0-9]+"
 FUNCTION_NAME_P = f"{NAME_P}(?:/{NAME_P})*"
 INT_P = "-?[0-9]+"
-EXPR_P = '[\'\\[\\]"%><,}{\\.!=a-zA-Z_0-9+\\-/*+ ()]+'
+EXPR_P = '[\'\\[\\]"%><,}{\\.!=a-zA-Z_0-9+\\-/*+ :()]+'
 JUST_DEFINE = re.compile(f"definefunction <({FUNCTION_NAME_P})>:")
 SUBFUNCTION = re.compile(f"(.* )?function <({FUNCTION_NAME_P})>:")
 FUNCTION_TREE = re.compile(
