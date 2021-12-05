@@ -278,9 +278,7 @@ def _eval(node, scope: Dict[str, int]):
         return result
     if isinstance(node, ast.Attribute):  # Some hardcoded attributes
         value = _eval(node.value, scope)
-        print(value)
         attr = attributes[type(value)][node.attr]
-        print(attr)
         def method(*args, **kwargs):
             return attr(value, *args, **kwargs)
         return method
