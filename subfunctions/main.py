@@ -423,7 +423,7 @@ class CommandsWalker:
         for i in range(min_, max_, step):
             self.scope[variable] = i
             for function in CommandsWalker(
-                    self.path, source_func_text=block_text,
+                    path, source_func_text=block_text,
                     scope=self.scope, cursor_offset=cursor_offset,
                     root_path=self.root_path
                     ).walk_function(parent_unpack_mode):
@@ -452,7 +452,7 @@ class CommandsWalker:
             self.scope[variable] = item
             self.scope[index] = i
             for function in CommandsWalker(
-                    self.path, source_func_text=block_text,
+                    path, source_func_text=block_text,
                     scope=self.scope, cursor_offset=cursor_offset,
                     root_path=self.root_path
                     ).walk_function(parent_unpack_mode):
@@ -480,7 +480,7 @@ class CommandsWalker:
                 f'"{get_function_name(path)}" function'])
         if eval_condition:
             for function in CommandsWalker(
-                    self.path, source_func_text=block_text,
+                    path, source_func_text=block_text,
                     scope=self.scope, cursor_offset=cursor_offset,
                     root_path=self.root_path
                     ).walk_function(parent_unpack_mode):
