@@ -83,6 +83,71 @@ f_string_format_spec = {
     97: ascii,  # ascii formatting ("!a")
 }
 
+attributes = {
+    str: {
+        'capitalize': str.capitalize,
+        'casefold': str.casefold,
+        'center': str.center,
+        'count': str.count,
+        'encode': str.encode,
+        'endswith': str.endswith,
+        'expandtabs': str.expandtabs,
+        'find': str.find,
+        # 'format': str.format,
+        # 'format_map': str.format_map,
+        'index': str.index,
+        'isalnum': str.isalnum,
+        'isalpha': str.isalpha,
+        'isascii': str.isascii,
+        'isdecimal': str.isdecimal,
+        'isdigit': str.isdigit,
+        'isidentifier': str.isidentifier,
+        'islower': str.islower,
+        'isnumeric': str.isnumeric,
+        'isprintable': str.isprintable,
+        'isspace': str.isspace,
+        'istitle': str.istitle,
+        'isupper': str.isupper,
+        'join': str.join,
+        'ljust': str.ljust,
+        'lower': str.lower,
+        'lstrip': str.lstrip,
+        'maketrans': str.maketrans,
+        'partition': str.partition,
+        'removeprefix': str.removeprefix,
+        'removesuffix': str.removesuffix,
+        'replace': str.replace,
+        'rfind': str.rfind,
+        'rindex': str.rindex,
+        'rjust': str.rjust,
+        'rpartition': str.rpartition,
+        'rsplit': str.rsplit,
+        'rstrip': str.rstrip,
+        'split': str.split,
+        'splitlines': str.splitlines,
+        'startswith': str.startswith,
+        'strip': str.strip,
+        'swapcase': str.swapcase,
+        'title': str.title,
+        'translate': str.translate,
+        'upper': str.upper,
+        'zfill': str.zfill,
+    },
+    list: {
+        'append': list.append,
+        'clear': list.clear,
+        'copy': list.copy,
+        'count': list.count,
+        'extend': list.extend,
+        'index': list.index,
+        'insert': list.insert,
+        'pop': list.pop,
+        'remove': list.remove,
+        'reverse': list.reverse,
+        'sort': list.sort,
+    }
+}
+
 class SafeEvalException(Exception):
     def __init__(self, errors: List[str]=None):
         self.errors = [] if errors is None else errors
@@ -206,6 +271,14 @@ def _eval(node, scope: Dict[str, int]):
             result[_eval(node.key, generator_scope)] = _eval(
                 node.value, generator_scope)
         return result
+    if isinstance(node, ast.Attribute):  # Some hardcoded attributes
+        value = _eval(node.value, scope)
+        print(value)
+        attr = attributes[type(value)][node.attr]
+        print(attr)
+        def method(*args, **kwargs):
+            return attr(value, *args, **kwargs)
+        return method
     raise SafeEvalException([f"Expression uses an unsuported node type: {type(node)}"])
 
 def _yield_eval_comprehensions(
