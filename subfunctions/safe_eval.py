@@ -33,10 +33,10 @@ operators = {
     ast.LtE: op.le,
     ast.Gt: op.gt,
     ast.GtE: op.ge,
-    # ast.Is: op.is_,
-    # ast.IsNot: op.is_not,
-    # ast.In: lambda a, b: op.contains(b, a),
-    # ast.NotIn: lambda a, b: not op.contains(b, a),
+    ast.Is: op.is_,
+    ast.IsNot: op.is_not,
+    ast.In: lambda a, b: op.contains(b, a),
+    ast.NotIn: lambda a, b: not op.contains(b, a),
 
     # BoolOp (hardcoded)
     # class ast.And
