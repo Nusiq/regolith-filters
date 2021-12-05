@@ -219,6 +219,11 @@ def _eval(node, scope: Dict[str, int]):
         return func(*args, **kwargs)
     if isinstance(node, ast.Subscript):
         return _eval(node.value, scope)[_eval(node.slice, scope)]
+    if isinstance(node, ast.Slice):
+        lower = None if node.lower is None else _eval(node.lower, scope)
+        upper = None if node.upper is None else _eval(node.upper, scope)
+        step = None if node.step is None else _eval(node.step, scope)
+        return slice(lower, upper, step)
     if isinstance(node, ast.UnaryOp): # <operator> <operand> e.g., -1
         return operators[type(node.op)](_eval(node.operand, scope))
     if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
