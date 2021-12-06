@@ -155,7 +155,8 @@ class CommandsWalker:
     def __init__(
             self, path: Path, source_func_text: List[str],
             scope: Optional[Dict[str,int]]=None, is_root=True,
-            cursor_offset=0, root_path: Optional[Path]=None):
+            cursor_offset=0, root_path: Optional[Path]=None,
+            new_scope=True):
         '''
         :param path: path of the output file
         :param source_func_text: the list with lines of code from the root file.
@@ -167,6 +168,7 @@ class CommandsWalker:
             used in combination wiht 'cursor' to tell which line is
             being proccessed at given moment
         :root_path: a pth of the source file used for printing errors
+        :new_scope: whether the scope should be copied for this CommandsWalker
         '''
         self.cursor = 0
         self.cursor_offset=cursor_offset
@@ -174,7 +176,7 @@ class CommandsWalker:
         self.root_path = path if root_path is None else root_path 
         self.source_func_text = source_func_text
         self._scope = {} if scope is None else scope
-        self._scope_copied = False
+        self._scope_copied = not new_scope
         self.is_root = is_root
 
     @property
@@ -425,7 +427,7 @@ class CommandsWalker:
             for function in CommandsWalker(
                     path, source_func_text=block_text,
                     scope=self.scope, cursor_offset=cursor_offset,
-                    root_path=self.root_path
+                    root_path=self.root_path, new_scope=False
                     ).walk_function(parent_unpack_mode):
                 if function.is_root_block:  # Apped this to real root function
                     parent_function_text.extend(function.body)
@@ -454,7 +456,7 @@ class CommandsWalker:
             for function in CommandsWalker(
                     path, source_func_text=block_text,
                     scope=self.scope, cursor_offset=cursor_offset,
-                    root_path=self.root_path
+                    root_path=self.root_path, new_scope=False
                     ).walk_function(parent_unpack_mode):
                 if function.is_root_block:  # Apped this to real root function
                     parent_function_text.extend(function.body)
@@ -482,7 +484,7 @@ class CommandsWalker:
             for function in CommandsWalker(
                     path, source_func_text=block_text,
                     scope=self.scope, cursor_offset=cursor_offset,
-                    root_path=self.root_path
+                    root_path=self.root_path, new_scope=False
                     ).walk_function(parent_unpack_mode):
                 if function.is_root_block:  # Apped this to real root function
                     parent_function_text.extend(function.body)
@@ -549,7 +551,7 @@ class CommandsWalker:
                 yield from CommandsWalker(
                     left_branch_path, body_list,
                     self.scope, is_root=False, cursor_offset=cursor_offset,
-                    root_path=self.root_path
+                    root_path=self.root_path, new_scope=False
                 ).walk_function()
 
             # Right branch half
@@ -570,7 +572,7 @@ class CommandsWalker:
                 yield from CommandsWalker(
                     right_branch_path, body_list,
                     self.scope, is_root=False, cursor_offset=cursor_offset,
-                    root_path=self.root_path
+                    root_path=self.root_path, new_scope=False
                 ).walk_function()
 
 
