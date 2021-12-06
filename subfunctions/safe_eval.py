@@ -255,26 +255,26 @@ def _eval(node, scope: Dict[str, int]):
         result = []
         for generator_scope in _yield_eval_comprehensions(
                 node.generators, scope):
-            result.append(_eval(node.elt, generator_scope))
+            result.append(_eval(node.elt, scope | generator_scope))
         return result
     if isinstance(node, ast.SetComp):
         result = set()
         for generator_scope in _yield_eval_comprehensions(
                 node.generators, scope):
-            result.add(_eval(node.elt, generator_scope))
+            result.add(_eval(node.elt, scope | generator_scope))
         return result
     if isinstance(node, ast.GeneratorExp):
         def result():
             for generator_scope in _yield_eval_comprehensions(
                     node.generators, scope):
-                yield _eval(node.elt, generator_scope)
+                yield _eval(node.elt, scope | generator_scope)
         return result
     if isinstance(node, ast.DictComp):
         result = {}
         for generator_scope in _yield_eval_comprehensions(
                 node.generators, scope):
-            result[_eval(node.key, generator_scope)] = _eval(
-                node.value, generator_scope)
+            result[_eval(node.key, scope | generator_scope)] = _eval(
+                node.value, scope | generator_scope)
         return result
     if isinstance(node, ast.Attribute):  # Some hardcoded attributes
         value = _eval(node.value, scope)
@@ -311,7 +311,7 @@ def _yield_eval_comprehensions(
             raise SafeEvalException(
                 [f"Unsupported list comprehension target: "
                 f"{type(comprehension.target)}"])
-        for item in _eval(comprehension.iter, generator_scope):
+        for item in _eval(comprehension.iter, scope | generator_scope):
             for name in targets:
                 generator_scope[name] = item
             eval_scope = scope | generator_scope
