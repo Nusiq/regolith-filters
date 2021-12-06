@@ -207,11 +207,13 @@ def _eval(node, scope: Dict[str, int]):
             eval_val = _eval(val, scope)
             if eval_val:  # TODO - other values should be checked to see if they're in scope (but not evaluated)
                 return eval_val
+        return False
     if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
         for val in node.values:
             eval_val = _eval(val, scope)
             if not eval_val:  # TODO - other values should be checked to see if they're in scope (but not evaluated)
                 return eval_val
+        return True
     if isinstance(node, ast.Call):
         func = _eval(node.func, scope)
         args = [_eval(arg, scope) for arg in node.args]
