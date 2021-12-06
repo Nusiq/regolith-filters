@@ -73,6 +73,11 @@ scope_funcs = {
     "str": str, # Returns a string object
     "sum": sum, # Sums the items of an iterator
     "zip": zip, # Returns an iterator, from two or more iterators
+    "dict": dict,
+    "list": list,
+    "set": set,
+    "tuple": tuple,
+    "frozenset": frozenset,
 }
 
 f_string_format_spec = {
