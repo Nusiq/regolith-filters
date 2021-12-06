@@ -256,5 +256,10 @@ path as the source file.
 
 `UNPACK:SUBFUNCTION` doesn't modify the default behavior of `definefunction`
 
+## `##` - subfunction comments
+Double hash `##` is used to comment out the rest of the line. Comments
+that start with `##` are not copied to the compiled file unlike normal
+mcfunction commments (single hash `#`).
+
 ## Other notes
 The indentation must be created with spaces. Tabs are not supported.

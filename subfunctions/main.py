@@ -278,9 +278,10 @@ class CommandsWalker:
                 
             # blank line or comment
             if no_indent_line.startswith("#") or no_indent_line == "":
-                new_func_text.append(
-                    " "*(indent-base_indent) +  # Python goes "b"+"r"*10
-                    no_indent_line)
+                if not no_indent_line.startswith("##"):  # Skip double comments (subfunction comments)
+                    new_func_text.append(
+                        " "*(indent-base_indent) +  # Python goes "b"+"r"*10
+                        no_indent_line)
                 continue
             # Evaluate eval expressions in this line
             no_indent_line, line_modified = eval_line_of_code(
