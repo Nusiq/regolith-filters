@@ -21,6 +21,7 @@ FOR = re.compile(f"for <({NAME_P}) +({INT_P})\.\.({INT_P})(?: +({INT_P}))?>:")
 UNPACK_HERE = re.compile("UNPACK:HERE")
 UNPACK_SUBFUNCTION = re.compile("UNPACK:SUBFUNCTION")
 VAR = re.compile(f"var +({NAME_P}) *= *({EXPR_P})")
+NO_VAR = re.compile(f"> +({EXPR_P})")
 ASSERT = re.compile(f"assert +({EXPR_P})")
 IF = re.compile(f"if <({EXPR_P})>:")
 FOREACH = re.compile(f"foreach <({NAME_P}) +({NAME_P}) +({EXPR_P})>:")
@@ -381,6 +382,15 @@ class CommandsWalker:
                 m_expr = match[2]
                 try:
                     self.scope[m_name] = safe_eval(m_expr, self.scope)
+                except SafeEvalException as e:
+                    u, d = line_error_message(
+                        no_indent_line, 0, len(no_indent_line), max_len=50)
+                    raise SafeEvalException(e.errors + [u, d])
+                modified = True
+            elif match := NO_VAR.fullmatch(no_indent_line):
+                m_expr = match[1]
+                try:
+                    safe_eval(m_expr, self.scope)
                 except SafeEvalException as e:
                     u, d = line_error_message(
                         no_indent_line, 0, len(no_indent_line), max_len=50)

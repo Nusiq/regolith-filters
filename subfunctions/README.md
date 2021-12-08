@@ -228,7 +228,19 @@ var [identifier] = [expression]
 ```
 var pi = 3.14
 ```
-
+## `>` - evaluating expression without assigning it to a variable
+## Description
+This is almost the same as `var` but there is no variable to add to the scope.
+This is useful for modifiing existing variables (for example expanding lists).
+### Syntax
+```
+> [expression]
+- expression - the expression to be evaluated
+```
+### Example
+```
+> my_list.append(2)
+```
 
 ## `eval` - static code generation based on simple expressions
 ### Syntax
