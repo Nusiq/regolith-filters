@@ -261,5 +261,19 @@ Double hash `##` is used to comment out the rest of the line. Comments
 that start with `##` are not copied to the compiled file unlike normal
 mcfunction commments (single hash `#`).
 
+## `assert` - breaking the execution based on the condition
+### Syntax
+```
+assert [expression]
+- expression - the expression which decides whether the execution should
+  be broken.
+```
+### Example
+```mcfunction
+assert False
+```
+This code would stop the execution and print an error message.
+
+
 ## Other notes
 The indentation must be created with spaces. Tabs are not supported.

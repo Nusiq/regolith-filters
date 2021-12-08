@@ -21,11 +21,19 @@ FOR = re.compile(f"for <({NAME_P}) +({INT_P})\.\.({INT_P})(?: +({INT_P}))?>:")
 UNPACK_HERE = re.compile("UNPACK:HERE")
 UNPACK_SUBFUNCTION = re.compile("UNPACK:SUBFUNCTION")
 VAR = re.compile(f"var +({NAME_P}) *= *({EXPR_P})")
+ASSERT = re.compile(f"assert +({EXPR_P})")
 IF = re.compile(f"if <({EXPR_P})>:")
 FOREACH = re.compile(f"foreach <({NAME_P}) +({NAME_P}) +({EXPR_P})>:")
 EVAL = re.compile(f"`eval: *({EXPR_P}) *`")
 
 T = TypeVar("T")
+
+class SubfunctionAssertionException(Exception):
+    def __init__(self, errors: List[str]=None):
+        self.errors = [] if errors is None else errors
+    
+    def __str__(self):
+        return "\n".join(self.errors)
 
 class UnpackMode(Enum):
     NONE = auto()
@@ -201,7 +209,9 @@ class CommandsWalker:
         try:
             yield from self._walk_function(
                 self.path, parent_unpack_mode=parent_unpack_mode)
-        except (SafeEvalException, SubfunctionSyntaxError) as e:
+        except (
+                SafeEvalException, SubfunctionSyntaxError,
+                SubfunctionAssertionException) as e:
             raise FinalCommandsWalkerError(
                 root_path=self.root_path,
                 cursor=self.cursor+self.cursor_offset+1,
@@ -371,6 +381,18 @@ class CommandsWalker:
                 m_expr = match[2]
                 try:
                     self.scope[m_name] = safe_eval(m_expr, self.scope)
+                except SafeEvalException as e:
+                    u, d = line_error_message(
+                        no_indent_line, 0, len(no_indent_line), max_len=50)
+                    raise SafeEvalException(e.errors + [u, d])
+                modified = True
+            elif match := ASSERT.fullmatch(no_indent_line):
+                m_expr = match[1]
+                try:
+                    if not safe_eval(m_expr, self.scope):
+                        u, d = line_error_message(  # 7 = len("assert ")
+                            no_indent_line, 7, len(no_indent_line), max_len=50)
+                        raise SubfunctionAssertionException(["Assertion failed:", u, d])
                 except SafeEvalException as e:
                     u, d = line_error_message(
                         no_indent_line, 0, len(no_indent_line), max_len=50)
