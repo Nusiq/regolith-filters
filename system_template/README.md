@@ -41,15 +41,14 @@ local reference to the `main.py` file of this filter. Normally you would use
 an URL (just like in the "How to use it" section).
 
 # The structure of the system templates
-The templates are stored inside the filter data folder. Every direct subfolder
-from this folder is a system template. The name of the folder is the name of
-the system displayed in the Regolith logs. Every system template has 2 config
-files (`system_scope.json` and `system_template.py`) and a data folder
-(`data`).
-
+The templates are stored inside the filter data folder. Every direct or
+indirect subfolder from this folder that has `system_scope.json` and
+`system_template.py` files is considered a system template by the filter.
+The path to the folder is the name of the system displayed in the Regolith
+logs.
 ```
 📁 system_template
-  📁 [system name]
+  📁 [path/to/system]
     📁 data
       📝 examlpe_python_file.py
       📝 example_json_file.json

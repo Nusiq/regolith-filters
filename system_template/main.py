@@ -25,7 +25,6 @@ def compile_system(scope: Dict, system_path: Path):
             target = Path(target)
         else:
             raise Exception(f'Target must start with "BP/" or "RP/": {target}')
-        print(source.as_posix(), "==>", target.as_posix())
         if target.exists():
             raise Exception(f'Target "{target}" already exists')
         # Python templating for JSON files
@@ -46,10 +45,19 @@ def compile_system(scope: Dict, system_path: Path):
             shutil.copy(source, target)
 
 def main(scope: Dict, templates_path: str):
-    for system_path in (DATA_PATH / templates_path).glob("*"):
+    for system_path in (DATA_PATH / templates_path).glob("**/*"):
         if system_path.is_file():
             continue
-        print(f"Generating system: {system_path.name}")
+        system_scope_path = system_path / 'system_scope.json'
+        system_template_path = system_path / 'system_template.py'
+        if not system_scope_path.exists() or system_scope_path.is_dir():
+            continue
+        if not system_template_path.exists() or system_template_path.is_dir():
+            continue
+        print(
+            "Generating system: "
+            f"{system_path.relative_to(DATA_PATH / templates_path).as_posix()}"
+        )
         compile_system(scope, system_path)
 
 if __name__ == '__main__':
