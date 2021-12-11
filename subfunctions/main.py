@@ -8,6 +8,8 @@ from safe_eval import SafeEvalException, safe_eval
 from enum import Enum, auto
 
 FUNCTIONS_PATH = Path('BP/functions')
+RP_TEXTS_PATH = Path('RP/texts')
+BP_TEXTS_PATH = Path('BP/texts')
 
 NAME_P = "[a-zA-Z_0-9]+"
 FUNCTION_NAME_P = f"{NAME_P}(?:/{NAME_P})*"
@@ -144,7 +146,6 @@ class FinalCommandsWalkerError(Exception):
     def __init__(
             self, root_path: Path,
             cursor: Optional[int]=None, errors: List[str]=None):
-        func_name = get_function_name(root_path)
         if cursor is None:
             first_err = (
                 'An error has occured while processing '
@@ -165,7 +166,7 @@ class CommandsWalker:
             self, path: Path, source_func_text: List[str],
             scope: Optional[Dict[str,int]]=None, is_root=True,
             cursor_offset=0, root_path: Optional[Path]=None,
-            new_scope=True):
+            new_scope=True, is_mcfunction=True):
         '''
         :param path: path of the output file
         :param source_func_text: the list with lines of code from the root file.
@@ -178,6 +179,7 @@ class CommandsWalker:
             being proccessed at given moment
         :root_path: a pth of the source file used for printing errors
         :new_scope: whether the scope should be copied for this CommandsWalker
+        :is_mcfunction: whether the file is an .mcfunction file.
         '''
         self.cursor = 0
         self.cursor_offset=cursor_offset
@@ -187,6 +189,7 @@ class CommandsWalker:
         self._scope = {} if scope is None else scope
         self._scope_copied = not new_scope
         self.is_root = is_root
+        self.is_mcfunction = is_mcfunction
 
     @property
     def scope(self):  # First use of scope triggers deepcopy; no reassignment
@@ -277,9 +280,13 @@ class CommandsWalker:
             is_root_block=True, parent_unpack_mode: Optional[UnpackMode]=None
             ) -> Iterator[McfuncitonFile]:
         if not is_root_block and path.exists():
+            if self.is_mcfunction:
+                raise SubfunctionError([
+                    f"The function file \"{get_function_name(path)}\" can't be "
+                    "created because it already exists!"])
             raise SubfunctionError([
-                f"The function file \"{get_function_name(path)}\" can't be "
-                "created because it already exists!"])
+                f"The file \"{path.as_posix()}\" can't be created because it "
+                "already exists!"])
         new_func_text = []
         modified = not is_root_block  # new file is considered to be modified
 
@@ -299,14 +306,18 @@ class CommandsWalker:
                 no_indent_line, self.scope)
             modified = modified or line_modified
 
-            if match := JUST_DEFINE.fullmatch(no_indent_line):
+            if (  # JUST_DEFINE
+                    (match := JUST_DEFINE.fullmatch(no_indent_line)) and
+                    self.is_mcfunction):
                 self.cursor += 1
                 yield from self._walk_function(
                     get_subfunction_path(path, match[1]),
                     zero_indent=indent, is_root_block=False)
                 self.cursor -= 1
                 modified = True
-            elif match := SUBFUNCTION.fullmatch(no_indent_line):
+            elif (  # SUBFUNCTION
+                    (match := SUBFUNCTION.fullmatch(no_indent_line)) and
+                    self.is_mcfunction):
                 if unpack_mode in (UnpackMode.SUBFUNCTION, UnpackMode.HERE):
                     raise SubfunctionSyntaxError([
                         "Using 'function' keyword is not allowed in "
@@ -320,7 +331,9 @@ class CommandsWalker:
                     zero_indent=indent, is_root_block=False)
                 self.cursor -= 1
                 modified = True
-            elif match := FUNCTION_TREE.fullmatch(no_indent_line):
+            elif (  # FUNCTION_TREE
+                    (match := FUNCTION_TREE.fullmatch(no_indent_line)) and
+                    self.is_mcfunction):
                 if unpack_mode in (UnpackMode.SUBFUNCTION, UnpackMode.HERE):
                     raise SubfunctionSyntaxError([
                         "Using 'functiontree' keyword is not allowed in "
@@ -408,7 +421,9 @@ class CommandsWalker:
                         no_indent_line, 0, len(no_indent_line), max_len=50)
                     raise SafeEvalException(e.errors + [u, d])
                 modified = True
-            elif match := UNPACK_HERE.fullmatch(no_indent_line):
+            elif (  # UNPACK_HERE
+                    (match := UNPACK_HERE.fullmatch(no_indent_line)) and
+                    self.is_mcfunction):
                 if not (self.cursor + self.cursor_offset == 0):  # first line?
                     raise SubfunctionSyntaxError([
                         "'UNPACK:HERE' can be used only at the "
@@ -417,7 +432,9 @@ class CommandsWalker:
                 # target directory of the defined functions
                 self.path = self.path.parent.with_suffix(".mcfunction")
                 unpack_mode = UnpackMode.HERE
-            elif match := UNPACK_SUBFUNCTION.fullmatch(no_indent_line):
+            elif (  # UNPACK_SUBFUNCTION
+                    (match := UNPACK_SUBFUNCTION.fullmatch(no_indent_line)) and
+                    self.is_mcfunction):
                 if not (self.cursor + self.cursor_offset == 0):  # first line?
                     raise SubfunctionSyntaxError([
                         "'UNPACK:SUBFUNCTION' can be used only at the "
@@ -623,22 +640,30 @@ if __name__ == '__main__':
     config = json.loads(sys.argv[1])
     # Add scope
     scope = {'true': True, 'false': False}
-    if 'scope_path' not in config:
-        config['scope_path'] = 'pytemplate/scope.json'
-    with (Path('data') / config['scope_path']).open('r') as f:
+    with (
+            Path('data') / config.get('scope_path', 'pytemplate/scope.json')
+            ).open('r') as f:
         scope = scope | json.load(f)
-
+    edit_lang_files = config.get('edit_lang_files', False)
+    
     # glob pattern result changed to list to avoid going over newly created
     # files
-    for path in list(FUNCTIONS_PATH.glob("**/*.mcfunction")):
+    walk_files = list(FUNCTIONS_PATH.glob("**/*.mcfunction"))
+    if edit_lang_files:
+        walk_files += list(RP_TEXTS_PATH.glob("*.lang"))
+        walk_files += list(BP_TEXTS_PATH.glob("*.lang"))
+    for path in walk_files:
         if path.is_dir():
             continue
         with path.open('r') as f:
             func_text = f.readlines()
 
         try:
+            is_mcfunction=path.suffix == '.mcfunction'
             for func_file in CommandsWalker(
-                    path, func_text, scope=scope).walk_function():
+                    path, func_text, scope=scope,
+                    is_mcfunction=is_mcfunction
+                    ).walk_function():
                 if func_file.delete_file:  # The file should be deleted if exists
                     func_file.path.unlink(missing_ok=True)
                     print(f"Deleted function: {get_function_name(func_file.path)} and created subfunctions")
@@ -649,7 +674,10 @@ if __name__ == '__main__':
                 with func_file.path.open('w') as f:
                     f.write("\n".join(func_file.body))
                 if func_file.is_root_block:
-                    print(f"Modified function: {get_function_name(func_file.path)}")
+                    if is_mcfunction:
+                        print(f"Modified function: {get_function_name(func_file.path)}")
+                    else:
+                        print(f"Modified file: {func_file.path.as_posix()}")
         except FinalCommandsWalkerError as e:
             for err in e.errors:
                 print_red(err)

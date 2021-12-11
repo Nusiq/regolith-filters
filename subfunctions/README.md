@@ -14,6 +14,9 @@ Copy this code to your list of the filters.
   variables provided to the template during its evaluation. The default value
   of this property is `subfunctions/scope.json`. The path is relative to
   data folder in working directory of regolith.
+- `edit_lang_files: bool` - a flag that indicates whether the filter should
+  edit the language files. The default value of this property is `false`. See
+  editing lang files section below for more information.
 
 # Features
 
@@ -286,6 +289,21 @@ assert False
 ```
 This code would stop the execution and print an error message.
 
+## Editing `.lang` files
+Subfunctions ignore the syntax of mcfunction files which means that you could
+use it for editing any other type of files. It doesn't make much sense to
+edit most of the files in the packs, but in some cases it can be useful to
+modify the `.lang` files. By default the `edit_lang_files` option is disabled
+but you can enable it and you'll be able to use subfunctions syntax in language
+files.
+
+Editing `.lang` files has some restrictions. The features that are designed to
+work specificly with `.mcfunction` files are disabled:
+- function
+- definefunction
+- funcitontree
+- UNPACK:HERE
+- UNPACK:SUBFUNCTION
 
 ## Other notes
 The indentation must be created with spaces. Tabs are not supported.
