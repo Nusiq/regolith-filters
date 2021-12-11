@@ -1,0 +1,22 @@
+{
+    "format_version": 2,
+    "header": {
+        "name": "system_template",
+        "description": "pack.description",
+        "uuid": "17a2638e-eb7b-4702-8103-1069d49b3b14",
+        "version":[ 1, 0, 0 ],
+        "min_engine_version": [ 1, 13, 0 ]
+    },
+    "modules": [
+        {
+            "type": "resources",
+            "uuid": "4e3db743-eadd-404e-a375-95ed1879183e",
+            "version":[ 1, 0, 0 ]
+        }
+    ],
+    "metadata": {
+        "authors": [
+            "Nusiq"
+        ]
+    }
+}

@@ -1,0 +1,28 @@
+{
+	"name": "system_template example",
+	"author": "Nusiq",
+	"packs": {
+		"behaviorPack": "./packs/BP",
+		"resourcePack": "./packs/RP"
+	},
+	"regolith": {
+		"profiles": {
+			"dev": {
+				"unsafe": false,
+				"filters": [
+					{
+						"runWith": "python",
+						"script": "../main.py",
+						"settings": {
+							"scope_path": "scope.json"
+						}
+					}
+				],
+				"export": {
+					"target": "local"
+				},
+				"dataPath": "./packs/data"
+			}
+		}
+	}
+}

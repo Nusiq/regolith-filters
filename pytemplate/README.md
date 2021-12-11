@@ -1,3 +1,7 @@
+WARNING! THIS FILTER USES THE PYTHON `eval()` FUNCTION TO GENERATE CODE. IF
+YOU ARE NOT SURE WHAT THIS MEANS, DO NOT USE THIS FILTER. NEVER USE THIS FILTER
+ON ANY CODE THAT YOU DO NOT TRUST.
+
 # What does this filter do?
 This filter loops through the JSON files from RP and BP that match provided
 glob patterns (`*/**.json` by default), when it finds a JSON key that
