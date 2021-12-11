@@ -298,7 +298,7 @@ class CommandsWalker:
             if no_indent_line.startswith("#") or no_indent_line == "":
                 # Skip double comments (subfunction comments) in mcfunction
                 # files
-                if not no_indent_line.startswith("##") and self.is_mcfunction:
+                if not no_indent_line.startswith("##") or not self.is_mcfunction:
                     new_func_text.append(
                         " "*(indent-base_indent) +  # Python goes "b"+"r"*10
                         no_indent_line)
