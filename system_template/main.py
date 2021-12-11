@@ -134,12 +134,12 @@ def compile_system(scope: Dict, system_path: Path):
                     with source.open('r', encoding='utf8') as f:
                         source_data = f.read()
                     with target.open('w', encoding='utf8') as f:
-                        f.write("\n".join([target_data, source_data]))
+                        f.write("\n".join([source_data, target_data]))
                 elif on_conflict == 'append_end':
                     with source.open('r', encoding='utf8') as f:
                         source_data = f.read()
                     with target.open('w', encoding='utf8') as f:
-                        f.write("\n".join([source_data, target_data]))
+                        f.write("\n".join([target_data, source_data]))
                 else:
                     shutil.copy(source.as_posix(), target.as_posix())
         except Exception as e:

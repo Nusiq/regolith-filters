@@ -304,6 +304,7 @@ work specificly with `.mcfunction` files are disabled:
 - funcitontree
 - UNPACK:HERE
 - UNPACK:SUBFUNCTION
+- subfunction comments (`##`)
 
 ## Other notes
 The indentation must be created with spaces. Tabs are not supported.
