@@ -72,5 +72,17 @@ logs.
         a python file and the target is a JSON file. It defines whether the
         scope defined in the `system_scope.json` and in the `scope_path` file
         should be used while evaluating the source file.
+      - `on_conflict` - defines what to do when the target file already exists.
+        Possible values are:
+          - `overwrite` - the new file overwrites the old one.
+          - `skip` - the new file is skipped.
+          - `stop` - an error is raised.
+          - `append_start` - the new file is appended at the start of the old
+            one. This option is not available for JSON files.
+          - `append_end` - the new file is appended at the end of the old one.
+            This option is not available for JSON files.
+          - `merge` - the new file is merged with the old one. This option is
+            available only if the target file is a JSON file and a source file
+            is either a JSON file or a python file.
 - `data/*` - a folder with files that are used as source files for the system.
   The files can be any type of files.

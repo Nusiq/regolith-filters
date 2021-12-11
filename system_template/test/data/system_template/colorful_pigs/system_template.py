@@ -2,7 +2,8 @@
     {
         "source": "behavior.py",  # Python files can be are evaluated and dumped as JSON
         "target": f"BP/entities/pig_{color}.behavior.json",
-        "scope": {"color":color, "rgb": rgb, "namespace": namespace}  # The scope used during evaluation
+        "scope": {"color":color, "rgb": rgb, "namespace": namespace},  # The scope used during evaluation
+        "on_conflict": "merge"  # How to handle files that already exist in the poject
     }  for color, rgb in colors
 ] + [
     {

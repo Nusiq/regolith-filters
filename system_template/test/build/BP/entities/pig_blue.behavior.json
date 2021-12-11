@@ -69,6 +69,7 @@
 			},
 			"minecraft:type_family": {
 				"family": [
+					"mr_blue",
 					"pig_blue",
 					"pig",
 					"mob"
