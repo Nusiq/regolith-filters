@@ -5,7 +5,7 @@ from pathlib import Path
 import shutil
 import math
 import uuid
-
+from copy import copy
 
 DATA_PATH = Path('data')
 BP_PATH = Path('BP')
@@ -14,22 +14,28 @@ RP_PATH = Path('RP')
 
 def compile_system(scope: Dict, system_path: Path):
     with (system_path / 'system_scope.json').open('r') as f:
-        scope = {**scope, **json.load(f)}
+        scope = scope | json.load(f)
     with (system_path / 'system_template.py').open('r') as f:
-        system_template = eval(f.read(), scope)
+        # copy to avoic outputing values from evalation
+        system_template = eval(f.read(), copy(scope))
     for file_template in system_template:
         source: Path = system_path / 'data' / file_template['source']
         target = file_template['target']
         if target.startswith('BP/') or target.startswith('RP/'):
             target = Path(target)
         else:
-            raise Exception('Target must start with "BP/" or "RP/"')
+            raise Exception(f'Target must start with "BP/" or "RP/": {target}')
+        print(source.as_posix(), "==>", target.as_posix())
         if target.exists():
             raise Exception(f'Target "{target}" already exists')
         # Python templating for JSON files
         if source.suffix == '.py' and target.suffix == '.json':
-            file_scope = file_template['scope'] | {
-                'true': True, 'false': False, 'math': math, 'uuid': uuid}
+            if file_template.get('use_global_scope', False):
+                file_scope = scope | file_template.get('scope', dict())
+            else:
+                file_scope = {
+                    'true': True, 'false': False, 'math': math, 'uuid': uuid
+                } | file_template.get('scope', dict())
             with source.open('r') as f:
                 file_json = eval(f.read(), file_scope)
             target.parent.mkdir(parents=True, exist_ok=True)

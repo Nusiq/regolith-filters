@@ -8,7 +8,8 @@
     {
         "source": "client_entity.py",
         "target": f"RP/entity/pig_{color}.entity.json",
-        "scope": {"color":color, "rgb": rgb, "namespace": namespace}
+        "scope": {"color":color, "rgb": rgb},
+        "use_global_scope": true  # In previous example the 'namespace' was passed by specific values. Here we entire global scope (this is less efficient)
     } for color, rgb in colors
 ] + [
     {

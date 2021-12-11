@@ -62,12 +62,16 @@ files (`system_scope.json` and `system_template.py`) and a data folder
   in the `scope_path` property.
 - `system_template.py` - python file with single expression that evaluates to
   a list of dictionaries. Each dictionary has the following keys:
-  - `source` - the path to the source file relative to the `[system name]/data`
-  folder.
-  - `target` - the destination of the file (can be either in `RP` or `BP`
-    folders of the Regolith project).
-  - `scope` - this property is required only when the source file is a python
-    file and the target is a JSON file. It defines the scope used for
-    evaluating the source file (then it's dumped as JSON to the target).
+    - `source` - the path to the source file relative to the `[system name]/data`
+      folder.
+    - `target` - the destination of the file (can be either in `RP` or `BP`
+        folders of the Regolith project).
+    - `scope` - this property is used only when the source file is a python
+        file and the target is a JSON file. It defines the scope used for
+        evaluating the source file (then it's dumped as JSON to the target).
+    - `use_global_scope` - this property is used only when the source file is
+        a python file and the target is a JSON file. It defines whether the
+        scope defined in the `system_scope.json` and in the `scope_path` file
+        should be used while evaluating the source file.
 - `data/*` - a folder with files that are used as source files for the system.
   The files can be any type of files.

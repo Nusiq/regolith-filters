@@ -21,7 +21,7 @@
 				"export": {
 					"target": "local"
 				},
-				"dataPath": "./packs/data"
+				"dataPath": "./data"
 			}
 		}
 	}
