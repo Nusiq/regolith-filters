@@ -639,13 +639,23 @@ class CommandsWalker:
 
 
 if __name__ == '__main__':
-    config = json.loads(sys.argv[1])
+    try:
+        config = json.loads(sys.argv[1])
+    except Exception:
+        config = {}
     # Add scope
     scope = {'true': True, 'false': False}
-    with (
-            Path('data') / config.get('scope_path', 'pytemplate/scope.json')
-            ).open('r') as f:
-        scope = scope | json.load(f)
+    scope_path = Path('data') / config.get(
+        'scope_path', 'pytemplate/scope.json')
+    try:
+        with scope_path.open('r') as f:
+            scope = scope | json.load(f)
+    except:
+        print_red(
+            f"Unable to read scope from {scope_path.as_posix()}. "
+            "Replaced with default scope. "
+            "You can set it in config.json file in the filter settings in "
+            "'scope_path' property.")
     edit_lang_files = config.get('edit_lang_files', False)
     
     # glob pattern result changed to list to avoid going over newly created
