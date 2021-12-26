@@ -312,9 +312,13 @@ class CommandsWalker:
                     (match := JUST_DEFINE.fullmatch(no_indent_line)) and
                     self.is_mcfunction):
                 self.cursor += 1
+                if unpack_mode == UnpackMode.HERE:
+                    subfunction_path = get_subfunction_path(
+                        path.parent, match[1])
+                else:  # NONE or SUBFUNCTION
+                    subfunction_path = get_subfunction_path(path, match[1])
                 yield from self._walk_function(
-                    get_subfunction_path(path, match[1]),
-                    zero_indent=indent, is_root_block=False)
+                    subfunction_path, zero_indent=indent, is_root_block=False)
                 self.cursor -= 1
                 modified = True
             elif (  # SUBFUNCTION
