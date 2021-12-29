@@ -1,4 +1,4 @@
 say Top 3 pets:
-say 0. cat
-say 1. dog
-say 2. parrot
+say 1. cat
+say 2. dog
+say 3. parrot

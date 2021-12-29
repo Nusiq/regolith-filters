@@ -13,7 +13,8 @@
 						"runWith": "python",
 						"script": "../main.py",
 						"settings": {
-							"scope_path": "scope.json"
+							"scope_path": "scope.json",
+							"edit_lang_files": true
 						}
 					},
 					{
