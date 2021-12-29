@@ -1,0 +1,1 @@
+say Python is better than JavaScript

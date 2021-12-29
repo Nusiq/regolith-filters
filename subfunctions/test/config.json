@@ -1,5 +1,5 @@
 {
-	"name": "system_template example",
+	"name": "subfunctions example",
 	"author": "Nusiq",
 	"packs": {
 		"behaviorPack": "./packs/BP",
@@ -15,6 +15,9 @@
 						"settings": {
 							"scope_path": "scope.json"
 						}
+					},
+					{
+						"url": "github.com/Nusiq/regolith-filters/filter_tester"
 					}
 				],
 				"export": {

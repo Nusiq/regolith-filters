@@ -1,0 +1,5 @@
+foreach <_ pet ['dog', 'cat', 'parrot']>:
+    if <pet == 'dog'>:
+        entity.nusiq:`eval:pet`.name=Doge
+    if <pet != 'dog'>:
+        entity.nusiq:`eval:pet`.name=`eval:pet.title()`

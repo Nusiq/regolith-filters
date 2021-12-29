@@ -2,7 +2,7 @@
 The filter provides additional syntax for `mcfunction` files and lets you
 define functions inside other functions.
 
-# How to use it
+# How to use it?
 Copy this code to your list of the filters.
 ```
                     {

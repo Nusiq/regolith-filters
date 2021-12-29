@@ -1,0 +1,1 @@
+say My favourite color is green.
