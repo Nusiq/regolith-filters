@@ -18,7 +18,10 @@
 						}
 					},
 					{
-						"url": "github.com/Nusiq/regolith-filters/filter_tester"
+						"url": "github.com/Nusiq/regolith-filters/filter_tester",
+						"settings": {
+							"errors_stop_execution": true
+						}
 					}
 				],
 				"export": {
