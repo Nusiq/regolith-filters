@@ -15,6 +15,12 @@
 						"settings": {
 							"scope_path": "scope.json"
 						}
+					},
+					{
+						"url": "github.com/Nusiq/regolith-filters/filter_tester",
+						"settings": {
+							"errors_stop_execution": true
+						}
 					}
 				],
 				"export": {
