@@ -8,7 +8,8 @@ REALITY_PATH = Path("")
 EXPECTATIONS_PATH = Path("data/filter_tester")
 
 def print_red(text):
-    print("\033[91m {}\033[00m".format(text))
+    for t in text.split('\n'):
+        print("\033[91m {}\033[00m".format(t))
 
 class FilterTesterException(Exception):
     pass

@@ -62,7 +62,8 @@ class McfuncitonFile(NamedTuple):
     delete_file: bool=False
 
 def print_red(text):
-    print("\033[91m {}\033[00m" .format(text))
+    for t in text.split('\n'):
+        print("\033[91m {}\033[00m".format(t))
 
 def get_function_name(path: Path):
     '''

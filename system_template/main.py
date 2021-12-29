@@ -20,7 +20,8 @@ class SystemTemplateException(Exception):
         return "\n".join(self.errors)
 
 def print_red(text):
-    print("\033[91m {}\033[00m" .format(text))
+    for t in text.split('\n'):
+        print("\033[91m {}\033[00m".format(t))
 
 def compile_system(scope: Dict, system_path: Path):
     with (system_path / 'system_scope.json').open('r') as f:
