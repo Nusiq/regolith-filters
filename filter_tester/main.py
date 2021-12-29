@@ -73,7 +73,7 @@ def assert_eq_list(
     for i in range(len(reality)):
         assert_eq_json(reality[i], expectations[i], json_path + [i])
 
-def main():
+def main(errors_stop_execution: bool):
     reality_files = set(chain(
         [i.relative_to(REALITY_PATH) for i in REALITY_PATH.glob("RP/**/*")],
         [i.relative_to(REALITY_PATH) for i in REALITY_PATH.glob("BP/**/*")]))
@@ -131,7 +131,13 @@ def main():
     if errors:
         for error in errors:
             print_red(str(error))
-        sys.exit(1)
+        if errors_stop_execution:
+            sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+    try:
+        config = json.loads(sys.argv[1])
+    except Exception:
+        config = {}
+    errors_stop_execution = config.get("errors_stop_execution", False)
+    main(errors_stop_execution)

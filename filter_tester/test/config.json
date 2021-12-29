@@ -11,7 +11,10 @@
 				"filters": [
 					{
 						"runWith": "python",
-						"script": "../main.py"
+						"script": "../main.py",
+						"settings": {
+							"errors_stop_execution": true
+						}
 					}
 				],
 				"export": {

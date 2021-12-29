@@ -11,9 +11,16 @@ filter and put the expected results in `data/filter_tester/RP` and
 respectively.
 ```
                     {
-                        "url": "github.com/Nusiq/regolith-filters/filter_tester"
+                        "url": "github.com/Nusiq/regolith-filters/filter_tester",
+                        "settings": {
+                          "errors_stop_execution": false
+                        }
                     },
 ```
 The filter will print messages about the differences between the expected
 and the actual results. If any differences are found, the test will fail and
 the filter will stop Regolith execution.
+## Configuration settings
+- `errors_stop_execution: bool` - If true, the filter will stop Regolith with
+  sys.exit(1) in case of finding any errors. If false, the filter will just
+  print the errors and continue.
