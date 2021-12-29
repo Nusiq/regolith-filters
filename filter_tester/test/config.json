@@ -1,0 +1,25 @@
+{
+	"name": "filter_tester example",
+	"author": "Nusiq",
+	"packs": {
+		"behaviorPack": "./packs/BP",
+		"resourcePack": "./packs/RP"
+	},
+	"regolith": {
+		"profiles": {
+			"dev": {
+				"filters": [
+					{
+						"runWith": "python",
+						"script": "../main.py"
+					}
+				],
+				"export": {
+					"target": "development",
+					"readOnly": true
+				},
+				"dataPath": "./data"
+			}
+		}
+	}
+}
