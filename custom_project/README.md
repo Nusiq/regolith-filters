@@ -70,3 +70,9 @@ regolith install github.com/Nusiq/regolith-filters/custom_project
 Regolith will add the latest version of the filter to `filterDefinitions` of
 your `config.json` file. Then, you can edit the `filters` list to actually
 use the filter.
+
+# Acknowledgements
+Thanks to [SirLich](https://github.com/SirLich) for creating the
+[bedrock-addon-icons](https://github.com/SirLich/bedrock-addon-icons) VS
+Code plugin, which was the inspiration for this filter and the basis for
+the default set of file extensions used in export_map.json
