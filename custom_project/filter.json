@@ -1,0 +1,8 @@
+{
+    "filters": [
+        {
+            "runWith": "shell",
+            "command": "custom-project.exe"
+        }
+    ]
+}
