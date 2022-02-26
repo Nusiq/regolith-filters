@@ -56,7 +56,13 @@ destination file):
 File names based on their parent folder (useful for grouping files in single
 folders of the project):
 - enemy/zombie/bpe.json -> BP/entities/enemy/zombie.bpe.json
-- entity/zombie/rpe.json -> RP/entity/zombie.rpe.json
+- enemy/zombie/rpe.json -> RP/entity/enemy/zombie.rpe.json
+
+Files with underscore instead of the name (file names based on their parent
+folder):
+- enemy/zombie/_.png -> RP/textures/enemy/zombie.png
+- enemy/zombie/_.bpe.json -> BP/entities/enemy/zombie.bpe.json
+- entity/zombie/_.rpe.json -> RP/entity/zombie.rpe.json
 
 # Installation
 _This instruction assumes you're using regolith 0.0.8 or above. As of the time
