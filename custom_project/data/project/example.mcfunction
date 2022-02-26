@@ -1,0 +1,1 @@
+say This is an example function of custom_project regolith filter.
