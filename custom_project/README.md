@@ -10,7 +10,10 @@ extensions defined in the configuration `export_map.json` file. The file
 extensions are used to detect the type of the Minecraft project file, the
 export map is used to decide where to export the flie. The default export map
 comes with some useful defaults which cover most of the cases that you'll find
-in Minecraft project but it's fully customizable to your needs.
+in Minecraft project but it's fully customizable to your needs. The default
+settings are compatible with
+[bedrock-addon-icons](https://github.com/SirLich/bedrock-addon-icons)
+VS Code plugin.
 
 The data folder of the filter must be orgainized in the following way:
 ```
@@ -55,10 +58,7 @@ folders of the project):
 - enemy/zombie/bpe.json -> BP/entities/enemy/zombie.bpe.json
 - entity/zombie/rpe.json -> RP/entity/zombie.rpe.json
 
-
-
-
-# How to install the filter
+# Installation
 _This instruction assumes you're using regolith 0.0.8 or above. As of the time
 of writing, 0.0.8 is yet to be released._
 
