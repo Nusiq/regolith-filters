@@ -6,23 +6,16 @@ https://github.com/Nusiq/custom-project-filter-src
 
 # Description
 This filter lets you organize your project in a custom way by using a file
-extensions defined in the configuration `export_map.json` file. The file
-extensions are used to detect the type of the Minecraft project file, the
-export map is used to decide where to export the flie. The default export map
-comes with some useful defaults which cover most of the cases that you'll find
-in Minecraft project but it's fully customizable to your needs. The default
-settings are compatible with
+extensions and paths defined in the configuration file `config.json`. The file
+extensions are used to detect the type of the Minecraft project file, the types
+of the files combined with their relative path to the root of the data folders
+(also defined in config) are used to determine where should they be exported.
+
+The default map of file extensions comes with useful defaults which cover most
+of the cases that you'll find in Minecraft project but it's fully customizable
+to your needs. The default settings are compatible with
 [bedrock-addon-icons](https://github.com/SirLich/bedrock-addon-icons)
 VS Code plugin.
-
-The data folder of the filter must be orgainized in the following way:
-```
-<data-path>/custom_project/project/*
-<data-path>/custom_project/export_map.json
-```
-The project folder contains the files of the project and the export_map defines
-how to move them. Files are exported to RP and BP folders based on their
-relative paths inside the project folder, their extensions and the export map.
 
 The process of exporting is the easiest to understand if you look at the
 example below.
@@ -32,17 +25,21 @@ _\<data-path\>/custom_project/export_map.json_
 ```json
 {
     // This is a simplified version of the default export map
-    "lang": "RP/texts",
-    "mcfunction": "BP/functions",
-    "png" : "RP/textures",
-    "bpe.json": "BP/entities",
-    "rpe.json": "RP/entity"
+    "roots": [
+        "project"
+    ],
+    "extensions_map": {
+        "lang": "RP/texts",
+        "mcfunction": "BP/functions",
+        "png" : "RP/textures",
+        "bpe.json": "BP/entities",
+        "rpe.json": "RP/entity"
+    }
 }
 ```
 
-**Examples of the file paths inside the project folder and where they are
-exported (all paths on the left are relative to 
-_\<data-path\>/custom_project/project/_):**
+**The paths of source file relative to `<data-path>/custom_project/project/`)
+and where they should be exported based on the example config file above.**:
 
 
 Simple file names (the name of the source file is the same as the name of the
@@ -63,6 +60,10 @@ folder):
 - enemy/zombie/_.png -> RP/textures/enemy/zombie.png
 - enemy/zombie/_.bpe.json -> BP/entities/enemy/zombie.bpe.json
 - entity/zombie/_.rpe.json -> RP/entity/zombie.rpe.json
+
+Note the you can have multiple root folders. In this case it's _project_
+which translates to `<data-path>/custom_project/project/`, you could have for
+example _foo_ which would translate to `<data-path>/custom_project/foo/`.
 
 # Installation
 _This instruction assumes you're using regolith 0.0.8 or above. As of the time
