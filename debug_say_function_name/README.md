@@ -15,11 +15,11 @@ Install the filter by running the following command:
 regolith install github.com/Nusiq/regolith-filters/debug_say_function_name
 ```
 
-Add the filter to the `filters` list in a profile in Rgolith conig file
-`config.json`:
+Add the filter to the `filters` list in the `config.json` file of the Regolith
+project to actually enable it:
 ```
                     {
-                        "filter": "github.com/Nusiq/regolith-filters/debug_say_function_name",
+                        "filter": "debug_say_function_name",
                         "settings": {
                             "patterns": ["**/*.mcfunction"],
                             "random_colors": true,
