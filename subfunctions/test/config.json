@@ -1,17 +1,30 @@
 {
-	"name": "subfunctions example",
 	"author": "Nusiq",
+	"name": "subfunctions example",
 	"packs": {
 		"behaviorPack": "./packs/BP",
 		"resourcePack": "./packs/RP"
 	},
 	"regolith": {
+		"dataPath": "./data",
+		"filterDefinitions": {
+			"filter_tester": {
+				"version": "1.0.0"
+			},
+			"subfunctions": {
+				"runWith": "python",
+				"script": "../main.py"
+			}
+		},
 		"profiles": {
 			"dev": {
+				"export": {
+					"readOnly": false,
+					"target": "local"
+				},
 				"filters": [
 					{
-						"runWith": "python",
-						"script": "../main.py",
+						"filter": "subfunctions",
 						"settings": {
 							"scope_path": "scope.json",
 							"edit_lang_files": true
@@ -23,12 +36,7 @@
 							"errors_stop_execution": true
 						}
 					}
-				],
-				"export": {
-					"target": "local",
-					"readOnly": true
-				},
-				"dataPath": "./data"
+				]
 			}
 		}
 	}

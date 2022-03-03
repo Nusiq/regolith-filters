@@ -1,17 +1,25 @@
-# What does this filter do?
+# Description
 The filter provides additional syntax for `mcfunction` files and lets you
 define functions inside other functions.
 
-# How to use it?
-Copy this code to your list of the filters.
+# Installation
+Run the following command in the Regolith project to make this filter
+available:
 ```
+regolith install github.com/Nusiq/regolith-filters/subfunctions
+```
+Add the filter to the `filters` list in the `config.json` file of the Regolith
+project to actually enable it (the settings properties are explained in the
+next section):
+```json
                     {
-                        "url": "github.com/Nusiq/regolith-filters/subfunctions",
+                        "filter": "subfunctions",
                         "settings": {
                             "scope_path": "subfunctions/scope.json"
                         }
                     },
 ```
+
 # Configuration settings
 - `scope_path: str` - a path to JSON file that diefines the scope of
   variables provided to the template during its evaluation. The default value
