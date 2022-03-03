@@ -1,0 +1,39 @@
+{
+	"format_version": "1.17.0",
+	"minecraft:entity": {
+		"description": {
+			"identifier": "nusiq:marker",
+			"is_spawnable": true,
+			"is_summonable": true
+		},
+		"TEMPLATE:named_states": {
+			"names": ["a", "b", "c", "d"],
+			"int_component": "mark_variant"
+		},
+		"TEMPLATE1:named_states": {
+			"names": ["v0", "v1", "v2", "v3"],
+			"int_component": "variant"
+		},
+		"components": {
+			"minecraft:physics": {
+				"has_collision": true,
+				"has_gravity": true
+			},
+			"minecraft:knockback_resistance": {
+				"value": 999,
+				"max": 999
+			},
+			"minecraft:health": {
+				"value": 999,
+				"max": 999
+			},
+			"minecraft:damage_sensor": {
+				"triggers": [
+					{
+						"deals_damage": false
+					}
+				]
+			}
+		}
+	}
+}

@@ -1,0 +1,46 @@
+{
+	"name": "Pytemplate example",
+	"author": "Nusiq",
+	"packs": {
+		"behaviorPack": "./packs/BP",
+		"resourcePack": "./packs/RP"
+	},
+	"regolith": {
+		"dataPath": "./data",
+		"filterDefinitions": {
+			"pytemplate": {
+				"runWith": "python",
+				"script": "../main.py"
+			},
+			"filter_tester": {
+				"version": "1.0.0"
+			}
+		},
+		"profiles": {
+			"dev": {
+				"export": {
+					"readOnly": false,
+					"target": "local"
+				},
+				"filters": [
+					{
+						"filter": "pytemplate",
+						"settings": {
+							"trigger_phrases": [
+								"TEMPLATE",
+								"TEMPLATE_1"
+							],
+							"scope_path": "scope.json"
+						}
+					},
+					{
+						"filter": "filter_tester",
+						"settings": {
+							"errors_stop_execution": true
+						}
+					}
+				]
+			}
+		}
+	}
+}

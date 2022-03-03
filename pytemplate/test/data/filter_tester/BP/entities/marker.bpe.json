@@ -1,0 +1,187 @@
+{
+	"format_version": "1.17.0",
+	"minecraft:entity": {
+		"component_groups": {
+			"nusiq:a": {
+				"minecraft:mark_variant": {
+					"value": 0
+				}
+			},
+			"nusiq:b": {
+				"minecraft:mark_variant": {
+					"value": 1
+				}
+			},
+			"nusiq:c": {
+				"minecraft:mark_variant": {
+					"value": 2
+				}
+			},
+			"nusiq:d": {
+				"minecraft:mark_variant": {
+					"value": 3
+				}
+			},
+			"nusiq:v0": {
+				"minecraft:variant": {
+					"value": 0
+				}
+			},
+			"nusiq:v1": {
+				"minecraft:variant": {
+					"value": 1
+				}
+			},
+			"nusiq:v2": {
+				"minecraft:variant": {
+					"value": 2
+				}
+			},
+			"nusiq:v3": {
+				"minecraft:variant": {
+					"value": 3
+				}
+			}
+		},
+		"components": {
+			"minecraft:damage_sensor": {
+				"triggers": [
+					{
+						"deals_damage": false
+					}
+				]
+			},
+			"minecraft:health": {
+				"max": 999,
+				"value": 999
+			},
+			"minecraft:knockback_resistance": {
+				"max": 999,
+				"value": 999
+			},
+			"minecraft:physics": {
+				"has_collision": true,
+				"has_gravity": true
+			}
+		},
+		"description": {
+			"identifier": "nusiq:marker",
+			"is_spawnable": true,
+			"is_summonable": true
+		},
+		"events": {
+			"nusiq:a": {
+				"add": {
+					"component_groups": [
+						"nusiq:a"
+					]
+				},
+				"remove": {
+					"component_groups": [
+						"nusiq:b",
+						"nusiq:c",
+						"nusiq:d"
+					]
+				}
+			},
+			"nusiq:b": {
+				"add": {
+					"component_groups": [
+						"nusiq:b"
+					]
+				},
+				"remove": {
+					"component_groups": [
+						"nusiq:a",
+						"nusiq:c",
+						"nusiq:d"
+					]
+				}
+			},
+			"nusiq:c": {
+				"add": {
+					"component_groups": [
+						"nusiq:c"
+					]
+				},
+				"remove": {
+					"component_groups": [
+						"nusiq:a",
+						"nusiq:b",
+						"nusiq:d"
+					]
+				}
+			},
+			"nusiq:d": {
+				"add": {
+					"component_groups": [
+						"nusiq:d"
+					]
+				},
+				"remove": {
+					"component_groups": [
+						"nusiq:a",
+						"nusiq:b",
+						"nusiq:c"
+					]
+				}
+			},
+			"nusiq:v0": {
+				"add": {
+					"component_groups": [
+						"nusiq:v0"
+					]
+				},
+				"remove": {
+					"component_groups": [
+						"nusiq:v1",
+						"nusiq:v2",
+						"nusiq:v3"
+					]
+				}
+			},
+			"nusiq:v1": {
+				"add": {
+					"component_groups": [
+						"nusiq:v1"
+					]
+				},
+				"remove": {
+					"component_groups": [
+						"nusiq:v0",
+						"nusiq:v2",
+						"nusiq:v3"
+					]
+				}
+			},
+			"nusiq:v2": {
+				"add": {
+					"component_groups": [
+						"nusiq:v2"
+					]
+				},
+				"remove": {
+					"component_groups": [
+						"nusiq:v0",
+						"nusiq:v1",
+						"nusiq:v3"
+					]
+				}
+			},
+			"nusiq:v3": {
+				"add": {
+					"component_groups": [
+						"nusiq:v3"
+					]
+				},
+				"remove": {
+					"component_groups": [
+						"nusiq:v0",
+						"nusiq:v1",
+						"nusiq:v2"
+					]
+				}
+			}
+		}
+	}
+}
