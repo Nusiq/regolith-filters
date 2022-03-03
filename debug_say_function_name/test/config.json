@@ -1,0 +1,43 @@
+{
+	"name": "Debug Say Function Name Example",
+	"author": "Nusiq",
+	"packs": {
+		"behaviorPack": "./packs/BP",
+		"resourcePack": "./packs/RP"
+	},
+	"regolith": {
+		"dataPath": "./data",
+		"filterDefinitions": {
+			"debug_say_function_name": {
+				"runWith": "python",
+				"script": "../main.py"
+			},
+			"filter_tester": {
+				"version": "1.0.0"
+			}
+		},
+		"profiles": {
+			"dev": {
+				"export": {
+					"readOnly": false,
+					"target": "local"
+				},
+				"filters": [
+					{
+						"filter": "debug_say_function_name",
+						"settings": {
+							"patterns": [
+								"**/*.mcfunction"
+							],
+							"prefix": "[MyCustomPrefix] ",
+							"random_colors": true
+						}
+					},
+					{
+						"filter": "filter_tester"
+					}
+				]
+			}
+		}
+	}
+}
