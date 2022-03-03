@@ -1,0 +1,28 @@
+{
+    "format_version": 2,
+    "header": {
+        "name": "custom_project",
+        "description": "pack.description",
+        "uuid": "a11b9a76-b30c-4ead-aab1-307064e29441",
+        "version":[ 1, 0, 0 ],
+        "min_engine_version": [ 1, 13, 0 ]
+    },
+    "modules": [
+        {
+            "type": "data",
+            "uuid": "dc043e88-fa93-4f6a-a758-8dd7bcb2ffff",
+            "version":[ 1, 0, 0 ]
+        }
+    ],
+    "dependencies": [
+        {
+            "version":[ 1, 0, 0 ],
+            "uuid": "17a2638e-eb7b-4702-8103-1069d49b3b14"
+        }
+    ],
+    "metadata": {
+        "authors": [
+            "Nusiq"
+        ]
+    }
+}

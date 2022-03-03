@@ -66,9 +66,6 @@ which translates to `<data-path>/custom_project/project/`, you could have for
 example _foo_ which would translate to `<data-path>/custom_project/foo/`.
 
 # Installation
-_This instruction assumes you're using regolith 0.0.8 or above. As of the time
-of writing, 0.0.8 is yet to be released._
-
 Simply run the command:
 ```
 regolith install github.com/Nusiq/regolith-filters/custom_project

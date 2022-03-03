@@ -1,0 +1,39 @@
+{
+  "author": "Your name",
+  "name": "Project name",
+  "packs": {
+    "behaviorPack": "./packs/BP",
+    "resourcePack": "./packs/RP"
+  },
+  "regolith": {
+    "dataPath": "./data",
+    "filterDefinitions": {
+      "custom_project": {
+        "command": "&\"../../../custom-project.exe\"",
+        "runWith": "shell"
+      },
+      "filter_tester": {
+        "version": "1.0.0"
+      }
+    },
+    "profiles": {
+      "dev": {
+        "export": {
+          "readOnly": true,
+          "target": "local"
+        },
+        "filters": [
+          {
+            "filter": "custom_project"
+          },
+          {
+            "filter": "filter_tester",
+            "settings": {
+              "errors_stop_execution": true
+            }
+          }
+        ]
+      }
+    }
+  }
+}
