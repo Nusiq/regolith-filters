@@ -6,12 +6,25 @@
 		"resourcePack": "./packs/RP"
 	},
 	"regolith": {
+		"dataPath": "./data",
+		"filterDefinitions": {
+			"filter_tester": {
+				"version": "1.0.0"
+			},
+			"system_template": {
+				"runWith": "python",
+				"script": "../main.py"
+			}
+		},
 		"profiles": {
 			"dev": {
+				"export": {
+					"readOnly": true,
+					"target": "local"
+				},
 				"filters": [
 					{
-						"runWith": "python",
-						"script": "../main.py",
+						"filter": "system_template",
 						"settings": {
 							"scope_path": "scope.json"
 						}
@@ -22,12 +35,7 @@
 							"errors_stop_execution": true
 						}
 					}
-				],
-				"export": {
-					"target": "local",
-					"readOnly": true
-				},
-				"dataPath": "./data"
+				]
 			}
 		}
 	}

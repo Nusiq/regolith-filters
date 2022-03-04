@@ -2,7 +2,7 @@ WARNING! THIS FILTER USES THE PYTHON `eval()` FUNCTION TO GENERATE CODE. IF
 YOU ARE NOT SURE WHAT THIS MEANS, DO NOT USE THIS FILTER. NEVER USE THIS FILTER
 ON ANY CODE THAT YOU DO NOT TRUST.
 
-# What does this filter do?
+# Description
 This filter introduces a concept of a system in behavior and resource packs.
 The systems are groups of files that are used to serve certain purposes.
 
@@ -18,11 +18,21 @@ template has its dedicated folder. They are also configurable. Every system
 uses `system_scope.json` file to define the variables that are used for
 code generation.
 
-# How to use it
-Copy this code to your list of the filters.
+# Installation
+Run the following command in the Regolith project to make this filter
+available:
+```
+regolith install github.com/Nusiq/regolith-filters/system_template
+```
+Add the filter to the `filters` list in the `config.json` file of the Regolith
+project to actually enable it (the settings properties are explained in the
+next section):
 ```
                     {
-                        "url": "github.com/Nusiq/regolith-filters/system_template"
+                        "url": "system_template",
+                        "settings": {
+                          "scope_path": "system_template/scope.json"
+                        }
                     },
 ```
 
