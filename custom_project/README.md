@@ -29,11 +29,11 @@ _\<data-path\>/custom_project/export_map.json_
         "project"
     ],
     "extensions_map": {
-        "lang": "RP/texts",
-        "mcfunction": "BP/functions",
-        "png" : "RP/textures",
-        "bpe.json": "BP/entities",
-        "rpe.json": "RP/entity"
+        ".lang": "RP/texts",
+        ".mcfunction": "BP/functions",
+        ".png" : "RP/textures",
+        ".bpe.json": "BP/entities",
+        ".rpe.json": "RP/entity"
     }
 }
 ```
@@ -52,8 +52,8 @@ destination file):
 
 File names based on their parent folder (useful for grouping files in single
 folders of the project):
-- enemy/zombie/bpe.json -> BP/entities/enemy/zombie.bpe.json
-- enemy/zombie/rpe.json -> RP/entity/enemy/zombie.rpe.json
+- enemy/zombie/.bpe.json -> BP/entities/enemy/zombie.bpe.json
+- enemy/zombie/.rpe.json -> RP/entity/enemy/zombie.rpe.json
 
 Files with underscore instead of the name (file names based on their parent
 folder):
