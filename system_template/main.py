@@ -173,7 +173,7 @@ if __name__ == '__main__':
     # Add scope
     scope = {'true': True, 'false': False, 'math': math, 'uuid': uuid}
     with (
-            DATA_PATH / config.get('scope_path', 'pytemplate/scope.json')
+            DATA_PATH / config.get('scope_path', 'system_template/scope.json')
             ).open('r') as f:
         scope = scope | json.load(f)
     try:
