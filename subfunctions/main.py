@@ -651,7 +651,7 @@ if __name__ == '__main__':
     # Add scope
     scope = {'true': True, 'false': False}
     scope_path = Path('data') / config.get(
-        'scope_path', 'pytemplate/scope.json')
+        'scope_path', 'subfunctions/scope.json')
     try:
         with scope_path.open('r') as f:
             scope = scope | json.load(f)
