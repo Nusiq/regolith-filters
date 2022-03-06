@@ -141,7 +141,10 @@ def main(
                 json.dump(data, f, indent='\t', sort_keys=sort_keys)
 
 if __name__ == '__main__':
-    config = json.loads(sys.argv[1])
+    try:
+        config = json.loads(sys.argv[1])
+    except Exception:
+        config = {}
     # Glob patters for finding JSON files to edit
     if 'bp_patterns' in config:
         bp_patterns = config['bp_patterns']
