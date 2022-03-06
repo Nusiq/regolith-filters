@@ -166,7 +166,10 @@ def main(scope: Dict, templates_path: str):
         compile_system(scope, system_path)
 
 if __name__ == '__main__':
-    config = json.loads(sys.argv[1])
+    try:
+        config = json.loads(sys.argv[1])
+    except Exception:
+        config = {}
     # File path to the templates folder
     templates_path = 'system_template'
 
