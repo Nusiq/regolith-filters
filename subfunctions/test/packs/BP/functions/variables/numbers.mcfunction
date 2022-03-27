@@ -10,3 +10,4 @@ var cool_numbers = [pi, e]
 say Here are some cool numbers `eval:cool_numbers`
 > cool_numbers.append(fi)
 say I forgot about Fi! `eval:cool_numbers`
+> print("This message demonstrates that you can use print() in subfunctions.")

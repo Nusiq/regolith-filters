@@ -1,0 +1,1 @@
+say `eval:my_scope_variable`

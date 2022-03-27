@@ -334,7 +334,7 @@ class CodeTreeNode:
                         export_path, f'{m_name}_{left_min}_{left_max}')
                     left_suffix = (
                         f'function {get_function_name(left_branch_path)}')
-                    left_branch_path.parent.mkdir(exists_ok=True, parents=True)
+                    left_branch_path.parent.mkdir(exist_ok=True, parents=True)
                     with left_branch_path.open('w') as f:
                         f.write('\n'.join(evaluated_commands))
                     branch_content.append(left_prefix + left_suffix)
@@ -436,10 +436,12 @@ class CodeTreeNode:
             raise SubfunctionError(
                 source_path, child.line_number,
                 e.errors + [u, d])
-        evaluated_lines, _, _ = child._eval(
-            scope, source_path, export_path,
-            unpack_mode=unpack_mode)
-        return evaluated_lines if m_condition else []
+        if m_condition:
+            evaluated_lines, _, _ = child._eval(
+                scope, source_path, export_path,
+                unpack_mode=unpack_mode)
+            return evaluated_lines
+        return []
 
     def _eval_subfunction(
             unpack_mode: UnpackMode, source_path: Path, export_path: Path,

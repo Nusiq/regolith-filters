@@ -53,6 +53,7 @@ simple_collections = {
 }
 
 scope_funcs = {
+    "print": print,
     "abs": abs, # Returns the absolute value of a number
     "all": all, # Returns True if all items in an iterable object are true
     "any": any, # Returns True if any item in an iterable object is true
