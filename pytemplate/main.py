@@ -39,14 +39,13 @@ def access_json(data, path):
 
 def replace_templates(
         data: Any, scope: Dict[str, Any], templates: Dict[str, str],
-        trigger_phrases: List[str]) -> Tuple[Dict, bool]:
+        trigger_phrase: str) -> Tuple[Dict, bool]:
     # Gather points of iterests (things that will be replaced)
     points_of_interset = []
     for poi in walk_json(data):
         k = poi[-1]
-        for trigger_phrase in trigger_phrases:
-            if isinstance(k, str) and k.startswith(trigger_phrase):
-                points_of_interset.append(poi)
+        if isinstance(k, str) and k.startswith(trigger_phrase):
+            points_of_interset.append(poi)
     if len(points_of_interset) == 0:  # No points of interests, return
         return data, False
     for poi in sorted(points_of_interset):
@@ -73,7 +72,7 @@ def replace_templates(
                 list_merge_policy=merge.ListMergePolicy.APPEND)
             # Run recursive templating
             data, _ = replace_templates(
-                data, curr_scope, templates, trigger_phrases)
+                data, curr_scope, templates, trigger_phrase)
         else:  # Templating offspring
             parent = access_json(data, poi[:-2])
             try:
@@ -89,12 +88,12 @@ def replace_templates(
                 list_merge_policy=merge.ListMergePolicy.APPEND)
             # Run recursive templating
             parent[poi[-2]], _ = replace_templates(
-                parent[poi[-2]], curr_scope, templates, trigger_phrases)
+                parent[poi[-2]], curr_scope, templates, trigger_phrase)
     return data, True
 
 def main(
         bp_patterns: List[str], rp_patterns: List[str], templates_path: str,
-        trigger_phrases: List[str], sort_keys: bool, compact: bool, scope: Dict):
+        trigger_phrase: str, sort_keys: bool, compact: bool, scope: Dict):
     '''
     Main function of the project. Adds filters to behavior- and resource-pack
     files. Read README for mor information.
@@ -128,7 +127,7 @@ def main(
             continue
 
         data, modified = replace_templates(
-            data, scope, templates, trigger_phrases)
+            data, scope, templates, trigger_phrase)
         if not modified:
             continue  # Data not modified. Don't edit the file.
 
@@ -159,10 +158,10 @@ if __name__ == '__main__':
     templates_path = 'pytemplate'
 
     # Trigger phrase
-    if 'trigger_phrases' in config:
-        trigger_phrases = config['trigger_phrases']
+    if 'trigger_phrase' in config:
+        trigger_phrase = config['trigger_phrase']
     else:
-        trigger_phrases = ["TEMPLATE"]
+        trigger_phrase = "TEMPLATE"
     if 'sort_keys' in config:
         sort_keys = config['sort_keys']
     else:
@@ -183,7 +182,7 @@ if __name__ == '__main__':
         bp_patterns=bp_patterns,
         rp_patterns=rp_patterns,
         templates_path=templates_path,
-        trigger_phrases=trigger_phrases,
+        trigger_phrase=trigger_phrase,
         sort_keys=sort_keys,
         compact=compact,
         scope=scope,

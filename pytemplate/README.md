@@ -2,17 +2,20 @@ WARNING! THIS FILTER USES THE PYTHON `eval()` FUNCTION TO GENERATE CODE. IF
 YOU ARE NOT SURE WHAT THIS MEANS, DO NOT USE THIS FILTER. NEVER USE THIS FILTER
 ON ANY CODE THAT YOU DO NOT TRUST.
 
-# Description
-This filter inserts code into JSON files based on Python based templates.
+# 📝 Description
+The Pytemplate filter lets you insert code into JSON files based on Python
+based templates. The templates are Python files with a single expression that
+evaluates to a structure that can be encoded in JSON (usually a dictionary).
+Python has powerful comprehension feature which is perfect for generating
+data structures like that.
 
-The filter loops through the JSON files from RP and BP that match provided
-glob patterns (`*/**.json` by default), when it finds a JSON key that
-matches the name specified in settings, it replaces it with a value generated
-based on template file. The template files are Python files with single
-expression that evaluates to a value which can be encoded in JSON.
+The filter looks for JSON files using glob pattern to see if they contain
+references to templates. If they do, the filter evalates the template and
+merges the result with the content of the JSON file.
 
-# Installation
-Run this command in the Regolith project to make this filter available:
+# 💿 Installation
+Run the following command in the Regolith project to make this filter
+available:
 ```
 regolith install github.com/Nusiq/regolith-filters/pytemplate
 ```
@@ -25,14 +28,13 @@ the Project:
                     },
 ```
 
-
-# Example
+# ⭐ Example
 `data/pytemplate/variants.py` - the path relative to `data/pytemplate`
 is the identifier of the template (`variants` in this case).
 ```Py
 {
-    f"nusiq:variant{i}": {
-        "minecraft:variant": {
+    f"nusiq:{base_name}_{i}": {
+        f"minecraft:{int_component}": {
             "value": i
         }
     } for i in range(num_variants)
@@ -45,7 +47,7 @@ settings properties are explained in the next section):
                     {
                         "filter": "pytemplate",
                         "settings": {
-                            "trigger_phrases": ["TEMPLATE", "TEMPLATE_1"]
+                            "trigger_phrase": "TEMPLATE"
                         }
                     },
 ```
@@ -56,29 +58,64 @@ is a scope of variables which are used by the template to generate the code.
 ```
 ...
     "component_groups": {
-      "TEMPLATE:variants": {"num_variants": 10},
+      "TEMPLATE:variants": {
+          "num_variants": 10,
+          "base_name": "component_a",
+          "int_component": "variant"
+      },
+      "TEMPLATE1:variants": {
+          "num_variants": 10,
+          "base_name": "component_b",
+          "int_component": "mark_variant"
+      },
 ...
 ```
 This template creates and add 10 component groups for the entity with
-variant values from 0 to 9 inclusive.
+variant values from 0 to 9 (named `component_a_{number}`) and
+10 component groups with mark variant values from 0 to 9 (named
+`component_b_{number}`).
 
-# Configuration settings
-- `bp_patterns: str` - optional glob patterns for matching JSON files in
-  behavior pack (`**/*.json` by default)
-- `rp_patterns: List[str]` - optional glob patterns for matching JSON files in
-  resource pack (`**/*.json` by default)
-- `trigger_phrases: List[str]` - optional list of strings used to trigger the
-  template replacement. The default value is `["TEMPLATE"]`.
-  defining multiple trigger phrases can be useful when you want to use the
-  same template multiple times in the same place with different parameters. 
+Note that the trigger phrase is "TEMPLATE" but "TEMPLATE1" is also a valid
+because "TEMPLATE" is a prefix of "TEMPLATE1". Everything *after the trigger
+phrase* and before the colon is ignored so you can use the same template
+multiple times in the same part of the JSON file. The part after colon is
+the identifier of the template.
+
+
+# 🔧 Technical details
+## Configuration settings
+- `bp_patterns: str` - glob patterns for matching JSON files in behavior pack
+  (`**/*.json` by default)
+- `rp_patterns: List[str]` - glob patterns for matching JSON files in resource
+  pack (`**/*.json` by default)
+- `trigger_phrase: str` - a string used to trigger the template replacement.
+  The default value is `"TEMPLATE"`. Any key in the JSON file that starts with
+  this string, is split into two parts using `:` as a separator. The first part
+  is the trigger phrase (+ optional suffix) and the second part is the
+  identifier of the template (the path to the teplate file relative to the
+  filter data path).
 - `sort_keys: bool` - optional value which decides whether the keys of the
-  modified JSON file should be sorted. True by default.
-- `compact: bool` - optional value which decides whether the modified JSON
-  should be compact (with white spaces removed). False by default.
+  JSON file should be sorted. `True` by default. This property only affects
+  the files that are modified by the filter. Sorting keys is not the purpose
+  of this filter so for performance reasons it doesn't write the files if
+  they're not modified.
+- `compact: bool` - optional value which decides whether the JSON
+  should be compact (with white spaces removed). `False` by default. This
+  property only affects the files that use are modified by the filter.
 - `scope_path: str` - a path to JSON file that diefines the scope of variables
   provided to the template during its evaluation. This propery is merged with
-  the scope provided directly in the modified JSON file and with the default
+  the scope provided directly inside the JSON file and with the default
   scope which is: `{'true': True, 'false': False, 'math': math, 'uuid': uuid}`
-  where math and uuid are standard python modules. The default value of this
-  property is `pytemplate/scope.json`. The path is relative to
-  data folder in working directory of regolith.
+  (`math` and `uuid` are standard Python modules). The default value of this
+  property is `pytemplate/scope.json`.
+
+## Providing data to the templates
+There are 3 ways to provide the scope of variables to the template:
+- Some of the values are provided by default (for example `true` value is equal
+  to `True` so you can use exactly the same syntax as in JSON files)
+- You can put the data into the JSON file indicated by the `scope_path`
+  property.
+- You can provide the data directly to the template when it's referenced in the
+  JSON file. A template reference always contains two parts: the key which
+  triggers the use of the template and an object which is merged with the
+  scope provided by the other two ways.

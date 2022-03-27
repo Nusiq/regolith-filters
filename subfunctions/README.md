@@ -30,7 +30,7 @@ next section):
                     },
 ```
 
-# ✅ Configuration settings
+# ⚙️ Configuration settings
 - `scope_path: str` - a path to JSON file that diefines the scope of
   variables provided to the template during its evaluation. The default value
   of this property is `subfunctions/scope.json`. The path is relative to
@@ -39,8 +39,7 @@ next section):
   edit the language files. The default value of this property is `false`. See
   editing lang files section below for more information.
 
-# ⭐ Features
-
+# 🔧 Technical details
 ## Table of contents
 - [`function` - subfunctions defined executed instantly](#function---subfunctions-defined-executed-instantly)
 - [`definefunction` - definition of subfunction without execution](#definefunction---definition-of-subfunction-without-execution)

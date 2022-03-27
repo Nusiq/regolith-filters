@@ -26,10 +26,7 @@
 					{
 						"filter": "pytemplate",
 						"settings": {
-							"trigger_phrases": [
-								"TEMPLATE",
-								"TEMPLATE_1"
-							],
+							"trigger_phrase": "TEMPLATE",
 							"scope_path": "scope.json"
 						}
 					},
