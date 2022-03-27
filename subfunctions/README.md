@@ -300,6 +300,38 @@ assert False
 ```
 This code would stop the execution and print an error message.
 
+## Indentation limitations
+In normal mcfunction files, indentation don't matter. Subfunctions use the
+indentation to group the code in the same way as in Python. As shown in the
+examples above, the indentation is used to determine the scope of blocks
+like `for`, `definefunction`, `functiontree`, etc.
+
+Apart from all of these situations, where the indentation has a syntactic
+meaning, there is one additional case in which the indentation is allowed:
+You can create indented blocks of code if they have a comment at the top used
+as a header. Here is an example:
+```mcfunction
+# This is a comment about the block of code
+    say first command
+    say second command
+    say third command
+```
+Without the comment or the use of the syntax that requires indented blocks,
+you can't use arbitrary indentation:
+```mcfunction
+say This is not allowed!
+    say This line will create an error!
+    say second command
+    say third command
+```
+This limitation lets Subfunctions detect errors like typos in the lines that
+can be used start an indented block (for example `define_function` instead of
+`definefunction`).
+```mcfunction
+define_function <my_function>:
+    say Subfunctions would detect an error here!
+```
+
 ## Editing `.lang` files
 Subfunctions ignore the syntax of mcfunction files which means that you could
 use it for editing any other type of files. It doesn't make much sense to
