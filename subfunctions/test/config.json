@@ -14,6 +14,10 @@
 			"subfunctions": {
 				"runWith": "python",
 				"script": "../main.py"
+			},
+			"strip_mcfunctions": {
+				"runWith": "python",
+				"script": "strip_whitespaces.py"
 			}
 		},
 		"profiles": {
@@ -29,6 +33,9 @@
 							"scope_path": "scope.json",
 							"edit_lang_files": true
 						}
+					},
+					{
+						"filter": "strip_mcfunctions"
 					},
 					{
 						"filter": "filter_tester",
