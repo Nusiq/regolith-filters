@@ -316,22 +316,20 @@ class CodeTreeNode:
                 ' ~ ~ ~ ')
 
             # Left branch half
+            left_branch_path = get_subfunction_path(
+                export_path, f'{m_name}_{left_min}_{left_max}')
             if left_min != left_max:  # go deeper into tree branches
-                left_branch_path = get_subfunction_path(
-                    export_path, f'{m_name}_{left_min}_{left_max}')
                 left_suffix = (
                     f'function {get_function_name(left_branch_path)}')
                 branch_content.append(left_prefix + left_suffix)
             else:  # leaf node
                 scope[m_var] = left_min
                 evaluated_commands, _, _ = child._eval(
-                    scope, source_path, export_path,
+                    scope, source_path, left_branch_path,
                     unpack_mode=unpack_mode)
                 if len(evaluated_commands) == 1:
                     branch_content.append(left_prefix + evaluated_commands[0])
                 else:  # More than one in normal case (possible edge case: 0)
-                    left_branch_path = get_subfunction_path(
-                        export_path, f'{m_name}_{left_min}_{left_max}')
                     left_suffix = (
                         f'function {get_function_name(left_branch_path)}')
                     left_branch_path.parent.mkdir(exist_ok=True, parents=True)
@@ -339,22 +337,20 @@ class CodeTreeNode:
                         f.write('\n'.join(evaluated_commands))
                     branch_content.append(left_prefix + left_suffix)
             # Right branch half
+            right_branch_path = get_subfunction_path(
+                export_path, f'{m_name}_{right_min}_{right_max}')
             if right_min != right_max:  # go deeper into tree branches
-                right_branch_path = get_subfunction_path(
-                    export_path, f'{m_name}_{right_min}_{right_max}')
                 right_suffix = (
                     f'function {get_function_name(right_branch_path)}')
                 branch_content.append(right_prefix + right_suffix)
             else:  # leaf node
                 scope[m_var] = right_min
                 evaluated_commands, _, _ = child._eval(
-                    scope, source_path, export_path,
+                    scope, source_path, right_branch_path,
                     unpack_mode=unpack_mode)
                 if len(evaluated_commands) == 1:
                     branch_content.append(right_prefix + evaluated_commands[0])
                 else:  # More than one in normal case (possible edge case: 0)
-                    right_branch_path = get_subfunction_path(
-                        export_path, f'{m_name}_{right_min}_{right_max}')
                     right_suffix = (
                         f'function {get_function_name(right_branch_path)}')
                     right_branch_path.parent.mkdir(exist_ok=True, parents=True)
