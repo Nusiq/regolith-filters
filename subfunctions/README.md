@@ -1,8 +1,16 @@
 ![](../.resources/subfunctions-title.svg)
 
 # 📝 Description
-The filter provides additional syntax for `mcfunction` files and lets you
-define functions inside other functions.
+The Subfunctions filter provide enhanced `mcfunction` syntax, allowing easy
+code generation directly from the mcfunction files. Their main feature is the
+ability to define multiple functions in a single file, but they can also be
+used to generate code in loops, with condintional logic, and using variables
+which can be modified during code generation.
+
+Subfunctions are easy to use because their syntax is a superset of the
+`mcfunction` syntax. The code of mcfunction files is a valid code for
+Subfunctions, which means that they can be added to any project at any stage
+of development.
 
 # 💿 Installation
 Run the following command in the Regolith project to make this filter
@@ -32,6 +40,22 @@ next section):
   editing lang files section below for more information.
 
 # ⭐ Features
+
+## Table of contents
+- [`function` - subfunctions defined executed instantly](#function---subfunctions-defined-executed-instantly)
+- [`definefunction` - definition of subfunction without execution](#definefunction---definition-of-subfunction-without-execution)
+- [`functiontree` - a binary tree of functions](#functiontree---a-binary-tree-of-functions)
+- [`for` - generating code in a loop](#for---generating-code-in-a-loop)
+- [`foreach` - generating code from collections](#foreach---generating-code-from-collections)
+- [`if` - generating code based on condition](#if---generating-code-based-on-condition)
+- [`var` - defining variables for later use in the same function](#var---defining-variables-for-later-use-in-the-same-function)
+- [`>` - evaluating expression without assigning it to a variable](#---evaluating-expression-without-assigning-it-to-a-variable)
+- [`eval` - static code generation based on simple expressions](#eval---static-code-generation-based-on-simple-expressions)
+- [`UNPACK:HERE` and `UNPACK:SUBFUNCTION`](#unpackhere-and-unpacksubfunction)
+- [`##` - subfunction comments](#---subfunction-comments)
+- [`assert` - breaking the execution based on the condition](#assert---breaking-the-execution-based-on-the-condition)
+- [Indentation limitations](#indentation-limitations)
+- [Editing `.lang` files](#editing-lang-files)
 
 ## `function` - subfunctions defined executed instantly
 
