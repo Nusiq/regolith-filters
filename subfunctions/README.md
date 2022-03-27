@@ -1,4 +1,4 @@
-![](../.resources/subfunctions-title.png)
+![](../.resources/subfunctions-title.svg)
 
 # 📝 Description
 The filter provides additional syntax for `mcfunction` files and lets you
