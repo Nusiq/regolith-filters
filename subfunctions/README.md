@@ -1,8 +1,10 @@
-# Description
+![](../.resources/subfunctions-title.png)
+
+# 📝 Description
 The filter provides additional syntax for `mcfunction` files and lets you
 define functions inside other functions.
 
-# Installation
+# 💿 Installation
 Run the following command in the Regolith project to make this filter
 available:
 ```
@@ -20,7 +22,7 @@ next section):
                     },
 ```
 
-# Configuration settings
+# ✅ Configuration settings
 - `scope_path: str` - a path to JSON file that diefines the scope of
   variables provided to the template during its evaluation. The default value
   of this property is `subfunctions/scope.json`. The path is relative to
@@ -29,7 +31,7 @@ next section):
   edit the language files. The default value of this property is `false`. See
   editing lang files section below for more information.
 
-# Features
+# ⭐ Features
 
 ## `function` - subfunctions defined executed instantly
 
@@ -112,11 +114,8 @@ like any other function.
 ## `functiontree` - a binary tree of functions
 ### Syntax
 ```
-[any_code] functiontree <[function_name]><[scoreboard] [start]..[stop] [step]>:
+functiontree <[function_name]><[scoreboard] [start]..[stop] [step]>:
     [function_body]
-- any_code - usually an execute command or chain of execute commands, but
-  since subfunctions don't parse mcfunction files, you can put there any
-  string.
 - function_name - a base name of the new functions to create ([A-Za-z0-9]+),
   the files are created inside a folder with the same name as the root function
   and are named after function_name with addition of sufix which represents
