@@ -1,8 +1,18 @@
-# Description
-The filter provides additional syntax for `mcfunction` files and lets you
-define functions inside other functions.
+![](../.resources/subfunctions-title.svg)
 
-# Installation
+# 📝 Description
+The Subfunctions filter provide enhanced `mcfunction` syntax, allowing easy
+code generation directly from the mcfunction files. Their main feature is the
+ability to define multiple functions in a single file, but they can also be
+used to generate code in loops, with condintional logic, and using variables
+which can be modified during code generation.
+
+Subfunctions are easy to use because their syntax is a superset of the
+`mcfunction` syntax. The code of mcfunction files is a valid code for
+Subfunctions, which means that they can be added to any project at any stage
+of development.
+
+# 💿 Installation
 Run the following command in the Regolith project to make this filter
 available:
 ```
@@ -20,7 +30,7 @@ next section):
                     },
 ```
 
-# Configuration settings
+# ✅ Configuration settings
 - `scope_path: str` - a path to JSON file that diefines the scope of
   variables provided to the template during its evaluation. The default value
   of this property is `subfunctions/scope.json`. The path is relative to
@@ -29,7 +39,23 @@ next section):
   edit the language files. The default value of this property is `false`. See
   editing lang files section below for more information.
 
-# Features
+# ⭐ Features
+
+## Table of contents
+- [`function` - subfunctions defined executed instantly](#function---subfunctions-defined-executed-instantly)
+- [`definefunction` - definition of subfunction without execution](#definefunction---definition-of-subfunction-without-execution)
+- [`functiontree` - a binary tree of functions](#functiontree---a-binary-tree-of-functions)
+- [`for` - generating code in a loop](#for---generating-code-in-a-loop)
+- [`foreach` - generating code from collections](#foreach---generating-code-from-collections)
+- [`if` - generating code based on condition](#if---generating-code-based-on-condition)
+- [`var` - defining variables for later use in the same function](#var---defining-variables-for-later-use-in-the-same-function)
+- [`>` - evaluating expression without assigning it to a variable](#---evaluating-expression-without-assigning-it-to-a-variable)
+- [`eval` - static code generation based on simple expressions](#eval---static-code-generation-based-on-simple-expressions)
+- [`UNPACK:HERE` and `UNPACK:SUBFUNCTION`](#unpackhere-and-unpacksubfunction)
+- [`##` - subfunction comments](#---subfunction-comments)
+- [`assert` - breaking the execution based on the condition](#assert---breaking-the-execution-based-on-the-condition)
+- [Indentation limitations](#indentation-limitations)
+- [Editing `.lang` files](#editing-lang-files)
 
 ## `function` - subfunctions defined executed instantly
 
@@ -112,11 +138,8 @@ like any other function.
 ## `functiontree` - a binary tree of functions
 ### Syntax
 ```
-[any_code] functiontree <[function_name]><[scoreboard] [start]..[stop] [step]>:
+functiontree <[function_name]><[scoreboard] [start]..[stop] [step]>:
     [function_body]
-- any_code - usually an execute command or chain of execute commands, but
-  since subfunctions don't parse mcfunction files, you can put there any
-  string.
 - function_name - a base name of the new functions to create ([A-Za-z0-9]+),
   the files are created inside a folder with the same name as the root function
   and are named after function_name with addition of sufix which represents
