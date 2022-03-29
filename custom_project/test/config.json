@@ -9,8 +9,8 @@
     "dataPath": "./data",
     "filterDefinitions": {
       "custom_project": {
-        "command": "&\"../../../custom-project.exe\"",
-        "runWith": "shell"
+        "exe": "../custom-project",
+        "runWith": "exe"
       },
       "filter_tester": {
         "version": "1.0.0"

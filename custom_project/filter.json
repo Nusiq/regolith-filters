@@ -1,8 +1,8 @@
 {
     "filters": [
         {
-            "runWith": "shell",
-            "command": "&$env:FILTER_DIR/custom-project"
+            "runWith": "exe",
+            "exe": "custom-project"
         }
     ]
 }
