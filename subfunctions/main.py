@@ -563,9 +563,9 @@ class CodeTree:
                 if line.indent != stack_top.child_indent:
                     raise SubfunctionError(
                         source_path, i,
-                        f"Indentation error: expected indent "
+                        [f"Indentation error: expected indent "
                         f"length is {stack_top.child_indent} but the actual "
-                        f"value is {line.indent}.")
+                        f"value is {line.indent}."])
                 for _ in range(blank_counter):
                     stack_top.children.append(
                         CodeTreeNode("", stack_top, line_number=i+1))
@@ -581,9 +581,9 @@ class CodeTree:
                 if stack_top.child_indent != line.indent:
                     raise SubfunctionError(
                         source_path, i,
-                        f"Indentation error: expected indent "
+                        [f"Indentation error: expected indent "
                         f"length is {stack_top.child_indent} but the actual "
-                        f"value is {line.indent}.")
+                        f"value is {line.indent}."])
                 for _ in range(blank_counter):
                     stack_top.children.append(
                         CodeTreeNode("", stack_top, line_number=i+1))
