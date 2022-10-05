@@ -1,6 +1,6 @@
 {
-	"name": "Debug Say Function Name Example",
 	"author": "Nusiq",
+	"name": "Debug Say Function Name Example",
 	"packs": {
 		"behaviorPack": "./packs/BP",
 		"resourcePack": "./packs/RP"
@@ -13,6 +13,7 @@
 				"script": "../main.py"
 			},
 			"filter_tester": {
+				"url": "github.com/Bedrock-OSS/regolith-filters",
 				"version": "1.0.0"
 			}
 		},
@@ -26,7 +27,10 @@
 					{
 						"filter": "debug_say_function_name",
 						"settings": {
-							"patterns": [
+							"exclude": [
+								"**/lobby.mcfunction"
+							],
+							"include": [
 								"**/*.mcfunction"
 							],
 							"prefix": "[MyCustomPrefix] ",
