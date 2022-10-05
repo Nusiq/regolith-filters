@@ -21,7 +21,8 @@ project to actually enable it:
                     {
                         "filter": "debug_say_function_name",
                         "settings": {
-                            "patterns": ["**/*.mcfunction"],
+                            "include": ["**/*.mcfunction"],
+                            "exclude": [],
                             "random_colors": true,
                             "prefix": ""
                         }
@@ -33,9 +34,13 @@ All settings are optional. The example above shows the default values. Not
 providing any settings will result in the filter working in the same way as
 with the settings above.
 
-The "patterns" is a list of glob patterns to match against the subpaths of
+The "include" is a list of glob patterns to match against the subpaths of
 `BP/functions` to determine if the filter should be applied. By default it
 matches all mcfunction files (`**/*.mcfunction`).
+
+The "exclude" is a list of glob patterns to match against the subpaths of
+`BP/functions` to determine if the filter should be applied. By default 
+this matches no files.
 
 The "random_colors" setting determines if the function names should be printed
 in random colors. By default it's set to `true`. The colors are picked

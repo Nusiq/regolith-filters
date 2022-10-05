@@ -33,10 +33,14 @@ def generate_tellraw_command(
 
 if __name__ == '__main__':
     config = json.loads(sys.argv[1])
-    if 'patterns' in config:
-        patterns = config['patterns']
+    if 'include' in config:
+        include = config['include']
     else:
-        patterns = ["**/*.mcfunction"]
+        include = ["**/*.mcfunction"]
+    if 'exclude' in config:
+        exclude = config['exclude']
+    else:
+        exclude = []
     if 'random_colors' in config:
         random_colors = config['random_colors']
     else:
@@ -47,9 +51,14 @@ if __name__ == '__main__':
         prefix = ""
 
     paths_set = set()
-    for pattern in patterns:
-        for path in FUNCTIONS_PATH.glob(pattern):
+    excluded_paths_list = []
+    for excluded_paths in exclude:
+        for path in FUNCTIONS_PATH.glob(excluded_paths):
             if path.is_file():
+                excluded_paths_list.append(path)
+    for included_files in include:
+        for path in FUNCTIONS_PATH.glob(included_files):
+            if path.is_file() and path not in excluded_paths_list:
                 paths_set.add(path)
     for path in paths_set:
         with path.open('r', encoding="utf8") as f:
