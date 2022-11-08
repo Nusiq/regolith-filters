@@ -1,0 +1,10 @@
+{
+	"filters": [
+		{
+			"description": "A pointless filter for counting the number of uses of the 'regolith run' command.",
+			"runWith": "python",
+			"script": "./main.py",
+			"name": "nusiq:run_counter"
+		}
+	]
+}
