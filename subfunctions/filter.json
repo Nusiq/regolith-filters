@@ -1,9 +1,9 @@
 {
-    "filters": [
-        {
-            "runWith": "python",
-            "script": "./main.py",
-            "name": "nusiq:subfunctions"
-        }
-    ]
+	"filters": [
+		{
+			"runWith": "python",
+			"script": "./main.py",
+			"name": "nusiq:subfunctions"
+		}
+	]
 }

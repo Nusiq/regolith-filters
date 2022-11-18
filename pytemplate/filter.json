@@ -1,9 +1,9 @@
 {
-    "filters": [
-        {
-            "runWith": "python",
-            "script": "./main.py",
-            "name": "nusiq:pytemplate"
-        }
-    ]
+	"filters": [
+		{
+			"runWith": "python",
+			"script": "./main.py",
+			"name": "nusiq:pytemplate"
+		}
+	]
 }

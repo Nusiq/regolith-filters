@@ -1,8 +1,8 @@
 {
-    "filters": [
-        {
-            "runWith": "exe",
-            "exe": "custom-project"
-        }
-    ]
+	"filters": [
+		{
+			"runWith": "exe",
+			"exe": "custom-project"
+		}
+	]
 }

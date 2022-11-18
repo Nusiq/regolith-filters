@@ -1,9 +1,9 @@
 {
-    "filters": [
-        {
-            "runWith": "python",
-            "script": "./main.py",
-            "name": "nusiq:debug_say_function_name"
-        }
-    ]
+	"filters": [
+		{
+			"runWith": "python",
+			"script": "./main.py",
+			"name": "nusiq:debug_say_function_name"
+		}
+	]
 }
