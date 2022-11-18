@@ -1,4 +1,5 @@
 {
+	"description": "A filter to organize your project files based on their extensions.",
 	"filters": [
 		{
 			"runWith": "exe",

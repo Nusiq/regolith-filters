@@ -1,7 +1,3 @@
-WARNING! THIS FILTER USES THE PYTHON `eval()` FUNCTION TO GENERATE CODE. IF
-YOU ARE NOT SURE WHAT THIS MEANS, DO NOT USE THIS FILTER. NEVER USE THIS FILTER
-ON ANY CODE THAT YOU DO NOT TRUST.
-
 # Description
 This filter introduces a concept of a system in behavior and resource packs.
 The systems are groups of files that are used to serve certain purposes.

@@ -1,4 +1,5 @@
 {
+	"description": "A filter for grouping your project files into folders based on what they do together instead of what they are.",
 	"filters": [
 		{
 			"runWith": "python",

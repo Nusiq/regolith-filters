@@ -1,4 +1,5 @@
 {
+	"description": "An extension to the *.mcfunction file syntax.",
 	"filters": [
 		{
 			"runWith": "python",

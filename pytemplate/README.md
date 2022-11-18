@@ -1,9 +1,5 @@
 ![](../.resources/pytemplate-title.svg)
 
-WARNING! THIS FILTER USES THE PYTHON `eval()` FUNCTION TO GENERATE CODE. IF
-YOU ARE NOT SURE WHAT THIS MEANS, DO NOT USE THIS FILTER. NEVER USE THIS FILTER
-ON ANY CODE THAT YOU DO NOT TRUST.
-
 # 📝 Description
 The Pytemplate filter lets you insert code into JSON files based on Python
 based templates. The templates are Python files with a single expression that

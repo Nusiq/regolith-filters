@@ -1,4 +1,5 @@
 {
+	"description": "JSON templating tool based on Python list and dict comprehension syntax.",
 	"filters": [
 		{
 			"runWith": "python",

@@ -1,4 +1,5 @@
 {
+	"description": "A tool for adding debug 'tellraw' commands to your *.mcfunction files.",
 	"filters": [
 		{
 			"runWith": "python",

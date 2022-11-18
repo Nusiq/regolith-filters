@@ -1,7 +1,8 @@
 {
+	"description": "A filter that counts the number of Regolith runs and exports it to a file.",
+	"exportData": true,
 	"filters": [
 		{
-			"description": "A pointless filter for counting the number of uses of the 'regolith run' command.",
 			"runWith": "python",
 			"script": "./main.py",
 			"name": "nusiq:run_counter"
