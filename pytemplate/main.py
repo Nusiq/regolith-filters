@@ -6,7 +6,7 @@ from itertools import chain
 from pathlib import Path
 import math
 import uuid
-
+from better_json_tools import load_jsonc
 
 DATA_PATH = Path('data')
 BP_PATH = Path('BP')
@@ -120,8 +120,7 @@ def main(
         if not fp.exists() or not fp.is_file():
             continue
         try:
-            with fp.open('r') as f:
-                data = json.load(f)
+            data = load_jsonc(fp).data
         except:
             print(f"Unable to load file {fp.as_posix()}")
             continue
@@ -175,8 +174,7 @@ if __name__ == '__main__':
     scope = {'true': True, 'false': False, 'math': math, 'uuid': uuid}
     if 'scope_path' not in config:
         config['scope_path'] = 'pytemplate/scope.json'
-    with (DATA_PATH / config['scope_path']).open('r') as f:
-        scope = scope | json.load(f)
+    scope = scope | load_jsonc(DATA_PATH / config['scope_path']).data
 
     main(
         bp_patterns=bp_patterns,
