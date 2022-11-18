@@ -39,7 +39,7 @@ the Project:
 # ⭐ Example
 
 ## In-place templates
-`BP/entities/my_entity.pytemplate`
+`BP/entities/my_entity.pytemplate.json`
 ```Py
 {
     "format_version": "1.17.0",
