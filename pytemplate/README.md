@@ -7,9 +7,19 @@ evaluates to a structure that can be encoded in JSON (usually a dictionary).
 Python has powerful comprehension feature which is perfect for generating
 data structures like that.
 
-The filter looks for JSON files using glob pattern to see if they contain
-references to templates. If they do, the filter evalates the template and
-merges the result with the content of the JSON file.
+You can define the templates in filters data folder and insert them into any
+JSON file or you can define the in-place templates directly in RP and BP files
+to generate JSON from them.
+
+If you choose to use templates defined in data, the filter looks for JSON files
+using glob pattern to see if they contain references to templates. If they do,
+the filter evalates the template and merges the result with the content of the
+JSON file.
+
+If you choose to use in-place templates, the filter looks for files with
+specified extension (`.pytemplate` by default) and evaluates the template as
+if it was a Python file. The result is dumped as a JSON file with replaced
+extension (`.json`), the original file is deleted.
 
 # 💿 Installation
 Run the following command in the Regolith project to make this filter
@@ -27,6 +37,87 @@ the Project:
 ```
 
 # ⭐ Example
+
+## In-place templates
+`BP/entities/my_entity.pytemplate`
+```Py
+{
+    "format_version": "1.17.0",
+    "minecraft:entity": {
+        "description": {
+            "identifier": "nusiq:inplace_template",
+            "is_spawnable": true,
+            "is_summonable": true
+        },
+        "component_groups": {
+            f"variant{i}": {
+                "minecraft:variant": {
+                    "value": i
+                }
+            } for i in range(2)
+        },
+        "components": {
+            "minecraft:physics": {}
+        },
+        "events": {
+            f"variant{i}": {
+                "add": {
+                    "component_groups": [
+                        f"variant{i}"
+                    ]
+                }
+            } for i in range(2)
+        }
+    }
+}
+```
+
+**Result:** `BP/entities/my_entity.json`
+```json
+{
+    "format_version": "1.17.0",
+    "minecraft:entity": {
+        "description": {
+            "identifier": "nusiq:inplace_template",
+            "is_spawnable": true,
+            "is_summonable": true
+        },
+        "component_groups": {
+            "variant0": {
+                "minecraft:variant": {
+                    "value": 0
+                }
+            },
+            "variant1": {
+                "minecraft:variant": {
+                    "value": 1
+                }
+            }
+        },
+        "components": {
+            "minecraft:physics": {}
+        },
+        "events": {
+            "variant0": {
+                "add": {
+                    "component_groups": [
+                        "variant0"
+                    ]
+                }
+            },
+            "variant1": {
+                "add": {
+                    "component_groups": [
+                        "variant1"
+                    ]
+                }
+            }
+        }
+    }
+}
+```
+
+## Templates defined in data
 `data/pytemplate/variants.py` - the path relative to `data/pytemplate`
 is the identifier of the template (`variants` in this case).
 ```Py
@@ -83,9 +174,14 @@ the identifier of the template.
 # 🔧 Technical details
 ## Configuration settings
 - `bp_patterns: str` - glob patterns for matching JSON files in behavior pack
-  (`**/*.json` by default)
+  (`[]` by default)
 - `rp_patterns: List[str]` - glob patterns for matching JSON files in resource
-  pack (`**/*.json` by default)
+  pack (`[]` by default)
+- `in_place_template_suffix: str` - suffix for in-place templates, files that
+  are evaluated as Python JSON-like objects and than saved as JSON files. The
+  original file is deleted, and the newly created file has the same name as the
+  original but the suffix is replaced with `.json`. (`".pytemplate.json"`
+  by default)
 - `trigger_phrase: str` - a string used to trigger the template replacement.
   The default value is `"TEMPLATE"`. Any key in the JSON file that starts with
   this string, is split into two parts using `:` as a separator. The first part

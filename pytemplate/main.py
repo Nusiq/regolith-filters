@@ -92,12 +92,46 @@ def replace_templates(
     return data, True
 
 def main(
-        bp_patterns: List[str], rp_patterns: List[str], templates_path: str,
+        bp_patterns: List[str], rp_patterns: List[str],
+        in_place_template_suffix: str, templates_path: str, 
         trigger_phrase: str, sort_keys: bool, compact: bool, scope: Dict):
     '''
     Main function of the project. Adds filters to behavior- and resource-pack
     files. Read README for mor information.
     '''
+    fp: Path
+    # Resolve glob patterns for inplace templates
+    in_place_paths = set()
+    in_place_paths.update(RP_PATH.rglob(f"*{in_place_template_suffix}"))
+    in_place_paths.update(BP_PATH.rglob(f"*{in_place_template_suffix}"))
+    # Replace values files using templates in place
+    for fp in in_place_paths:
+        if not fp.exists() or not fp.is_file():
+            continue
+        output = fp.with_name(fp.name.replace(
+                in_place_template_suffix, '.json'))
+        if output != fp and output.exists():
+            # This allows a special case where the input and output file are
+            # the same (.json -> .json)
+            print(
+                f"Skipping '{fp.as_posix()}' as the output "
+                f"'{output.as_posix()}' already exists")
+            continue
+        try:
+            data_text = fp.read_text(encoding='utf8')
+        except:
+            print(f"Unable to load file {fp.as_posix()}")
+            continue
+        data = eval(data_text, scope)
+        fp.unlink()
+        with output.open('w') as f:
+            if compact:
+                json.dump(
+                    data, f, indent='\t',
+                    separators=(',', ':'), sort_keys=sort_keys)
+            else:
+                json.dump(data, f, indent='\t', sort_keys=sort_keys)
+
     # Resolve glob patterns for BP  and RP
     bp_paths = set()
     for i in bp_patterns:
@@ -114,7 +148,6 @@ def main(
         with template_path.open('r') as f:
             templates[key] = f.read()
 
-    fp: Path
     # Replace values in file using templates
     for fp in chain(bp_paths, rp_paths):
         if not fp.exists() or not fp.is_file():
@@ -138,6 +171,7 @@ def main(
             else:
                 json.dump(data, f, indent='\t', sort_keys=sort_keys)
 
+
 if __name__ == '__main__':
     try:
         config = json.loads(sys.argv[1])
@@ -147,11 +181,16 @@ if __name__ == '__main__':
     if 'bp_patterns' in config:
         bp_patterns = config['bp_patterns']
     else:
-        bp_patterns = ['**/*.json']
+        bp_patterns = []
     if 'rp_patterns' in config:
         rp_patterns = config['rp_patterns']
     else:
-        rp_patterns = ['**/*.json']
+        rp_patterns = []
+    if 'in_place_template_suffix' in config:
+        in_place_template_suffix = config['in_place_template_suffix']
+    else:
+        in_place_template_suffix = '.pytemplate.json'
+
 
     # File path to the templates folder
     templates_path = 'pytemplate'
@@ -179,6 +218,7 @@ if __name__ == '__main__':
     main(
         bp_patterns=bp_patterns,
         rp_patterns=rp_patterns,
+        in_place_template_suffix=in_place_template_suffix,
         templates_path=templates_path,
         trigger_phrase=trigger_phrase,
         sort_keys=sort_keys,

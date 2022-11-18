@@ -1,0 +1,47 @@
+{
+	"format_version": "1.17.0",
+	"minecraft:entity": {
+		"description": {
+			"identifier": "nusiq:inplace_template",
+			"is_spawnable": true,
+			"is_summonable": true
+		},
+		"component_groups": {
+			f"variant{i}": {
+				"minecraft:variant": {
+					"value": i
+				}
+			} for i in range(10)
+		},
+		"components": {
+			"minecraft:physics": {
+				"has_collision": true,
+				"has_gravity": true
+			},
+			"minecraft:knockback_resistance": {
+				"value": 999,
+				"max": 999
+			},
+			"minecraft:health": {
+				"value": 999,
+				"max": 999
+			},
+			"minecraft:damage_sensor": {
+				"triggers": [
+					{
+						"deals_damage": false
+					}
+				]
+			}
+		},
+		"events": {
+			f"variant{i}": {
+				"add": {
+					"component_groups": [
+						f"variant{i}"
+					]
+				}
+			} for i in range(10)
+		}
+	}
+}
