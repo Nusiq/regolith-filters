@@ -1,4 +1,3 @@
-from safe_eval import SafeEvalException, safe_eval
 import sys
 import re
 from pathlib import Path
@@ -45,6 +44,28 @@ class UnpackMode(Enum):
     NONE = auto()
     SUBFUNCTION = auto()
     HERE = auto()
+
+
+class EvalException(Exception):
+    def __init__(self, errors: List[str] = None):
+        self.errors = [] if errors is None else errors
+
+    def __str__(self):
+        return "\n".join(self.errors)
+
+
+def custom_eval(expr, scope: Dict[str, int]):
+    '''
+    Custom eval calls the "eval" function with the given expression and scope.
+    If it fails, it raises an EvalException with the error message.
+    '''
+    try:
+        return eval(expr, scope)
+    except Exception as e:
+        raise EvalException([
+            "Expression evaluation failed.",
+            str(e)
+        ])
 
 def print_red(text):
     for t in text.split('\n'):
@@ -93,10 +114,10 @@ def eval_line_of_code(line: str, scope: Dict[str, int]) -> Tuple[str, bool]:
     while cursor < len(line) and (match := EVAL.search(line[cursor:])):
         start, end = cursor+match.start(), cursor+match.end()
         try:
-            replace.append((start, end, str(safe_eval(match[1], scope)))) 
-        except SafeEvalException as e:
+            replace.append((start, end, str(custom_eval(match[1], scope)))) 
+        except EvalException as e:
             u, d = line_error_message(line, start, end, max_len=50)
-            raise SafeEvalException(e.errors + [u, d])
+            raise EvalException(e.errors + [u, d])
         cursor = end
     if len(replace) > 0:
         result_list = []
@@ -197,7 +218,7 @@ class CodeTreeNode:
             try:
                 eval_line, line_modified = eval_line_of_code(
                     stripped_line, scope)
-            except SafeEvalException as e:
+            except EvalException as e:
                 raise SubfunctionError(
                     source_path, child.line_number, e.errors)
             file_modified = file_modified or line_modified
@@ -398,8 +419,8 @@ class CodeTreeNode:
         m_var = match[2]
         result: List[str] = []
         try:
-            m_iterable = safe_eval(match[3], scope)
-        except SafeEvalException as e:
+            m_iterable = custom_eval(match[3], scope)
+        except EvalException as e:
             start, stop = match.regs[3]
             u, d = line_error_message(
                 stripped_line, start, stop, max_len=50)
@@ -424,8 +445,8 @@ class CodeTreeNode:
         condition is true, otherwize returns an empty list.
         '''
         try:
-            m_condition = bool(safe_eval(match[1], scope))
-        except SafeEvalException as e:
+            m_condition = bool(custom_eval(match[1], scope))
+        except EvalException as e:
             start, stop = match.regs[1]
             u, d = line_error_message(
                 stripped_line, start, stop, max_len=50)
@@ -498,13 +519,13 @@ class CodeTreeNode:
         '''Evaluates 'assert' command.'''
         m_expr = match[1]
         try:
-            if not safe_eval(m_expr, scope):
+            if not custom_eval(m_expr, scope):
                 u, d = line_error_message(  # 7 = len("assert ")
                     stripped_line, 7, len(stripped_line), max_len=50)
                 raise SubfunctionError(
                     source_path, child.line_number,
                     ["Assertion failed:", u, d])
-        except SafeEvalException as e:
+        except EvalException as e:
             u, d = line_error_message(
                 stripped_line, 0, len(stripped_line), max_len=50)
             raise SubfunctionError(
@@ -517,8 +538,8 @@ class CodeTreeNode:
         '''Evaluates '>' command.'''
         m_expr = match[1]
         try:
-            safe_eval(m_expr, scope)
-        except SafeEvalException as e:
+            custom_eval(m_expr, scope)
+        except EvalException as e:
             u, d = line_error_message(
                 stripped_line, 0, len(stripped_line), max_len=50)
             raise SubfunctionError(
@@ -532,8 +553,8 @@ class CodeTreeNode:
         m_name = match[1]
         m_expr = match[2]
         try:
-            scope[m_name] = safe_eval(m_expr, scope)
-        except SafeEvalException as e:
+            scope[m_name] = custom_eval(m_expr, scope)
+        except EvalException as e:
             u, d = line_error_message(
                 stripped_line, 0, len(stripped_line), max_len=50)
             raise SubfunctionError(
