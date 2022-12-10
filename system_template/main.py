@@ -7,6 +7,10 @@ import shutil
 import math
 import uuid
 from copy import copy
+from enum import Enum, auto
+
+class SpecialKeys(Enum):
+    AUTO = auto()  # Special key used for the "target" property in "_map.py"
 
 DATA_PATH = Path('data')
 BP_PATH = Path('BP')
@@ -23,36 +27,48 @@ def print_red(text):
     for t in text.split('\n'):
         print("\033[91m {}\033[00m".format(t))
 
-def compile_system(scope: Dict, system_path: Path):
-    with (system_path / 'system_scope.json').open('r') as f:
+
+def get_auto_target_mapping(source: Path, auto_map: Dict[str, str]) -> Path:
+    for key, value in auto_map.items():
+        if source.name.endswith(key):
+            return Path(value) / source
+    raise Exception(f"Failed to find a export target for {source.as_posix()}")
+
+def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
+    with (system_path / '_scope.json').open('r') as f:
         scope = scope | json.load(f)
-    system_template_path = system_path / 'system_template.py'
-    with system_template_path.open('r') as f:
-        # copy to avoic outputing values from evalation
+    file_map_path = system_path / '_map.py'
+    with file_map_path.open('r') as f:
+        # copy to avoid outputing values from evalation
         try:
-            system_template = eval(f.read(), copy(scope))
+            file_map = eval(f.read(), copy(scope))
         except Exception as e:
             raise SystemTemplateException([
-                f"Failed to evaluate {system_template_path.as_posix()} "
+                f"Failed to evaluate {file_map_path.as_posix()} "
                 "due to an error:",  str(e)])
-    for file_template in system_template:
-        if 'source' not in file_template:
+    for file_map_item in file_map:
+        if 'source' not in file_map_item:
             raise SystemTemplateException([
-                    f"Missing 'source' in file_template: {file_template}"])
-        source: Path = system_path / 'data' / file_template['source']
-        if 'target' not in file_template:
+                    "Missing 'source' property in one of the "
+                    f"_map.py items: {file_map_item}"])
+        source: Path = system_path / file_map_item['source']
+        if 'target' not in file_map_item:
             raise SystemTemplateException([
-                    f"Missing 'target' in file_template: {file_template}"])
-        target = file_template['target']
-        if target.startswith('BP/') or target.startswith('RP/'):
+                f"Missing 'target'  property in one of the "
+                f"_map.py items: : {file_map_item}"])
+        target = file_map_item['target']
+        if target is SpecialKeys.AUTO:
+            target = get_auto_target_mapping(
+                Path(file_map_item['source']), auto_map)
+        elif isinstance(target, str) and (target.startswith('BP/') or target.startswith('RP/')):
             target = Path(target)
         else:
             raise SystemTemplateException([
-                f'Target must start with "BP/" or "RP/": {target}'])
+                f'Export target must be "AUTO" or a path that starts with "BP/" or "RP/": {target}'])
         # Get on_conflict policy: stop, overwrite, append_end, append_start,
         # skip or merge
         if target.suffix == '.json':
-            on_conflict = file_template.get('on_conflict', 'stop')
+            on_conflict = file_map_item.get('on_conflict', 'stop')
             valid_keys = ['stop', 'overwrite', 'merge', 'skip']
             if on_conflict not in valid_keys:
                 raise SystemTemplateException([
@@ -60,7 +76,7 @@ def compile_system(scope: Dict, system_path: Path):
                     f"{target.as_posix}. Valid values for JSON files "
                     f"are: {valid_keys}"])
         elif target.suffix == '.lang':
-            on_conflict = file_template.get('on_conflict', 'append_end')
+            on_conflict = file_map_item.get('on_conflict', 'append_end')
             valid_keys = [
                 'stop', 'overwrite', 'append_end', 'append_start', 'skip']
             if on_conflict not in valid_keys:
@@ -69,7 +85,7 @@ def compile_system(scope: Dict, system_path: Path):
                     f"{target.as_posix}. Valid values for .lang files "
                     f"are: {valid_keys}"])
         elif target.suffix == '.mcfunction':
-            on_conflict = file_template.get('on_conflict', 'stop')
+            on_conflict = file_map_item.get('on_conflict', 'stop')
             valid_keys = [
                 'stop', 'overwrite', 'append_end', 'append_start', 'skip']
             if on_conflict not in valid_keys:
@@ -78,7 +94,7 @@ def compile_system(scope: Dict, system_path: Path):
                     f"{target.as_posix}. Valid values for .lang files "
                     f"are: {valid_keys}"])
         else:
-            on_conflict = file_template.get('on_conflict', 'stop')
+            on_conflict = file_map_item.get('on_conflict', 'stop')
             valid_keys = ['stop', 'overwrite', 'skip']
             if on_conflict not in valid_keys:
                 raise SystemTemplateException([
@@ -112,13 +128,7 @@ def compile_system(scope: Dict, system_path: Path):
             # python or JSON
             if target.suffix == '.json' and source.suffix in ('.json', '.py'):
                 if source.suffix == '.py':
-                    if file_template.get('use_global_scope', False):
-                        file_scope = scope | file_template.get('scope', dict())
-                    else:
-                        file_scope = {
-                            'true': True, 'false': False,
-                            'math': math, 'uuid': uuid
-                        } | file_template.get('scope', dict())
+                    file_scope = copy(scope) | file_map_item.get('scope', {})
                     with source.open('r') as f:
                         file_json = eval(f.read(), file_scope)
                 elif source.suffix == '.json':
@@ -149,21 +159,21 @@ def compile_system(scope: Dict, system_path: Path):
                 f'{target.as_posix()}":',
                 str(e)])
 
-def main(scope: Dict, templates_path: str):
+def main(scope: Dict, templates_path: Path, auto_map: Dict[str, str]):
     for system_path in (DATA_PATH / templates_path).glob("**/*"):
         if system_path.is_file():
             continue
-        system_scope_path = system_path / 'system_scope.json'
-        system_template_path = system_path / 'system_template.py'
+        system_scope_path = system_path / '_scope.json'
+        file_map_path = system_path / '_map.py'
         if not system_scope_path.exists() or system_scope_path.is_dir():
             continue
-        if not system_template_path.exists() or system_template_path.is_dir():
+        if not file_map_path.exists() or file_map_path.is_dir():
             continue
         print(
             "Generating system: "
             f"{system_path.relative_to(DATA_PATH / templates_path).as_posix()}"
         )
-        compile_system(scope, system_path)
+        compile_system(scope, system_path, auto_map)
 
 if __name__ == '__main__':
     try:
@@ -171,16 +181,24 @@ if __name__ == '__main__':
     except Exception:
         config = {}
     # File path to the templates folder
-    templates_path = 'system_template'
+    templates_path = Path('system_template')
 
     # Add scope
-    scope = {'true': True, 'false': False, 'math': math, 'uuid': uuid}
+    scope = {
+        'true': True, 'false': False, 'math': math, 'uuid': uuid,
+        "AUTO": SpecialKeys.AUTO}
     with (
             DATA_PATH / config.get('scope_path', 'system_template/scope.json')
             ).open('r') as f:
         scope = scope | json.load(f)
+    # Try to load the auto map
     try:
-        main(scope, templates_path)
+        with open(DATA_PATH / "system_template/auto_map.json", 'r') as f:
+            auto_map = json.load(f)
+    except FileNotFoundError:
+        auto_map = {}
+    try:
+        main(scope, templates_path, auto_map)
     except SystemTemplateException as e:
         for err in e.errors:
             print_red(err)
