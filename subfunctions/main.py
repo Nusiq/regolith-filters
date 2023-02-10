@@ -10,6 +10,8 @@ FUNCTIONS_PATH = Path('BP/functions')
 RP_TEXTS_PATH = Path('RP/texts')
 BP_TEXTS_PATH = Path('BP/texts')
 
+
+SELECTOR_P = r'(?:@[a-z](?:\[[0-9a-zA-Z_ \.,\":={}\[\]\+]+\])?)|[0-9a-zA-Z_]+|(?:\"[0-9a-zA-Z_ ]*\")'
 NAME_P = "[a-zA-Z_0-9]+"
 FUNCTION_NAME_P = f"{NAME_P}(?:/{NAME_P})*"
 INT_P = "-?[0-9]+"
@@ -18,7 +20,7 @@ EXPR_P = r'[^`\n\r]+'
 JUST_DEFINE = re.compile(f"definefunction <({FUNCTION_NAME_P})>:")
 SUBFUNCTION = re.compile(f"(.* )?function <({FUNCTION_NAME_P})>:")
 FUNCTIONTREE = re.compile(
-    f"functiontree <({NAME_P})><({NAME_P}) +({INT_P})\.\.({INT_P})(?: +({INT_P}))?>:")
+    f"functiontree <({NAME_P})><({SELECTOR_P}) ({NAME_P}) +({INT_P})\.\.({INT_P})>:")
 FOR = re.compile(f"for <({NAME_P}) +({INT_P})\.\.({INT_P})(?: +({INT_P}))?>:")
 UNPACK_HERE = re.compile("UNPACK:HERE")
 UNPACK_SUBFUNCTION = re.compile("UNPACK:SUBFUNCTION")
@@ -302,11 +304,11 @@ class CodeTreeNode:
                 source_path, child.line_number,
                 ["Using 'functiontree' keyword is not allowed in "
                 "functions using UNPACK:HERE or UNPACK:SUBFUNCTION!"])
-        m_name = match[1]
-        m_var = match[2]
-        m_min = int(match[3])
-        m_max = int(match[4])
-        m_step = 1 if match[5] is None else int(match[5])
+        m_name: str = match[1]
+        m_selector: str = match[2]
+        m_score: str = match[3]
+        m_min = int(match[4])
+        m_max = int(match[5])
 
         def yield_splits(
                 list_: List[int], is_root_block=True
@@ -319,7 +321,7 @@ class CodeTreeNode:
             yield from yield_splits(left, False)
             yield from yield_splits(right, False)
         
-        leaf_values: List[int] = [i for i in range(m_min, m_max, m_step)]
+        leaf_values: List[int] = [i for i in range(m_min, m_max)]
         result = []
         for left_min, left_max, right_min, right_max, is_root_block in \
                 yield_splits(leaf_values):
@@ -330,11 +332,13 @@ class CodeTreeNode:
             branch_path = get_subfunction_path(
                 export_path, f'{m_name}_{left_min}_{right_max}')
             left_prefix = (
-                f'execute @s[scores={{{m_var}={left_min}..{left_max}}}]'
-                ' ~ ~ ~ ')
+                f'execute if score {m_selector} {m_score} matches '
+                f'{left_min}..{left_max} run '
+            )
             right_prefix = (
-                f'execute @s[scores={{{m_var}={right_min}..{right_max}}}]'
-                ' ~ ~ ~ ')
+                f'execute if score {m_selector} {m_score} matches '
+                f'{right_min}..{right_max} run '
+            )
 
             # Left branch half
             left_branch_path = get_subfunction_path(
@@ -344,7 +348,7 @@ class CodeTreeNode:
                     f'function {get_function_name(left_branch_path)}')
                 branch_content.append(left_prefix + left_suffix)
             else:  # leaf node
-                scope[m_var] = left_min
+                scope[m_score] = left_min
                 evaluated_commands, _, _ = child._eval(
                     scope, source_path, left_branch_path,
                     unpack_mode=unpack_mode)
@@ -365,7 +369,7 @@ class CodeTreeNode:
                     f'function {get_function_name(right_branch_path)}')
                 branch_content.append(right_prefix + right_suffix)
             else:  # leaf node
-                scope[m_var] = right_min
+                scope[m_score] = right_min
                 evaluated_commands, _, _ = child._eval(
                     scope, source_path, right_branch_path,
                     unpack_mode=unpack_mode)

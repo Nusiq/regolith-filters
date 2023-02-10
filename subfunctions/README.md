@@ -137,12 +137,14 @@ like any other function.
 ## `functiontree` - a binary tree of functions
 ### Syntax
 ```
-functiontree <[function_name]><[scoreboard] [start]..[stop] [step]>:
+functiontree <[function_name]><[selector] [scoreboard] [start]..[stop]>:
     [function_body]
 - function_name - a base name of the new functions to create ([A-Za-z0-9]+),
   the files are created inside a folder with the same name as the root function
   and are named after function_name with addition of sufix which represents
   the scoreboard range they search.
+- selector - the selector or a fake player name used for generating execute
+  commands
 - scoreboard - the name of the scoreboard used for function tree
 - start - starting value of range
 - stop - end value of range
@@ -152,10 +154,11 @@ functiontree <[function_name]><[scoreboard] [start]..[stop] [step]>:
   programming language)
 ```
 ### Description
-`functiontree` lets you quickly search values of scoreboard of `@s` using
-binary tree made out of function files calling each other. It also  adds
-a variable to the scope with the value of the scoreboard which can be accessed
-using `eval` (see documentation below)
+`functiontree` lets you quickly search values of a `scoreboard` for `selector`
+using binary tree made out of function files calling each other. It also adds
+a variable to the scope named after the `scoreboard`. The value of the variable
+is the same as the value of the `scoreboard` at the moment of calling the
+function. It can be accessed using `eval` (see documentation below)
 
 ### Example
 This is an example of simple implentation of getting elements from table
@@ -165,26 +168,26 @@ table.
 
 Source: *BP/functions/table.mcfunction*
 ```mcfunction
-functiontree <table_get><tab_index 0..100>:
+functiontree <table_get><@s tab_index 0..100>:
     scoreboard players operation @s table_io = @s t_`eval:tab_index`
 ```
 
 Complied code: *BP/functions/table.mcfunction*
 ```
-execute @s[scores={tab_index=0..49}] ~ ~ ~ function table/get_0_49
-execute @s[scores={tab_index=50..99}] ~ ~ ~ function table/get_50_99
+execute if score @s tab_index matches 0..49 run function table/get_0_49
+execute if score @s tab_index matches 50..99 run function table/get_50_99
 ```
 
 Example branch: *BP/functions/table/get_0_49.mcfunction*
 ```mcfunction
-execute @s[scores={tab_index=0..24}] ~ ~ ~ function table/get_0_24
-execute @s[scores={tab_index=25..49}] ~ ~ ~ function table/get_25_49
+execute if score @s tab_index matches 0..24 run function table/get_0_24
+execute if score @s tab_index matches 25..49 run function table/get_25_49
 ```
 
 Example leaf: *BP/functions/table/get_1_2.mcfunction*
 ```mcfunction
-execute @s[scores={tab_index=1..1}] ~ ~ ~ scoreboard players operation @s table_io = @s t_1
-execute @s[scores={tab_index=2..2}] ~ ~ ~ scoreboard players operation @s table_io = @s t_2
+execute if score @s tab_index matches 1..1 run scoreboard players operation @s table_io = @s t_1
+execute if score @s tab_index matches 2..2 run scoreboard players operation @s table_io = @s t_2
 ```
 
 ## `for` - generating code in a loop
