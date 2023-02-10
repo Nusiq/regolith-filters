@@ -1,4 +1,7 @@
 # Changelog
+## 2.0.0
+Changed how the `functiontree` works. Now it support new execute command syntax. The `step` property
+of the `functiontree` has been removed as it didn't serve any purpose the way it was implemented.
 ## 1.0.7
 Simplified the regex patterin for python expression to: [^\n\r]+
 ## 1.0.6
