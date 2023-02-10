@@ -1,2 +1,2 @@
-execute @s[scores={index=8..8}] ~ ~ ~ scoreboard players operation @s tableIo = @s t8
-execute @s[scores={index=9..9}] ~ ~ ~ scoreboard players operation @s tableIo = @s t9
+execute if score @s index matches 8..8 run scoreboard players operation @s tableIo = @s t8
+execute if score @s index matches 9..9 run scoreboard players operation @s tableIo = @s t9

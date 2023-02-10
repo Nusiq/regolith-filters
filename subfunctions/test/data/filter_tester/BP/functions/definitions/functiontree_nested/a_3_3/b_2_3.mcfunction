@@ -1,2 +1,2 @@
-execute @s[scores={scrB=2..2}] ~ ~ ~ say A:3 B:2
-execute @s[scores={scrB=3..3}] ~ ~ ~ say A:3 B:3
+execute if score @s scrB matches 2..2 run say A:3 B:2
+execute if score @s scrB matches 3..3 run say A:3 B:3

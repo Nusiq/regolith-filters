@@ -1,2 +1,2 @@
-execute @s[scores={index=6..6}] ~ ~ ~ scoreboard players operation @s tableIo = @s t6
-execute @s[scores={index=7..7}] ~ ~ ~ scoreboard players operation @s tableIo = @s t7
+execute if score @s index matches 6..6 run scoreboard players operation @s tableIo = @s t6
+execute if score @s index matches 7..7 run scoreboard players operation @s tableIo = @s t7

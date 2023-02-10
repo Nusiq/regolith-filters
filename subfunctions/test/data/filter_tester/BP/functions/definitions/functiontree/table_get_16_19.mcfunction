@@ -1,2 +1,2 @@
-execute @s[scores={index=16..17}] ~ ~ ~ function definitions/functiontree/table_get_16_17
-execute @s[scores={index=18..19}] ~ ~ ~ function definitions/functiontree/table_get_18_19
+execute if score @s index matches 16..17 run function definitions/functiontree/table_get_16_17
+execute if score @s index matches 18..19 run function definitions/functiontree/table_get_18_19

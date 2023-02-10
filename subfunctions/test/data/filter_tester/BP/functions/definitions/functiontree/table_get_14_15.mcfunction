@@ -1,2 +1,2 @@
-execute @s[scores={index=14..14}] ~ ~ ~ scoreboard players operation @s tableIo = @s t14
-execute @s[scores={index=15..15}] ~ ~ ~ scoreboard players operation @s tableIo = @s t15
+execute if score @s index matches 14..14 run scoreboard players operation @s tableIo = @s t14
+execute if score @s index matches 15..15 run scoreboard players operation @s tableIo = @s t15
