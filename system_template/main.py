@@ -8,6 +8,7 @@ import math
 import uuid
 from copy import copy
 from enum import Enum, auto
+from better_json_tools import load_jsonc
 
 class SpecialKeys(Enum):
     AUTO = auto()  # Special key used for the "target" property in "_map.py"
@@ -35,8 +36,7 @@ def get_auto_target_mapping(source: Path, auto_map: Dict[str, str]) -> Path:
     raise Exception(f"Failed to find a export target for {source.as_posix()}")
 
 def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
-    with (system_path / '_scope.json').open('r') as f:
-        scope = scope | json.load(f)
+    scope = scope | load_jsonc(system_path / '_scope.json').data
     file_map_path = system_path / '_map.py'
     with file_map_path.open('r') as f:
         # copy to avoid outputing values from evalation
@@ -115,10 +115,10 @@ def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
                 print(f"Skipping {target.as_posix()}")
                 continue
             elif on_conflict in ('merge', 'append_end', 'append_start'):
-                with target.open('r', encoding='utf8') as f:
-                    if target.suffix == '.json':
-                        target_data = json.load(f)
-                    else:
+                if target.suffix == '.json':
+                    target_data = load_jsonc(target).data
+                else:
+                    with target.open('r', encoding='utf8') as f:
                         target_data = f.read()
                 target.unlink()
         # Python templating for JSON files
@@ -132,8 +132,7 @@ def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
                     with source.open('r') as f:
                         file_json = eval(f.read(), file_scope)
                 elif source.suffix == '.json':
-                    with source.open('r') as f:
-                        file_json = json.load(f)
+                    file_json = load_jsonc(source).data
                 if on_conflict == 'merge':
                     file_json = merge.deep_merge_objects(
                         target_data, file_json,
@@ -187,14 +186,13 @@ if __name__ == '__main__':
     scope = {
         'true': True, 'false': False, 'math': math, 'uuid': uuid,
         "AUTO": SpecialKeys.AUTO}
-    with (
-            DATA_PATH / config.get('scope_path', 'system_template/scope.json')
-            ).open('r') as f:
-        scope = scope | json.load(f)
+    scope_path = DATA_PATH / config.get(
+        'scope_path', 'system_template/scope.json')
+    scope = scope | load_jsonc(scope_path).data
     # Try to load the auto map
     try:
-        with open(DATA_PATH / "system_template/auto_map.json", 'r') as f:
-            auto_map = json.load(f)
+        auto_map_path = DATA_PATH / "system_template/auto_map.json"
+        auto_map = load_jsonc(auto_map_path).data
     except FileNotFoundError:
         auto_map = {}
     try:
