@@ -9,6 +9,7 @@ import uuid
 from copy import copy
 from enum import Enum, auto
 from better_json_tools import load_jsonc
+from better_json_tools.compact_encoder import CompactEncoder
 
 class SpecialKeys(Enum):
     AUTO = auto()  # Special key used for the "target" property in "_map.py"
@@ -138,7 +139,7 @@ def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
                         target_data, file_json,
                         list_merge_policy=merge.ListMergePolicy.APPEND)
                 with target.open('w') as f:
-                    json.dump(file_json, f, indent="\t", sort_keys=True)
+                    json.dump(file_json, f, cls=CompactEncoder)
             else:  # Other files (append_start, append_end or overwrite)
                 if on_conflict == 'append_start':
                     with source.open('r', encoding='utf8') as f:
