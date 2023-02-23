@@ -68,7 +68,7 @@ def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
                 f'Export target must be "AUTO" or a path that starts with "BP/" or "RP/": {target}'])
         # Get on_conflict policy: stop, overwrite, append_end, append_start,
         # skip or merge
-        if target.suffix == '.json':
+        if target.suffix in ('.material', '.json'):
             on_conflict = file_map_item.get('on_conflict', 'stop')
             valid_keys = ['stop', 'overwrite', 'merge', 'skip']
             if on_conflict not in valid_keys:
@@ -116,7 +116,7 @@ def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
                 print(f"Skipping {target.as_posix()}")
                 continue
             elif on_conflict in ('merge', 'append_end', 'append_start'):
-                if target.suffix == '.json':
+                if target.suffix in ('.material', '.json'):
                     target_data = load_jsonc(target).data
                 else:
                     with target.open('r', encoding='utf8') as f:
@@ -127,12 +127,14 @@ def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
             target.parent.mkdir(parents=True, exist_ok=True)
             # Merging is possible only if target is JSON and source is either
             # python or JSON
-            if target.suffix == '.json' and source.suffix in ('.json', '.py'):
+            if (
+                    target.suffix in ('.material', '.json') and
+                    source.suffix in ('.material', '.json', '.py')):
                 if source.suffix == '.py':
                     file_scope = copy(scope) | file_map_item.get('scope', {})
                     with source.open('r') as f:
                         file_json = eval(f.read(), file_scope)
-                elif source.suffix == '.json':
+                elif source.suffix in ('.material', '.json'):
                     file_json = load_jsonc(source).data
                 if on_conflict == 'merge':
                     file_json = merge.deep_merge_objects(
