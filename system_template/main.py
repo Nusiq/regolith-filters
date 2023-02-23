@@ -74,7 +74,7 @@ def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
             if on_conflict not in valid_keys:
                 raise SystemTemplateException([
                     f"Invalid 'on_conflict' value: {on_conflict} for "
-                    f"{target.as_posix}. Valid values for JSON files "
+                    f"{target.as_posix()}. Valid values for JSON files "
                     f"are: {valid_keys}"])
         elif target.suffix == '.lang':
             on_conflict = file_map_item.get('on_conflict', 'append_end')
@@ -83,7 +83,7 @@ def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
             if on_conflict not in valid_keys:
                 raise SystemTemplateException([
                     f"Invalid 'on_conflict' value: {on_conflict} for "
-                    f"{target.as_posix}. Valid values for .lang files "
+                    f"{target.as_posix()}. Valid values for .lang files "
                     f"are: {valid_keys}"])
         elif target.suffix == '.mcfunction':
             on_conflict = file_map_item.get('on_conflict', 'stop')
@@ -92,7 +92,7 @@ def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
             if on_conflict not in valid_keys:
                 raise SystemTemplateException([
                     f"Invalid 'on_conflict' value: {on_conflict} for "
-                    f"{target.as_posix}. Valid values for .lang files "
+                    f"{target.as_posix()}. Valid values for .lang files "
                     f"are: {valid_keys}"])
         else:
             on_conflict = file_map_item.get('on_conflict', 'stop')
@@ -100,7 +100,7 @@ def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
             if on_conflict not in valid_keys:
                 raise SystemTemplateException([
                     f"Invalid 'on_conflict' value: {on_conflict} for "
-                    f"{target.as_posix}. Valid values for this kind of file "
+                    f"{target.as_posix()}. Valid values for this kind of file "
                     f"are: {valid_keys}"])
         # Handling the conflicts with skip, stop and overwrite policy here
         # other policies just read the data from are handled later
