@@ -34,7 +34,13 @@ def deep_merge_dicts(
     from A.
     '''
     result = {}
-    for k in (a.keys() | b.keys()):
+    # a.keys() | b.keys() could be used but it doesn't preserve order
+    keys = list(a.keys()) + list(b.keys())
+    used_keys = set()
+    for k in keys:
+        if k in used_keys:
+            continue
+        used_keys.add(k)
         if k in b:
             if k not in a: # in B not in A
                 result[k] = b[k]
