@@ -34,19 +34,21 @@ def get_auto_target_mapping(source: Path, auto_map: Dict[str, str]) -> Path:
     for key, value in auto_map.items():
         if source.name.endswith(key):
             return Path(value) / source
-    raise Exception(f"Failed to find a export target for {source.as_posix()}")
+    raise Exception(
+        "Failed to find an AUTO mapping export target for "
+        f"{source.as_posix()}")
 
 def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
     scope = scope | load_jsonc(system_path / '_scope.json').data
     file_map_path = system_path / '_map.py'
-    with file_map_path.open('r') as f:
-        # copy to avoid outputing values from evalation
-        try:
+    try:
+        with file_map_path.open('r') as f:
+            # copy to avoid outputing values from evalation
             file_map = eval(f.read(), copy(scope))
-        except Exception as e:
-            raise SystemTemplateException([
-                f"Failed to evaluate {file_map_path.as_posix()} "
-                "due to an error:",  str(e)])
+    except Exception as e:
+        raise SystemTemplateException([
+            f"Failed to evaluate {file_map_path.as_posix()} "
+            "due to an error:",  str(e)])
     for file_map_item in file_map:
         if 'source' not in file_map_item:
             raise SystemTemplateException([
@@ -106,6 +108,12 @@ def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
         # other policies just read the data from are handled later
         target_data = None
         if target.exists():
+            # Special case when the target already exist and is a folder
+            if not target.is_file():
+                raise SystemTemplateException([
+                    f"Failed to create the target file because there a folder "
+                    f"at the same path already exists: {target.as_posix()}"])
+            # Handling the conficts based on the on_conflict policy
             if on_conflict == 'stop':
                 raise SystemTemplateException([
                     f"Target already exists: {target.as_posix()}"])
@@ -116,11 +124,16 @@ def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
                 print(f"Skipping {target.as_posix()}")
                 continue
             elif on_conflict in ('merge', 'append_end', 'append_start'):
-                if target.suffix in ('.material', '.json'):
-                    target_data = load_jsonc(target).data
-                else:
-                    with target.open('r', encoding='utf8') as f:
-                        target_data = f.read()
+                try:
+                    if target.suffix in ('.material', '.json'):
+                        target_data = load_jsonc(target).data
+                    else:
+                        with target.open('r', encoding='utf8') as f:
+                            target_data = f.read()
+                except Exception as e:
+                    raise SystemTemplateException([
+                        "Failed to load the target file for merging "
+                        f"due to an error: {str(e)}"])
                 target.unlink()
         # Python templating for JSON files
         try:
