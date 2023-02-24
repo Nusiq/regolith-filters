@@ -1,4 +1,7 @@
 # Changelog
+## 2.0.1
+Move the code of the filter out of the project to an external repository:
+[https://github.com/Nusiq/regolith-subfunctions](https://github.com/Nusiq/regolith-subfunctions)
 ## 2.0.0
 Changed how the `functiontree` works. Now it support new execute command syntax. The `step` property
 of the `functiontree` has been removed as it didn't serve any purpose the way it was implemented.
