@@ -29,6 +29,9 @@ def print_red(text):
     for t in text.split('\n'):
         print("\033[91m {}\033[00m".format(t))
 
+def print_yellow(text):
+    for t in text.split('\n'):
+        print("\033[93m {}\033[00m".format(t))
 
 def get_auto_target_mapping(source: Path, auto_map: Dict[str, str]) -> Path:
     for key, value in auto_map.items():
@@ -54,125 +57,146 @@ def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
             raise SystemTemplateException([
                     "Missing 'source' property in one of the "
                     f"_map.py items: {file_map_item}"])
-        source: Path = system_path / file_map_item['source']
-        if 'target' not in file_map_item:
-            raise SystemTemplateException([
-                f"Missing 'target'  property in one of the "
-                f"_map.py items: : {file_map_item}"])
-        target = file_map_item['target']
-        if target is SpecialKeys.AUTO:
-            target = get_auto_target_mapping(
-                Path(file_map_item['source']), auto_map)
-        elif isinstance(target, str) and (target.startswith('BP/') or target.startswith('RP/')):
-            target = Path(target)
+        
+        sources: List[Path] = []
+        # Treat as a glob pattern only if it contains a "*" or "?" characters
+        if "*" in file_map_item['source'] or '?' in file_map_item['source']:
+            for source in system_path.glob(file_map_item['source']):
+                # Skip directories
+                if not source.is_file():
+                    continue
+                # Skip _map.py and _scope.json
+                relative_source = source.relative_to(system_path)
+                if relative_source.as_posix() in ["_map.py", "_scope.json"]:
+                    continue
+                sources.append(source)
         else:
-            raise SystemTemplateException([
-                f'Export target must be "AUTO" or a path that starts with "BP/" or "RP/": {target}'])
-        # Get on_conflict policy: stop, overwrite, append_end, append_start,
-        # skip or merge
-        if target.suffix in ('.material', '.json'):
-            on_conflict = file_map_item.get('on_conflict', 'stop')
-            valid_keys = ['stop', 'overwrite', 'merge', 'skip']
-            if on_conflict not in valid_keys:
+            sources = [system_path / file_map_item['source']]
+        if len(sources) == 0:
+            print_yellow(
+                f"Warning: No files found for the source pattern: "
+                f"{file_map_item['source']} in {system_path.as_posix()}"
+            )
+        # TODO - reduce the number of nested statements
+        for source in sources:
+            if 'target' not in file_map_item:
                 raise SystemTemplateException([
-                    f"Invalid 'on_conflict' value: {on_conflict} for "
-                    f"{target.as_posix()}. Valid values for JSON files "
-                    f"are: {valid_keys}"])
-        elif target.suffix == '.lang':
-            on_conflict = file_map_item.get('on_conflict', 'append_end')
-            valid_keys = [
-                'stop', 'overwrite', 'append_end', 'append_start', 'skip']
-            if on_conflict not in valid_keys:
+                    f"Missing 'target'  property in one of the "
+                    f"_map.py items: : {file_map_item}"])
+            target = file_map_item['target']
+            if target is SpecialKeys.AUTO:
+                target = get_auto_target_mapping(
+                    source.relative_to(system_path), auto_map)
+            elif isinstance(target, str) and (target.startswith('BP/') or target.startswith('RP/')):
+                target = Path(target)
+            else:
                 raise SystemTemplateException([
-                    f"Invalid 'on_conflict' value: {on_conflict} for "
-                    f"{target.as_posix()}. Valid values for .lang files "
-                    f"are: {valid_keys}"])
-        elif target.suffix == '.mcfunction':
-            on_conflict = file_map_item.get('on_conflict', 'stop')
-            valid_keys = [
-                'stop', 'overwrite', 'append_end', 'append_start', 'skip']
-            if on_conflict not in valid_keys:
-                raise SystemTemplateException([
-                    f"Invalid 'on_conflict' value: {on_conflict} for "
-                    f"{target.as_posix()}. Valid values for .lang files "
-                    f"are: {valid_keys}"])
-        else:
-            on_conflict = file_map_item.get('on_conflict', 'stop')
-            valid_keys = ['stop', 'overwrite', 'skip']
-            if on_conflict not in valid_keys:
-                raise SystemTemplateException([
-                    f"Invalid 'on_conflict' value: {on_conflict} for "
-                    f"{target.as_posix()}. Valid values for this kind of file "
-                    f"are: {valid_keys}"])
-        # Handling the conflicts with skip, stop and overwrite policy here
-        # other policies just read the data from are handled later
-        target_data = None
-        if target.exists():
-            # Special case when the target already exist and is a folder
-            if not target.is_file():
-                raise SystemTemplateException([
-                    f"Failed to create the target file because there a folder "
-                    f"at the same path already exists: {target.as_posix()}"])
-            # Handling the conficts based on the on_conflict policy
-            if on_conflict == 'stop':
-                raise SystemTemplateException([
-                    f"Target already exists: {target.as_posix()}"])
-            elif on_conflict == 'overwrite':
-                print(f"Overwriting {target.as_posix()}")
-                target.unlink()
-            elif on_conflict == 'skip':
-                print(f"Skipping {target.as_posix()}")
-                continue
-            elif on_conflict in ('merge', 'append_end', 'append_start'):
-                try:
-                    if target.suffix in ('.material', '.json'):
-                        target_data = load_jsonc(target).data
-                    else:
-                        with target.open('r', encoding='utf8') as f:
-                            target_data = f.read()
-                except Exception as e:
+                    f'Export target must be "AUTO" or a path that starts with "BP/" or "RP/": {target}'])
+            # Get on_conflict policy: stop, overwrite, append_end, append_start,
+            # skip or merge
+            if target.suffix in ('.material', '.json'):
+                on_conflict = file_map_item.get('on_conflict', 'stop')
+                valid_keys = ['stop', 'overwrite', 'merge', 'skip']
+                if on_conflict not in valid_keys:
                     raise SystemTemplateException([
-                        "Failed to load the target file for merging "
-                        f"due to an error: {str(e)}"])
-                target.unlink()
-        # Python templating for JSON files
-        try:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            # Merging is possible only if target is JSON and source is either
-            # python or JSON
-            if (
-                    target.suffix in ('.material', '.json') and
-                    source.suffix in ('.material', '.json', '.py')):
-                if source.suffix == '.py':
-                    file_scope = copy(scope) | file_map_item.get('scope', {})
-                    with source.open('r') as f:
-                        file_json = eval(f.read(), file_scope)
-                elif source.suffix in ('.material', '.json'):
-                    file_json = load_jsonc(source).data
-                if on_conflict == 'merge':
-                    file_json = merge.deep_merge_objects(
-                        target_data, file_json,
-                        list_merge_policy=merge.ListMergePolicy.APPEND)
-                with target.open('w') as f:
-                    json.dump(file_json, f, cls=CompactEncoder)
-            else:  # Other files (append_start, append_end or overwrite)
-                if on_conflict == 'append_start':
-                    with source.open('r', encoding='utf8') as f:
-                        source_data = f.read()
-                    with target.open('w', encoding='utf8') as f:
-                        f.write("\n".join([source_data, target_data]))
-                elif on_conflict == 'append_end':
-                    with source.open('r', encoding='utf8') as f:
-                        source_data = f.read()
-                    with target.open('w', encoding='utf8') as f:
-                        f.write("\n".join([target_data, source_data]))
-                else:
-                    shutil.copy(source.as_posix(), target.as_posix())
-        except Exception as e:
-            raise SystemTemplateException([
-                f'Failed to evaluate {source.as_posix()} for '
-                f'{target.as_posix()}":',
-                str(e)])
+                        f"Invalid 'on_conflict' value: {on_conflict} for "
+                        f"{target.as_posix()}. Valid values for JSON files "
+                        f"are: {valid_keys}"])
+            elif target.suffix == '.lang':
+                on_conflict = file_map_item.get('on_conflict', 'append_end')
+                valid_keys = [
+                    'stop', 'overwrite', 'append_end', 'append_start', 'skip']
+                if on_conflict not in valid_keys:
+                    raise SystemTemplateException([
+                        f"Invalid 'on_conflict' value: {on_conflict} for "
+                        f"{target.as_posix()}. Valid values for .lang files "
+                        f"are: {valid_keys}"])
+            elif target.suffix == '.mcfunction':
+                on_conflict = file_map_item.get('on_conflict', 'stop')
+                valid_keys = [
+                    'stop', 'overwrite', 'append_end', 'append_start', 'skip']
+                if on_conflict not in valid_keys:
+                    raise SystemTemplateException([
+                        f"Invalid 'on_conflict' value: {on_conflict} for "
+                        f"{target.as_posix()}. Valid values for .lang files "
+                        f"are: {valid_keys}"])
+            else:
+                on_conflict = file_map_item.get('on_conflict', 'stop')
+                valid_keys = ['stop', 'overwrite', 'skip']
+                if on_conflict not in valid_keys:
+                    raise SystemTemplateException([
+                        f"Invalid 'on_conflict' value: {on_conflict} for "
+                        f"{target.as_posix()}. Valid values for this kind of file "
+                        f"are: {valid_keys}"])
+            # Handling the conflicts with skip, stop and overwrite policy here
+            # other policies just read the data from are handled later
+            target_data = None
+            if target.exists():
+                # Special case when the target already exist and is a folder
+                if not target.is_file():
+                    raise SystemTemplateException([
+                        f"Failed to create the target file because there a folder "
+                        f"at the same path already exists: {target.as_posix()}"])
+                # Handling the conficts based on the on_conflict policy
+                if on_conflict == 'stop':
+                    raise SystemTemplateException([
+                        f"Target already exists: {target.as_posix()}"])
+                elif on_conflict == 'overwrite':
+                    print(f"Overwriting {target.as_posix()}")
+                    target.unlink()
+                elif on_conflict == 'skip':
+                    print(f"Skipping {target.as_posix()}")
+                    continue
+                elif on_conflict in ('merge', 'append_end', 'append_start'):
+                    try:
+                        if target.suffix in ('.material', '.json'):
+                            target_data = load_jsonc(target).data
+                        else:
+                            with target.open('r', encoding='utf8') as f:
+                                target_data = f.read()
+                    except Exception as e:
+                        raise SystemTemplateException([
+                            "Failed to load the target file for merging "
+                            f"due to an error: {str(e)}"])
+                    target.unlink()
+            # Python templating for JSON files
+            try:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                # Merging is possible only if target is JSON and source is either
+                # python or JSON
+                if (
+                        target.suffix in ('.material', '.json') and
+                        source.suffix in ('.material', '.json', '.py')):
+                    if source.suffix == '.py':
+                        file_scope = copy(scope) | file_map_item.get('scope', {})
+                        with source.open('r') as f:
+                            file_json = eval(f.read(), file_scope)
+                    elif source.suffix in ('.material', '.json'):
+                        file_json = load_jsonc(source).data
+                    if on_conflict == 'merge':
+                        file_json = merge.deep_merge_objects(
+                            target_data, file_json,
+                            list_merge_policy=merge.ListMergePolicy.APPEND)
+                    with target.open('w') as f:
+                        json.dump(file_json, f, cls=CompactEncoder)
+                else:  # Other files (append_start, append_end or overwrite)
+                    if on_conflict == 'append_start':
+                        with source.open('r', encoding='utf8') as f:
+                            source_data = f.read()
+                        with target.open('w', encoding='utf8') as f:
+                            f.write("\n".join([source_data, target_data]))
+                    elif on_conflict == 'append_end':
+                        with source.open('r', encoding='utf8') as f:
+                            source_data = f.read()
+                        with target.open('w', encoding='utf8') as f:
+                            f.write("\n".join([target_data, source_data]))
+                    else:
+                        shutil.copy(source.as_posix(), target.as_posix())
+            except Exception as e:
+                raise SystemTemplateException([
+                    f'Failed to evaluate {source.as_posix()} for '
+                    f'{target.as_posix()}":',
+                    str(e)])
 
 def main(scope: Dict, templates_path: Path, auto_map: Dict[str, str]):
     for system_path in (DATA_PATH / templates_path).glob("**/*"):

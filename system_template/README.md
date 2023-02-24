@@ -101,6 +101,9 @@ the destination file already exists.
 
 Properties of the dictionary inside the `_map.py` list:
 - `source` - the path to the source file relative to the folder of the sytem.
+  The source is treated as a glob pattern if it contains `*` or `?` characters.
+  Using glob patterns is useful in combination with the `AUTO` keyword for the
+  target file.
 - `target` - the destination of the file. Remember to include `RP` or `BP` in
   the destination path to output it to a resource or behavior pack. Alternatively,
   you can use the `AUTO` keyword to automatically map the file to the resource

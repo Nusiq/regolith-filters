@@ -1,0 +1,6 @@
+[
+    {
+        "source": "*.json",
+        "target": AUTO
+    }
+]
