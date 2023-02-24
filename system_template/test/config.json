@@ -17,7 +17,7 @@
 			}
 		},
 		"profiles": {
-			"dev": {
+			"default": {
 				"export": {
 					"readOnly": true,
 					"target": "local"

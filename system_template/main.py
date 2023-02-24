@@ -10,6 +10,7 @@ from copy import copy
 from enum import Enum, auto
 from better_json_tools import load_jsonc
 from better_json_tools.compact_encoder import CompactEncoder
+from regolith_subfunctions import CodeTree
 
 class SpecialKeys(Enum):
     AUTO = auto()  # Special key used for the "target" property in "_map.py"
@@ -181,18 +182,30 @@ def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
                         json.dump(file_json, f, cls=CompactEncoder)
                 else:  # Other files (append_start, append_end or overwrite)
                     if on_conflict == 'append_start':
+                        target_data = "" if target_data is None else target_data
                         with source.open('r', encoding='utf8') as f:
                             source_data = f.read()
                         with target.open('w', encoding='utf8') as f:
                             f.write("\n".join([source_data, target_data]))
                     elif on_conflict == 'append_end':
+                        target_data = "" if target_data is None else target_data
                         with source.open('r', encoding='utf8') as f:
                             source_data = f.read()
                         with target.open('w', encoding='utf8') as f:
                             f.write("\n".join([target_data, source_data]))
                     else:
                         shutil.copy(source.as_posix(), target.as_posix())
+                    if target.suffix == '.mcfunction' or target.suffix == '.lang':
+                        subfunctions = file_map_item.get(
+                            # default for .mcfunction is True but for .lang is False
+                            'subfunctions', target.suffix == '.mcfunction')
+                        if subfunctions:
+                            file_scope = (
+                                copy(scope) | file_map_item.get('scope', {}))
+                            code = CodeTree(target)
+                            code.root.eval_and_dump(file_scope, target, target)
             except Exception as e:
+                raise e
                 raise SystemTemplateException([
                     f'Failed to evaluate {source.as_posix()} for '
                     f'{target.as_posix()}":',

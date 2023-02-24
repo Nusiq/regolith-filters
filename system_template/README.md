@@ -155,3 +155,10 @@ Properties of the dictionary inside the `_map.py` list:
   >
   > It's usually the best to use the default options.
   > Using other options decreases the readability of the code.
+
+- `subfunctions` - a property only available for `.mcfunction` and `.lang` files
+  it defines if the file should be executed with its scope using the `subfunctions`
+  regolith filter. You can read more about the `subfunctions`
+  [here](https://github.com/Nusiq/regolith-filters/tree/master/subfunctions). The
+  value of this property is True by default for the `.mcfunction` files and
+  False by default for the `.lang` files.
