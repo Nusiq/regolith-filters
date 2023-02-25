@@ -1,1 +1,1 @@
-better-json-tools~=1.0.1
+better-json-tools~=1.0
