@@ -1,1 +1,1 @@
-regolith-subfunctions~=1.0
+regolith-subfunctions~=1.1
