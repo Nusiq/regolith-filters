@@ -1,6 +1,6 @@
 [
     {
-        "source": "*.json",
+        "source": "*.geo.json",
         "target": AUTO
     }
 ]
