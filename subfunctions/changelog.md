@@ -1,4 +1,7 @@
 # Changelog
+## 2.0.2
+Update the `regolith-subfunctions` dependency to ~=1.1. This allowes using comments
+in the scope.json file.
 ## 2.0.1
 Move the code of the filter out of the project to an external repository:
 [https://github.com/Nusiq/regolith-subfunctions](https://github.com/Nusiq/regolith-subfunctions)
