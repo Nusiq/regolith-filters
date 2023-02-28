@@ -1,2 +1,2 @@
-better-json-tools~=1.0
+better-json-tools~=1.0.3
 regolith-subfunctions~=1.1
