@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Iterable, Literal
+from typing import Dict, List, Iterable, Literal, Optional
 import json
 import merge
 import sys
@@ -18,6 +18,7 @@ class SpecialKeys(Enum):
     AUTO = auto()  # Special key used for the "target" property in "_map.py"
 
 DATA_PATH = Path('data')
+SYSTEM_TEMPLATE_DATA_PATH = DATA_PATH / 'system_template'
 BP_PATH = Path('BP')
 RP_PATH = Path('RP')
 
@@ -75,27 +76,38 @@ def get_system_items(
             f"_map.py items: {data}"])
 
     # Treat as a glob pattern only if it contains a "*" or "?" characters
-    if "*" in data['source'] or '?' in data['source']:
+    source_pattern: str = data['source']
+    if not isinstance(source_pattern, str):
+        raise SystemTemplateException([
+            f"Invalid source value: {source_pattern} in {data}"])
+    shared: bool = False
+    if source_pattern.startswith("SHARED:"):
+        shared = True
+        source_pattern = source_pattern[7:]
+    
+
+    if "*" in source_pattern or '?' in source_pattern:
         has_items = False
-        for source in system_path.glob(data['source']):
+        for source_path in system_path.glob(source_pattern):
             has_items = True
             # Skip directories
-            if not source.is_file():
+            if not source_path.is_file():
                 continue
             # Skip _map.py and _scope.json
-            relative_source = source.relative_to(system_path)
-            if relative_source.as_posix() in ["_map.py", "_scope.json"]:
+            relative_source_path = source_path.relative_to(system_path)
+            if relative_source_path.as_posix() in ["_map.py", "_scope.json"]:
                 continue
             yield SystemItem(
-                source, data, system_path, scope, auto_map)
+                relative_source_path, shared, data, system_path, scope,
+                auto_map)
         if not has_items:
             print_yellow(
                 f"Warning: No files found for the source pattern: "
-                f"{data['source']} in {system_path.as_posix()}"
+                f"{source_pattern} in {system_path.as_posix()}"
             )
     else:
         yield SystemItem(
-            system_path / data['source'], data, system_path, scope, auto_map)
+            Path(source_pattern), shared, data, system_path, scope, auto_map)
 
 class SystemItem:
     '''
@@ -103,10 +115,11 @@ class SystemItem:
     glob pattern to the source file.
     '''
     def __init__(
-            self, source: Path, data: Dict, system_path: Path,
+            self, source: Path, shared: bool, data: Dict, system_path: Path,
             external_scope: Dict, auto_map: Dict):
         data = copy(data)  # copy to avoid outputing values from evalation
-        self.source = source
+        self.relative_source_path = source
+        self.shared = shared
         self.system_path = system_path
         self.auto_map = auto_map
         self.target = self._init_target(data)
@@ -128,7 +141,7 @@ class SystemItem:
         target = data['target']
         if target is SpecialKeys.AUTO:
             target = get_auto_target_mapping(
-                self.source.relative_to(self.system_path), self.auto_map)
+                self.relative_source_path, self.auto_map)
         elif isinstance(target, str) and (target.startswith('BP/') or target.startswith('RP/')):
             target = Path(target)
         else:
@@ -189,6 +202,13 @@ class SystemItem:
         '''
         Evaluates the SystemItem by writing to the target file.
         '''
+        # DETERMINE THE SOURCE PATH
+        source_path: Path = self.system_path / self.relative_source_path
+        if self.shared and not source_path.exists():
+            source_path = (
+                SYSTEM_TEMPLATE_DATA_PATH / "_shared" /
+                self.relative_source_path)
+
         # READ TARGET DATA AND HANDLE CONFLICTS
         target_data = None
         if self.target.exists():
@@ -217,7 +237,7 @@ class SystemItem:
                 except Exception as e:
                     raise SystemTemplateException([
                         "Failed to load the target file for merging:\n"
-                        f"- Source file: {self.source.as_posix()}\n"
+                        f"- Source file: {source_path.as_posix()}\n"
                         f"- Error: {str(e)}"])
                 self.target.unlink()
 
@@ -228,12 +248,12 @@ class SystemItem:
             # python or JSON
             if (
                     self.target.suffix in ('.material', '.json') and
-                    self.source.suffix in ('.material', '.json', '.py')):
-                if self.source.suffix == '.py':
-                    with self.source.open('r') as f:
+                    source_path.suffix in ('.material', '.json', '.py')):
+                if source_path.suffix == '.py':
+                    with source_path.open('r') as f:
                         file_json = eval(f.read(), self.scope)
-                elif self.source.suffix in ('.material', '.json'):
-                    file_json = load_jsonc(self.source).data
+                elif source_path.suffix in ('.material', '.json'):
+                    file_json = load_jsonc(source_path).data
                 if self.on_conflict == 'merge':
                     file_json = merge.deep_merge_objects(
                         target_data, file_json,
@@ -243,18 +263,18 @@ class SystemItem:
             else:  # Other files (append_start, append_end or overwrite)
                 if self.on_conflict == 'append_start':
                     target_data = "" if target_data is None else target_data
-                    with self.source.open('r', encoding='utf8') as f:
+                    with source_path.open('r', encoding='utf8') as f:
                         source_data = f.read()
                     with self.target.open('w', encoding='utf8') as f:
                         f.write("\n".join([source_data, target_data]))
                 elif self.on_conflict == 'append_end':
                     target_data = "" if target_data is None else target_data
-                    with self.source.open('r', encoding='utf8') as f:
+                    with source_path.open('r', encoding='utf8') as f:
                         source_data = f.read()
                     with self.target.open('w', encoding='utf8') as f:
                         f.write("\n".join([target_data, source_data]))
                 else:
-                    shutil.copy(self.source.as_posix(), self.target.as_posix())
+                    shutil.copy(source_path.as_posix(), self.target.as_posix())
                 if self.target.suffix == '.mcfunction' or self.target.suffix == '.lang':
                     if self.subfunctions:
                         code = CodeTree(self.target)
@@ -262,7 +282,7 @@ class SystemItem:
                             self.scope, self.target, self.target)
         except Exception as e:
             raise SystemTemplateException([
-                f'Failed to evaluate {self.source.as_posix()} for '
+                f'Failed to evaluate {source_path.as_posix()} for '
                 f'{self.target.as_posix()}":',
                 str(e)])
 
@@ -272,9 +292,6 @@ def main():
         config = json.loads(sys.argv[1])
     except Exception:
         config = {}
-    # File path to the templates folder
-    templates_path = Path('system_template')
-
     # Add scope
     scope = {
         'true': True, 'false': False, 'math': math, 'uuid': uuid,
@@ -284,12 +301,12 @@ def main():
     scope = scope | load_jsonc(scope_path).data
     # Try to load the auto map
     try:
-        auto_map_path = DATA_PATH / "system_template/auto_map.json"
+        auto_map_path = SYSTEM_TEMPLATE_DATA_PATH / "auto_map.json"
         auto_map = load_jsonc(auto_map_path).data
     except FileNotFoundError:
         auto_map = {}
     try:
-        for system_path in (DATA_PATH / templates_path).glob("**/*"):
+        for system_path in (SYSTEM_TEMPLATE_DATA_PATH).glob("**/*"):
             if system_path.is_file():
                 continue
             system_scope_path = system_path / '_scope.json'
@@ -300,14 +317,13 @@ def main():
                 continue
             print(
                 "Generating system: "
-                f"{system_path.relative_to(DATA_PATH / templates_path).as_posix()}"
+                f"{system_path.relative_to(SYSTEM_TEMPLATE_DATA_PATH).as_posix()}"
             )
             compile_system(scope, system_path, auto_map)
     except SystemTemplateException as e:
         for err in e.errors:
             print_red(err)
         sys.exit(1)
-
 
 if __name__ == '__main__':
     main()
