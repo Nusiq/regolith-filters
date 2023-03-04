@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Iterable, Literal, Optional
+from typing import Dict, List, Iterable, Literal, Tuple, Any
 import json
 import merge
 import sys
@@ -13,6 +13,7 @@ from enum import Enum, auto
 from better_json_tools import load_jsonc
 from better_json_tools.compact_encoder import CompactEncoder
 from regolith_subfunctions import CodeTree
+import argparse
 
 class SpecialKeys(Enum):
     AUTO = auto()  # Special key used for the "target" property in "_map.py"
@@ -45,86 +46,100 @@ def get_auto_target_mapping(source: Path, auto_map: Dict[str, str]) -> Path:
         "Failed to find an AUTO mapping export target for "
         f"{source.as_posix()}")
 
-def compile_system(scope: Dict, system_path: Path, auto_map: Dict[str, str]):
-    scope = scope | load_jsonc(system_path / '_scope.json').data
-    file_map_path = system_path / '_map.py'
-    try:
-        with file_map_path.open('r') as f:
-            # copy to avoid outputing values from evalation
-            file_map = eval(f.read(), copy(scope))
-    except Exception as e:
-        raise SystemTemplateException([
-            f"Failed to evaluate {file_map_path.as_posix()} "
-            "due to an error:",  str(e)])
-    for system_item_data in file_map:
-        for system_item in get_system_items(
-                system_item_data, system_path, scope, auto_map):
-            system_item.eval()
+def walk_system_paths(systems: List[str]) -> Iterable[Path]:
+    for system_path in DATA_PATH.rglob("*"):
+        if system_path.is_file():
+            continue
+        system_scope_path = system_path / '_scope.json'
+        file_map_path = system_path / '_map.py'
+        if not system_scope_path.exists() or system_scope_path.is_dir():
+            continue
+        if not file_map_path.exists() or file_map_path.is_dir():
+            continue
+        # Chek if the system matches the glob pattern
+        relative_path = system_path.relative_to(DATA_PATH)
+        for system_glob in systems:
+            if relative_path.match(system_glob):
+                yield system_path
+                break
+
+class System:
+    def __init__(self, scope: Dict, system_path: Path, auto_map: Dict[str, str]):
+        self.scope: Dict[str, Any] = scope | load_jsonc(system_path / '_scope.json').data
+        self.system_path: Path = system_path
+        self.file_map: List[Dict] = self._init_file_map(
+            system_path / '_map.py')
+        self.auto_map: Dict[str, str] = auto_map
+
+    def _init_file_map(self, file_map_path: Path) -> List[Dict]:
+        try:
+            with file_map_path.open('r') as f:
+                # copy to avoid outputing values from evalation
+                return eval(f.read(), copy(self.scope))
+        except Exception as e:
+            raise SystemTemplateException([
+                f"Failed to evaluate {file_map_path.as_posix()} "
+                "due to an error:",  str(e)])
+
+    def walk_system_items(self) -> Iterable[SystemItem]:
+        '''
+        Based on the data from one item in the _map.py file, returns an iterable
+        with the SystemItem objects that correspond to the matched glob patterns in
+        the source property.
+        '''
+        for data in self.file_map:
+            if 'source' not in data:
+                raise SystemTemplateException([
+                    "Missing 'source' property in one of the "
+                    f"_map.py items: {data}"])
+
+            # Treat as a glob pattern only if it contains a "*" or "?" characters
+            source_pattern: str = data['source']
+            if not isinstance(source_pattern, str):
+                raise SystemTemplateException([
+                    f"Invalid source value: {source_pattern} in {data}"])
+            shared: bool = False
+            if source_pattern.startswith("SHARED:"):
+                shared = True
+                source_pattern = source_pattern[7:]
 
 
-def get_system_items(
-        data: Dict, system_path: Path, scope: Dict,
-        auto_map: Dict) -> Iterable[SystemItem]:
-    '''
-    Based on the data from one item in the _map.py file, returns an iterable
-    with the SystemItem objects that correspond to the matched glob patterns in
-    the source property.
-    '''
-    if 'source' not in data:
-        raise SystemTemplateException([
-            "Missing 'source' property in one of the "
-            f"_map.py items: {data}"])
-
-    # Treat as a glob pattern only if it contains a "*" or "?" characters
-    source_pattern: str = data['source']
-    if not isinstance(source_pattern, str):
-        raise SystemTemplateException([
-            f"Invalid source value: {source_pattern} in {data}"])
-    shared: bool = False
-    if source_pattern.startswith("SHARED:"):
-        shared = True
-        source_pattern = source_pattern[7:]
-    
-
-    if "*" in source_pattern or '?' in source_pattern:
-        has_items = False
-        for source_path in system_path.glob(source_pattern):
-            has_items = True
-            # Skip directories
-            if not source_path.is_file():
-                continue
-            # Skip _map.py and _scope.json
-            relative_source_path = source_path.relative_to(system_path)
-            if relative_source_path.as_posix() in ["_map.py", "_scope.json"]:
-                continue
-            yield SystemItem(
-                relative_source_path, shared, data, system_path, scope,
-                auto_map)
-        if not has_items:
-            print_yellow(
-                f"Warning: No files found for the source pattern: "
-                f"{source_pattern} in {system_path.as_posix()}"
-            )
-    else:
-        yield SystemItem(
-            Path(source_pattern), shared, data, system_path, scope, auto_map)
+            if "*" in source_pattern or '?' in source_pattern:
+                has_items = False
+                for source_path in self.system_path.glob(source_pattern):
+                    has_items = True
+                    # Skip directories
+                    if not source_path.is_file():
+                        continue
+                    # Skip _map.py and _scope.json
+                    relative_source_path = source_path.relative_to(self.system_path)
+                    if relative_source_path.as_posix() in ["_map.py", "_scope.json"]:
+                        continue
+                    yield SystemItem(relative_source_path, shared, data, self)
+                if not has_items:
+                    print_yellow(
+                        f"Warning: No files found for the source pattern: "
+                        f"{source_pattern} in {self.system_path.as_posix()}"
+                    )
+            else:
+                yield SystemItem(Path(source_pattern), shared, data, self)
 
 class SystemItem:
     '''
     An object based of one item in the _map.py file, after evaluation of the
     glob pattern to the source file.
     '''
-    def __init__(
-            self, source: Path, shared: bool, data: Dict, system_path: Path,
-            external_scope: Dict, auto_map: Dict):
+    def __init__(self, source: Path, shared: bool, data: Dict, parent: System):
+            # , system_path: Path,
+            # external_scope: Dict, auto_map: Dict):
         data = copy(data)  # copy to avoid outputing values from evalation
         self.relative_source_path = source
         self.shared = shared
-        self.system_path = system_path
-        self.auto_map = auto_map
+        self.parent = parent
         self.target = self._init_target(data)
         self.on_conflict = self._init_on_conflict(data)
-        self.scope = external_scope | data.get('scope', {})
+        self.scope = self.parent.scope | data.get('scope', {})
+
         self.subfunctions = data.get(
             # default for .mcfunction is True but for .lang is False
             'subfunctions', self.target.suffix == '.mcfunction')
@@ -141,7 +156,7 @@ class SystemItem:
         target = data['target']
         if target is SpecialKeys.AUTO:
             target = get_auto_target_mapping(
-                self.relative_source_path, self.auto_map)
+                self.relative_source_path, self.parent.auto_map)
         elif isinstance(target, str) and (target.startswith('BP/') or target.startswith('RP/')):
             target = Path(target)
         else:
@@ -203,7 +218,7 @@ class SystemItem:
         Evaluates the SystemItem by writing to the target file.
         '''
         # DETERMINE THE SOURCE PATH
-        source_path: Path = self.system_path / self.relative_source_path
+        source_path: Path = self.parent.system_path / self.relative_source_path
         if self.shared and not source_path.exists():
             source_path = (
                 SYSTEM_TEMPLATE_DATA_PATH / "_shared" /
@@ -287,17 +302,63 @@ class SystemItem:
                 str(e)])
 
 
+def parse_args() -> Tuple[Dict, Literal['pack', 'unpack']]:
+    parser = argparse.ArgumentParser(
+        description=(
+            'System template: Regolith filter for grouping files into systems')
+    )
+    subparsers = parser.add_subparsers(dest='command')
+
+    # Unpack
+    parser_unpack = subparsers.add_parser(
+        'unpack', help='Unpacks the shared files into the "_shared" folder')
+
+    # Pack
+    parser_pack = subparsers.add_parser(
+        'pack', help='Packs the shared files into the "_shared" folder')
+
+    # Common arguments
+    for subcommand in [parser_unpack, parser_pack]:
+        subcommand.add_argument(
+            '--systems', nargs='+', type=str, default=None,
+            required=True, help='The glob pattern to match systems')
+        subcommand.add_argument(
+            '--scope', type=str, default='system_template/scope.json',
+            required=False, help='The path to the scope file')
+
+    # Parse arguments
+    args = parser.parse_args()
+
+
+    # We can handle all commmands in the same way because they all have the
+    # same arguments
+    config = {
+        'systems': args.systems,
+        'scope_path': args.scope,
+    }
+    return config, args.command
+
 def main():
-    try:
-        config = json.loads(sys.argv[1])
-    except Exception:
-        config = {}
+    mode = 'eval'
+    config = {}
+    if len(sys.argv) > 1:
+        if sys.argv[1] in ['pack', 'unpack']:
+            config, mode = parse_args()
+            print(sys.argv)
+            print(config, mode)
+        else:
+            try:
+                config = json.loads(sys.argv[1])
+            except Exception:
+                raise SystemTemplateException([f'Failed load the config data'])
+
     # Add scope
     scope = {
         'true': True, 'false': False, 'math': math, 'uuid': uuid,
         "AUTO": SpecialKeys.AUTO}
     scope_path = DATA_PATH / config.get(
         'scope_path', 'system_template/scope.json')
+    system_patterns = config.get('systems', ['**/*'])
     scope = scope | load_jsonc(scope_path).data
     # Try to load the auto map
     try:
@@ -306,20 +367,20 @@ def main():
     except FileNotFoundError:
         auto_map = {}
     try:
-        for system_path in (SYSTEM_TEMPLATE_DATA_PATH).glob("**/*"):
-            if system_path.is_file():
-                continue
-            system_scope_path = system_path / '_scope.json'
-            file_map_path = system_path / '_map.py'
-            if not system_scope_path.exists() or system_scope_path.is_dir():
-                continue
-            if not file_map_path.exists() or file_map_path.is_dir():
-                continue
-            print(
-                "Generating system: "
-                f"{system_path.relative_to(SYSTEM_TEMPLATE_DATA_PATH).as_posix()}"
-            )
-            compile_system(scope, system_path, auto_map)
+        for system_path in walk_system_paths(system_patterns):
+            rel_sys_path = system_path.relative_to(
+                SYSTEM_TEMPLATE_DATA_PATH).as_posix()
+            if mode == 'eval':
+                print(f"Generating system: {rel_sys_path}")
+                system = System(scope, system_path, auto_map)
+                for system_item in system.walk_system_items():
+                    system_item.eval()
+            elif mode == 'pack':
+                print(f"Packing system: {rel_sys_path}")
+                print_red("NOT IMPLEMENTED")
+            elif mode == 'unpack':
+                print(f"Unpacking system: {rel_sys_path}")
+                print_red("NOT IMPLEMENTED")
     except SystemTemplateException as e:
         for err in e.errors:
             print_red(err)

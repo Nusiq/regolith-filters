@@ -41,6 +41,9 @@ next section):
   used to mark that the target file should be mapped automatically based on its
   extension. The default value of this property is `system_template/scope.json`.
   The path is relative to data folder in working directory of regolith.
+- `systems: list[str]` - a list of glob patterns to match the system folders
+  that should be processed. The default value is `["**/*"]` which means that
+  all system folders will be processed.
 
 # Examples
 There is an example in the `test` subfolder of this filter.
