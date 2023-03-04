@@ -1,4 +1,12 @@
 # Change log
+## 2.1.0
+- Added support for the shared resources stored in the `shared` folder. The
+  shared resources can be annotated by adding `SHARED:` prefix in their source
+  path.
+- Updated `auto_map.json` in the data folder.
+- Added `pack`, `unpack` and `undo` commands for
+  `regolith apply-filter -- system_template`. To make working with shared
+  resources easier.
 ## 2.0.2
 Updated the `better-json-tools` dependency to `~=1.0.3`. It fixes epxorting the
 JSON files with quotes inside the strings.
