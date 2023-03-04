@@ -453,6 +453,9 @@ def main():
                         system_item.unpack(op_stack)
         elif mode == 'undo':
             print(f"Undoing last pack/unpack operation")
+            if not undo_path.exists():
+                print_red("Nothing to undo")
+                return
             with open(undo_path, 'r', encoding='utf8') as f:
                 old_op_stack = json.load(f)
             for target, source in old_op_stack:
