@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Iterable, Literal, Tuple, Any
+from typing import Dict, List, Iterable, Literal, Tuple, Any, Optional
 import json
 import merge
 import sys
@@ -301,6 +301,65 @@ class SystemItem:
                 f'{self.target.as_posix()}":',
                 str(e)])
 
+    def pack(self, op_stack: Optional[List[Tuple[str, str]]]=None) -> None:
+        '''
+        Packs the shared files from the _shared folder into the system folder
+        by moving them. Optionally, it can record the operation in the
+        operation stack as a pair of paths (source, target).
+        '''
+        if not self.shared:
+            return
+        # Get paths in the system and shared folders
+        system_path: Path = self.parent.system_path / self.relative_source_path
+        shared_path: Path = (
+            SYSTEM_TEMPLATE_DATA_PATH / "_shared" / self.relative_source_path)
+        system_exists = system_path.exists()
+        shared_exists = shared_path.exists()
+        if not system_exists and not shared_exists:
+            raise SystemTemplateException([
+                f"Failed to pack the file because it doesn't exist in the "
+                f"system or shared folder: {self.relative_source_path}"])
+        elif not system_exists and shared_exists:
+            shared_path.rename(system_path)
+            if op_stack is not None:
+                op_stack.append([
+                    shared_path.as_posix(),
+                    system_path.as_posix()])
+        # system_exists and not shared_exists: Already packed
+        # system_exists and shared_exists: System file has priority
+
+    def unpack(self, op_stack: Optional[List]=None) -> None:
+        '''
+        Unpacks the files from the system folder into the _shared folder by
+        moving them. Optionally, it can record the operation in the
+        operation stack as a pair of paths (source, target).
+        '''
+        if not self.shared:
+            return
+        # Get paths in the system and shared folders
+        system_path: Path = self.parent.system_path / self.relative_source_path
+        shared_path: Path = (
+            SYSTEM_TEMPLATE_DATA_PATH / "_shared" / self.relative_source_path)
+        system_exists = system_path.exists()
+        shared_exists = shared_path.exists()
+        if not system_exists and not shared_exists:
+            raise SystemTemplateException([
+                f"Failed to unpack the file because it doesn't exist in the "
+                f"system or shared folder: {self.relative_source_path}"])
+        elif system_exists and not shared_exists:
+            system_path.rename(shared_path)
+            if op_stack is not None:
+                op_stack.append([
+                    system_path.as_posix(),
+                    shared_path.as_posix()])
+        elif system_exists and shared_exists:
+            print_yellow(
+                "WARNING: Unable to unpack the file because a file with the "
+                "same name already exists in the shared folder:\n"
+                f"- Path: {self.relative_source_path}"
+            )
+        # not system_exists and shared_exists: Already unpacked
+
 
 def parse_args() -> Tuple[Dict, Literal['pack', 'unpack']]:
     parser = argparse.ArgumentParser(
@@ -346,6 +405,8 @@ def main():
             config, mode = parse_args()
             print(sys.argv)
             print(config, mode)
+        elif sys.argv[1] == 'undo':
+            mode = 'undo'
         else:
             try:
                 config = json.loads(sys.argv[1])
@@ -353,34 +414,73 @@ def main():
                 raise SystemTemplateException([f'Failed load the config data'])
 
     # Add scope
-    scope = {
-        'true': True, 'false': False, 'math': math, 'uuid': uuid,
-        "AUTO": SpecialKeys.AUTO}
-    scope_path = DATA_PATH / config.get(
-        'scope_path', 'system_template/scope.json')
-    system_patterns = config.get('systems', ['**/*'])
-    scope = scope | load_jsonc(scope_path).data
+    def get_scope():
+        scope = {
+            'true': True, 'false': False, 'math': math, 'uuid': uuid,
+            "AUTO": SpecialKeys.AUTO}
+        scope_path = DATA_PATH / config.get(
+            'scope_path', 'system_template/scope.json')
+        scope = scope | load_jsonc(scope_path).data
+        return scope
     # Try to load the auto map
+    system_patterns = config.get('systems', ['**/*'])
     try:
         auto_map_path = SYSTEM_TEMPLATE_DATA_PATH / "auto_map.json"
         auto_map = load_jsonc(auto_map_path).data
     except FileNotFoundError:
         auto_map = {}
+    # Prepare the undo stack (for pack, unpack and undo)
+    undo_path = SYSTEM_TEMPLATE_DATA_PATH / '.pack_undo.json'
+    op_stack: List[Tuple[str, str]] = []
     try:
-        for system_path in walk_system_paths(system_patterns):
-            rel_sys_path = system_path.relative_to(
-                SYSTEM_TEMPLATE_DATA_PATH).as_posix()
-            if mode == 'eval':
-                print(f"Generating system: {rel_sys_path}")
+        if mode in ['eval', 'pack', 'unpack']:
+            scope = get_scope()
+            for system_path in walk_system_paths(system_patterns):
+                rel_sys_path = system_path.relative_to(
+                    SYSTEM_TEMPLATE_DATA_PATH).as_posix()
                 system = System(scope, system_path, auto_map)
-                for system_item in system.walk_system_items():
-                    system_item.eval()
-            elif mode == 'pack':
-                print(f"Packing system: {rel_sys_path}")
-                print_red("NOT IMPLEMENTED")
-            elif mode == 'unpack':
-                print(f"Unpacking system: {rel_sys_path}")
-                print_red("NOT IMPLEMENTED")
+                if mode == 'eval':
+                    print(f"Generating system: {rel_sys_path}")
+                    for system_item in system.walk_system_items():
+                        system_item.eval()
+                elif mode == 'pack':
+                    print(f"Packing system: {rel_sys_path}")
+                    for system_item in system.walk_system_items():
+                        system_item.pack(op_stack)
+                elif mode == 'unpack':
+                    print(f"Unpacking system: {rel_sys_path}")
+                    for system_item in system.walk_system_items():
+                        system_item.unpack(op_stack)
+        elif mode == 'undo':
+            print(f"Undoing last pack/unpack operation")
+            with open(undo_path, 'r', encoding='utf8') as f:
+                old_op_stack = json.load(f)
+            for target, source in old_op_stack:
+                source = Path(source)
+                target = Path(target)
+                if not source.is_relative_to(SYSTEM_TEMPLATE_DATA_PATH):
+                    raise SystemTemplateException([
+                        f"Invalid source path: {source}"])
+                if not target.is_relative_to(SYSTEM_TEMPLATE_DATA_PATH):
+                    raise SystemTemplateException([
+                        f"Invalid target path: {target}"])
+                if not source.exists():
+                    raise SystemTemplateException([
+                        f"Source path doesn't exist: {source}"])
+                if target.exists():
+                    raise SystemTemplateException([
+                        f"Target path already exists: {target}"])
+                source.rename(target)
+                # Record reverted operation
+                op_stack.append([source.as_posix(), target.as_posix()])
+            # Save the undo stack
+            with open(undo_path, 'w', encoding='utf8') as f:
+                json.dump(op_stack, f, indent='\t')
+
+        # Save the undo stack
+        if mode in ['pack', 'unpack', 'undo']:
+            with open(undo_path, 'w', encoding='utf8') as f:
+                json.dump(op_stack, f, indent='\t')
     except SystemTemplateException as e:
         for err in e.errors:
             print_red(err)
