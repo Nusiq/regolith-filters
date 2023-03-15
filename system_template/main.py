@@ -14,6 +14,9 @@ from better_json_tools import load_jsonc
 from better_json_tools.compact_encoder import CompactEncoder
 from regolith_subfunctions import CodeTree
 import argparse
+from typing import TypedDict
+import io
+import os
 
 class SpecialKeys(Enum):
     AUTO = auto()  # Special key used for the "target" property in "_map.py"
@@ -22,6 +25,57 @@ DATA_PATH = Path('data')
 SYSTEM_TEMPLATE_DATA_PATH = DATA_PATH / 'system_template'
 BP_PATH = Path('BP')
 RP_PATH = Path('RP')
+
+
+class FileReport(TypedDict):
+    target: str
+    target_existed: bool
+    sources: list[str]
+    skipped_sources: list[str]
+    overwritten_by: str | None
+
+class Report:
+    def __init__(self):
+        self.file_reports: dict[str, FileReport] = {}
+    
+    def _init_report(self, target: Path):
+        '''
+        Initializes a report for a file if it doesn't exist.
+        '''
+        if target not in self.file_reports:
+            self.file_reports[target] = FileReport(
+                target=target.as_posix(),
+                target_existed=target.exists(),
+                sources=[],
+                skipped_sources=[],
+                overwritten_by=None
+            )
+    
+    def append_source(self, target: Path, source: Path):
+        self._init_report(target)
+        self.file_reports[target]['sources'].append(source.as_posix())
+
+    def append_skipped_source(self, target: Path, source: Path):
+        self._init_report(target)
+        self.file_reports[target]['skipped_sources'].append(source.as_posix())
+
+    def append_overwritten_by(self, target: Path, source: Path):
+        self._init_report(target)
+        self.file_reports[target]['overwritten_by'] = source.as_posix()
+        # Clear the sources list
+        self.file_reports[target]['sources'].clear()
+
+    def dump_report(self, path: Path):
+        '''Dump the report to the specified path'''
+        nice_report: list[FileReport] = [r for r in self.file_reports.values()]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open('w', encoding='utf8') as f:
+            json.dump(nice_report, f, indent=4, cls=CompactEncoder)
+
+    def dump_report_to_file(self, file: io.TextIOWrapper):
+        '''Dump the report to the file'''
+        nice_report: list[FileReport] = [r for r in self.file_reports.values()]
+        json.dump(nice_report, file, indent=4, cls=CompactEncoder)
 
 class SystemTemplateException(Exception):
     def __init__(self, errors: List[str]=None):
@@ -213,7 +267,7 @@ class SystemItem:
                     f"are: {valid_keys}"])
         return on_conflict
 
-    def eval(self) -> None:
+    def eval(self, report: Report) -> None:
         '''
         Evaluates the SystemItem by writing to the target file.
         '''
@@ -238,12 +292,15 @@ class SystemItem:
                     f"Target already exists: {self.target.as_posix()}"])
             elif self.on_conflict == 'overwrite':
                 print(f"Overwriting {self.target.as_posix()}")
+                report.append_overwritten_by(self.target, source_path)
                 self.target.unlink()
             elif self.on_conflict == 'skip':
                 print(f"Skipping {self.target.as_posix()}")
+                report.append_skipped_source(self.target, source_path)
                 return
             elif self.on_conflict in ('merge', 'append_end', 'append_start'):
                 try:
+                    report.append_source(self.target, source_path)
                     if self.target.suffix in ('.material', '.json'):
                         target_data = load_jsonc(self.target).data
                     else:
@@ -255,7 +312,8 @@ class SystemItem:
                         f"- Source file: {source_path.as_posix()}\n"
                         f"- Error: {str(e)}"])
                 self.target.unlink()
-
+        else:
+            report.append_source(self.target, source_path)
         # INSERT SOURCE/GENERATED DATA INTO TARGET
         try:
             self.target.parent.mkdir(parents=True, exist_ok=True)
@@ -424,6 +482,10 @@ def main():
         return scope
     # Try to load the auto map
     system_patterns = config.get('systems', ['**/*'])
+    log_path = Path(config['log_path']) if 'log_path' in config else None
+    if not log_path.is_absolute():
+        # Make path relative to environment variable ROOT_DIR
+        log_path = Path(os.environ['ROOT_DIR']) / log_path
     try:
         auto_map_path = SYSTEM_TEMPLATE_DATA_PATH / "auto_map.json"
         auto_map = load_jsonc(auto_map_path).data
@@ -435,6 +497,7 @@ def main():
     try:
         if mode in ['eval', 'pack', 'unpack']:
             scope = get_scope()
+            report = Report()
             for system_path in walk_system_paths(system_patterns):
                 rel_sys_path = system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
@@ -442,7 +505,7 @@ def main():
                 if mode == 'eval':
                     print(f"Generating system: {rel_sys_path}")
                     for system_item in system.walk_system_items():
-                        system_item.eval()
+                        system_item.eval(report)
                 elif mode == 'pack':
                     print(f"Packing system: {rel_sys_path}")
                     for system_item in system.walk_system_items():
@@ -451,6 +514,8 @@ def main():
                     print(f"Unpacking system: {rel_sys_path}")
                     for system_item in system.walk_system_items():
                         system_item.unpack(op_stack)
+            if mode == 'eval' and log_path is not None:
+                report.dump_report(log_path)
         elif mode == 'undo':
             print(f"Undoing last pack/unpack operation")
             if not undo_path.exists():

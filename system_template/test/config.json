@@ -26,7 +26,8 @@
 					{
 						"filter": "system_template",
 						"settings": {
-							"scope_path": "scope.json"
+							"scope_path": "scope.json",
+							"log_path": "data/system_template/log.json"
 						}
 					},
 					{
