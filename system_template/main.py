@@ -14,7 +14,7 @@ from better_json_tools import load_jsonc
 from better_json_tools.compact_encoder import CompactEncoder
 from regolith_subfunctions import CodeTree
 import argparse
-from typing import TypedDict
+from typing import TypedDict, Literal
 import io
 import os
 
@@ -27,12 +27,13 @@ BP_PATH = Path('BP')
 RP_PATH = Path('RP')
 
 
+class Source(TypedDict):
+    path: str
+    status: Literal['merged', 'skipped', 'overwritten', 'created']
+
 class FileReport(TypedDict):
     target: str
-    target_existed: bool
-    sources: list[str]
-    skipped_sources: list[str]
-    overwritten_by: str | None
+    sources: list[Source]
 
 class Report:
     def __init__(self):
@@ -45,25 +46,16 @@ class Report:
         if target not in self.file_reports:
             self.file_reports[target] = FileReport(
                 target=target.as_posix(),
-                target_existed=target.exists(),
                 sources=[],
-                skipped_sources=[],
-                overwritten_by=None
             )
-    
-    def append_source(self, target: Path, source: Path):
-        self._init_report(target)
-        self.file_reports[target]['sources'].append(source.as_posix())
 
-    def append_skipped_source(self, target: Path, source: Path):
+    def append_source(
+            self, target: Path,
+            source: Path,
+            status: Literal['merged', 'skipped', 'overwritten', 'created']):
         self._init_report(target)
-        self.file_reports[target]['skipped_sources'].append(source.as_posix())
-
-    def append_overwritten_by(self, target: Path, source: Path):
-        self._init_report(target)
-        self.file_reports[target]['overwritten_by'] = source.as_posix()
-        # Clear the sources list
-        self.file_reports[target]['sources'].clear()
+        self.file_reports[target]['sources'].append(
+            Source(path=source.as_posix(), status=status))
 
     def dump_report(self, path: Path):
         '''Dump the report to the specified path'''
@@ -76,6 +68,7 @@ class Report:
         '''Dump the report to the file'''
         nice_report: list[FileReport] = [r for r in self.file_reports.values()]
         json.dump(nice_report, file, indent=4, cls=CompactEncoder)
+
 
 class SystemTemplateException(Exception):
     def __init__(self, errors: List[str]=None):
@@ -292,15 +285,15 @@ class SystemItem:
                     f"Target already exists: {self.target.as_posix()}"])
             elif self.on_conflict == 'overwrite':
                 print(f"Overwriting {self.target.as_posix()}")
-                report.append_overwritten_by(self.target, source_path)
+                report.append_source(self.target, source_path, 'overwritten')
                 self.target.unlink()
             elif self.on_conflict == 'skip':
                 print(f"Skipping {self.target.as_posix()}")
-                report.append_skipped_source(self.target, source_path)
+                report.append_source(self.target, source_path, 'skipped')
                 return
             elif self.on_conflict in ('merge', 'append_end', 'append_start'):
                 try:
-                    report.append_source(self.target, source_path)
+                    report.append_source(self.target, source_path, 'merged')
                     if self.target.suffix in ('.material', '.json'):
                         target_data = load_jsonc(self.target).data
                     else:
@@ -313,7 +306,7 @@ class SystemItem:
                         f"- Error: {str(e)}"])
                 self.target.unlink()
         else:
-            report.append_source(self.target, source_path)
+            report.append_source(self.target, source_path, 'created')
         # INSERT SOURCE/GENERATED DATA INTO TARGET
         try:
             self.target.parent.mkdir(parents=True, exist_ok=True)

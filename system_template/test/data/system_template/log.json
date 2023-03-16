@@ -1,121 +1,155 @@
 [
 	{
 		"target": "BP/entities/pig_red.behavior.json",
-		"target_existed": false,
-		"sources": ["data/system_template/colorful_pigs/pig_.behavior.py"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/colorful_pigs/pig_.behavior.py",
+				"status": "created"
+			}
+		]
 	},
 	{
 		"target": "BP/entities/pig_green.behavior.json",
-		"target_existed": false,
-		"sources": ["data/system_template/colorful_pigs/pig_.behavior.py"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/colorful_pigs/pig_.behavior.py",
+				"status": "created"
+			}
+		]
 	},
 	{
 		"target": "BP/entities/pig_blue.behavior.json",
-		"target_existed": true,
-		"sources": ["data/system_template/colorful_pigs/pig_.behavior.py"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/colorful_pigs/pig_.behavior.py",
+				"status": "merged"
+			}
+		]
 	},
 	{
 		"target": "RP/entity/pig_red.entity.json",
-		"target_existed": false,
-		"sources": ["data/system_template/colorful_pigs/pig_.entity.py"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/colorful_pigs/pig_.entity.py",
+				"status": "created"
+			}
+		]
 	},
 	{
 		"target": "RP/entity/pig_green.entity.json",
-		"target_existed": false,
-		"sources": ["data/system_template/colorful_pigs/pig_.entity.py"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/colorful_pigs/pig_.entity.py",
+				"status": "created"
+			}
+		]
 	},
 	{
 		"target": "RP/entity/pig_blue.entity.json",
-		"target_existed": false,
-		"sources": ["data/system_template/colorful_pigs/pig_.entity.py"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/colorful_pigs/pig_.entity.py",
+				"status": "created"
+			}
+		]
 	},
 	{
 		"target": "RP/render_controllers/pig_color.rc.json",
-		"target_existed": false,
-		"sources": ["data/system_template/colorful_pigs/pig_color.rc.json"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/colorful_pigs/pig_color.rc.json",
+				"status": "created"
+			}
+		]
 	},
 	{
 		"target": "RP/textures/entity/pig_color/red.png",
-		"target_existed": false,
-		"sources": ["data/system_template/colorful_pigs/pig_red.png"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/colorful_pigs/pig_red.png",
+				"status": "created"
+			}
+		]
 	},
 	{
 		"target": "RP/textures/entity/pig_color/green.png",
-		"target_existed": false,
-		"sources": ["data/system_template/colorful_pigs/pig_green.png"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/colorful_pigs/pig_green.png",
+				"status": "created"
+			}
+		]
 	},
 	{
 		"target": "RP/textures/entity/pig_color/blue.png",
-		"target_existed": false,
-		"sources": ["data/system_template/colorful_pigs/pig_blue.png"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/colorful_pigs/pig_blue.png",
+				"status": "created"
+			}
+		]
 	},
 	{
 		"target": "RP/models/entity/test_1.geo.json",
-		"target_existed": false,
-		"sources": ["data/system_template/glob_file/test_1.geo.json"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/glob_file/test_1.geo.json",
+				"status": "created"
+			}
+		]
 	},
 	{
 		"target": "RP/models/entity/test_2.geo.json",
-		"target_existed": false,
-		"sources": ["data/system_template/glob_file/test_2.geo.json"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/glob_file/test_2.geo.json",
+				"status": "created"
+			}
+		]
 	},
 	{
 		"target": "RP/models/entity/test_3.geo.json",
-		"target_existed": false,
-		"sources": ["data/system_template/glob_file/test_3.geo.json"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/glob_file/test_3.geo.json",
+				"status": "created"
+			}
+		]
 	},
 	{
 		"target": "BP/functions/my_source.mcfunction",
-		"target_existed": false,
-		"sources": ["data/system_template/subfunctions/my_source.mcfunction"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/subfunctions/my_source.mcfunction",
+				"status": "created"
+			}
+		]
 	},
 	{
 		"target": "BP/functions/my_shared_source.mcfunction",
-		"target_existed": false,
-		"sources": ["data/system_template/_shared/my_shared_source.mcfunction"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/_shared/my_shared_source.mcfunction",
+				"status": "created"
+			}
+		]
 	},
 	{
 		"target": "BP/functions/my_shared_source_but_not_in_shared_folder.mcfunction",
-		"target_existed": false,
-		"sources": ["data/system_template/subfunctions/my_shared_source_but_not_in_shared_folder.mcfunction"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/subfunctions/my_shared_source_but_not_in_shared_folder.mcfunction",
+				"status": "created"
+			}
+		]
 	},
 	{
 		"target": "RP/texts/en_US.lang",
-		"target_existed": false,
-		"sources": ["data/system_template/subfunctions/en_US.lang"],
-		"skipped_sources": [],
-		"overwritten_by": null
+		"sources": [
+			{
+				"path": "data/system_template/subfunctions/en_US.lang",
+				"status": "created"
+			}
+		]
 	}
 ]
