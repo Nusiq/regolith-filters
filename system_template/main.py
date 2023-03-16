@@ -475,10 +475,15 @@ def main():
         return scope
     # Try to load the auto map
     system_patterns = config.get('systems', ['**/*'])
-    log_path = Path(config['log_path']) if 'log_path' in config else None
-    if not log_path.is_absolute():
-        # Make path relative to environment variable ROOT_DIR
-        log_path = Path(os.environ['ROOT_DIR']) / log_path
+
+    # Get the log path if its not null
+    if 'log_path' in config:
+        log_path = Path(config['log_path'])
+        if not log_path.is_absolute():
+            log_path = Path(os.environ['ROOT_DIR']) / log_path
+    else:
+        log_path = None
+
     try:
         auto_map_path = SYSTEM_TEMPLATE_DATA_PATH / "auto_map.json"
         auto_map = load_jsonc(auto_map_path).data
