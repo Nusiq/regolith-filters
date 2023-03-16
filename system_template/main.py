@@ -510,27 +510,41 @@ def main():
     undo_path = SYSTEM_TEMPLATE_DATA_PATH / '.pack_undo.json'
     op_stack: List[Tuple[str, str]] = []
     try:
-        if mode in ['eval', 'pack', 'unpack']:
+        if mode == 'eval':
             scope = get_scope()
             report = Report()
             for system_path in walk_system_paths(system_patterns):
                 rel_sys_path = system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
                 system = System(scope, system_path, auto_map)
-                if mode == 'eval':
-                    print(f"Generating system: {rel_sys_path}")
-                    for system_item in system.walk_system_items():
-                        system_item.eval(report)
-                elif mode == 'pack':
-                    print(f"Packing system: {rel_sys_path}")
-                    for system_item in system.walk_system_items():
-                        system_item.pack(op_stack)
-                elif mode == 'unpack':
-                    print(f"Unpacking system: {rel_sys_path}")
-                    for system_item in system.walk_system_items():
-                        system_item.unpack(op_stack)
-            if mode == 'eval' and log_path is not None:
-                report.dump_report(log_path)
+                print(f"Generating system: {rel_sys_path}")
+                for system_item in system.walk_system_items():
+                    system_item.eval(report)
+            report.dump_report(log_path)
+        elif mode == 'pack':
+            scope = get_scope()
+            for system_path in walk_system_paths(system_patterns):
+                rel_sys_path = system_path.relative_to(
+                    SYSTEM_TEMPLATE_DATA_PATH).as_posix()
+                system = System(scope, system_path, auto_map)
+                print(f"Packing system: {rel_sys_path}")
+                for system_item in system.walk_system_items():
+                    system_item.pack(op_stack)
+            # Save the undo stack
+            with open(undo_path, 'w', encoding='utf8') as f:
+                json.dump(op_stack, f, indent='\t')
+        elif mode == 'unpack':
+            scope = get_scope()
+            for system_path in walk_system_paths(system_patterns):
+                rel_sys_path = system_path.relative_to(
+                    SYSTEM_TEMPLATE_DATA_PATH).as_posix()
+                system = System(scope, system_path, auto_map)
+                print(f"Unpacking system: {rel_sys_path}")
+                for system_item in system.walk_system_items():
+                    system_item.unpack(op_stack)
+            # Save the undo stack
+            with open(undo_path, 'w', encoding='utf8') as f:
+                json.dump(op_stack, f, indent='\t')
         elif mode == 'undo':
             print(f"Undoing last pack/unpack operation")
             if not undo_path.exists():
@@ -557,11 +571,6 @@ def main():
                 # Record reverted operation
                 op_stack.append([source.as_posix(), target.as_posix()])
             # Save the undo stack
-            with open(undo_path, 'w', encoding='utf8') as f:
-                json.dump(op_stack, f, indent='\t')
-
-        # Save the undo stack
-        if mode in ['pack', 'unpack', 'undo']:
             with open(undo_path, 'w', encoding='utf8') as f:
                 json.dump(op_stack, f, indent='\t')
     except SystemTemplateException as e:
