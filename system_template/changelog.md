@@ -1,4 +1,6 @@
 # Change log
+## 2.2.0
+- Added logging feature
 ## 2.1.0
 - Added support for the shared resources stored in the `shared` folder. The
   shared resources can be annotated by adding `SHARED:` prefix in their source
