@@ -117,6 +117,33 @@
 		]
 	},
 	{
+		"target": "RP/entity/aaa.entity.json",
+		"sources": [
+			{
+				"path": "data/system_template/pathlib_test/aaa.entity.py",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "RP/entity/bbb.entity.json",
+		"sources": [
+			{
+				"path": "data/system_template/pathlib_test/bbb.entity.py",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "BP/functions/pathlib_func.mcfunction",
+		"sources": [
+			{
+				"path": "data/system_template/pathlib_test/pathlib_func.mcfunction",
+				"status": "created"
+			}
+		]
+	},
+	{
 		"target": "BP/functions/my_source.mcfunction",
 		"sources": [
 			{

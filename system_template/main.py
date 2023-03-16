@@ -18,6 +18,20 @@ from typing import TypedDict, Literal
 import io
 import os
 
+class WdSwitch:
+    '''
+    A context manager that switches the working directory to the specified path
+    '''
+    def __init__(self, path: Path):
+        self.path = path
+        self.old_path = Path.cwd()
+
+    def __enter__(self):
+        os.chdir(self.path)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        os.chdir(self.old_path)
+
 class SpecialKeys(Enum):
     AUTO = auto()  # Special key used for the "target" property in "_map.py"
 
@@ -120,9 +134,9 @@ class System:
 
     def _init_file_map(self, file_map_path: Path) -> List[Dict]:
         try:
-            with file_map_path.open('r') as f:
-                # copy to avoid outputing values from evalation
-                return eval(f.read(), copy(self.scope))
+            file_map_text = file_map_path.read_text(encoding='utf8')
+            with WdSwitch(self.system_path):
+                return eval(file_map_text, copy(self.scope))
         except Exception as e:
             raise SystemTemplateException([
                 f"Failed to evaluate {file_map_path.as_posix()} "
@@ -316,8 +330,9 @@ class SystemItem:
                     self.target.suffix in ('.material', '.json') and
                     source_path.suffix in ('.material', '.json', '.py')):
                 if source_path.suffix == '.py':
-                    with source_path.open('r') as f:
-                        file_json = eval(f.read(), self.scope)
+                    source_text = source_path.read_text(encoding='utf8')
+                    with WdSwitch(self.parent.system_path):
+                        file_json = eval(source_text, self.scope)
                 elif source_path.suffix in ('.material', '.json'):
                     file_json = load_jsonc(source_path).data
                 if self.on_conflict == 'merge':
@@ -343,9 +358,11 @@ class SystemItem:
                     shutil.copy(source_path.as_posix(), self.target.as_posix())
                 if self.target.suffix == '.mcfunction' or self.target.suffix == '.lang':
                     if self.subfunctions:
-                        code = CodeTree(self.target)
-                        code.root.eval_and_dump(
-                            self.scope, self.target, self.target)
+                        abs_target = self.target.absolute()
+                        code = CodeTree(abs_target)
+                        with WdSwitch(self.parent.system_path):
+                            code.root.eval_and_dump(
+                                self.scope, abs_target, abs_target)
         except Exception as e:
             raise SystemTemplateException([
                 f'Failed to evaluate {source_path.as_posix()} for '
@@ -468,7 +485,7 @@ def main():
     def get_scope():
         scope = {
             'true': True, 'false': False, 'math': math, 'uuid': uuid,
-            "AUTO": SpecialKeys.AUTO}
+            "AUTO": SpecialKeys.AUTO, 'Path': Path}
         scope_path = DATA_PATH / config.get(
             'scope_path', 'system_template/scope.json')
         scope = scope | load_jsonc(scope_path).data

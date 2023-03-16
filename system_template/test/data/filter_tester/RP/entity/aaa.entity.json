@@ -1,0 +1,24 @@
+{
+	"format_version": "1.19.0",
+	"minecraft:client_entity": {
+		"description": {
+			"identifier": "minecraft:aaa",
+			"materials": {
+				"default": "entity_custom"
+			},
+			"textures": {
+				"pig_blue": "textures/pathlib_test/pig_blue",
+				"pig_green": "textures/pathlib_test/pig_green",
+				"pig_red": "textures/pathlib_test/pig_red"
+			},
+			"geometry": {
+				"default": "geometry.entity"
+			},
+			"render_controllers": ["controller.render.default"],
+			"spawn_egg": {
+				"base_color": "#288483",
+				"overlay_color": "#2B7135"
+			}
+		}
+	}
+}
