@@ -36,7 +36,7 @@ next section):
 - `scope_path: str` - a path to JSON file that diefines the scope of variables provided
   to the template during its evaluation. This propery is merged with the scope
   provided directly in the modified JSON file and with the default scope which is:
-  `{'true': True, 'false': False, 'math': math, 'uuid': uuid, 'AUTO': AUTO}`
+  `{'true': True, 'false': False, 'math': math, 'uuid': uuid, 'AUTO': AUTO, 'Path': pathlib.Path}`
   where math and uuid are standard python modules, and AUTO is a special value
   used to mark that the target file should be mapped automatically based on its
   extension. The default value of this property is `system_template/scope.json`.
@@ -126,7 +126,7 @@ Properties of the dictionary inside the `_map.py` list:
 
   The scope accessible during the evaluation of the file is created by merging
   multiple sources:
-  - The default scope `{'true': True, 'false': False, 'math': math, 'uuid': uuid, "AUTO": AUTO}`
+  - The default scope `{'true': True, 'false': False, 'math': math, 'uuid': uuid, 'AUTO': AUTO, 'Path': pathlib.Path}`
   - The scope that the "scope_path" property points to.
   - The `_scope.json` file in the system folder.
   - The `scope` property of the dictionary.
@@ -169,6 +169,17 @@ Properties of the dictionary inside the `_map.py` list:
   [here](https://github.com/Nusiq/regolith-filters/tree/master/subfunctions). The
   value of this property is True by default for the `.mcfunction` files and
   False by default for the `.lang` files.
+## Using `Path` in the `_map.py` and the templates
+
+The `Path` class from the `pathlib` module is exposed in the default scope.
+This means that all of the templates can use it. During the evaluation of the
+`_map.py` file, or any of the files included in the system, the working
+directory is set to the folder of the system. You can use `Path('.')` and
+methods like `Path.glob` to find files in the system folder. This is especially
+useful when you want to have a system that changes based on its resources. For
+example, it can be used to generate a list of textures that are used in the
+system, which may be useful for example while generating a client entity
+file for the resource pack.
 
 ## Shared files
 Sometimes you want to share some files between multiple systems. You can do

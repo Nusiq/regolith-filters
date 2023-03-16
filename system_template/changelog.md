@@ -1,6 +1,11 @@
 # Change log
+## 2.3.0
+Added `pathlib.Path` to the default scope. The files are evaluated with the
+working directory set to the system folder, which means that the `Path(".")`
+points at the system folder to let you access the information about the files
+in the system.
 ## 2.2.0
-- Added logging feature
+Added logging feature
 ## 2.1.0
 - Added support for the shared resources stored in the `shared` folder. The
   shared resources can be annotated by adding `SHARED:` prefix in their source
