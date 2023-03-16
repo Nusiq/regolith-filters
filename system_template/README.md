@@ -44,6 +44,10 @@ next section):
 - `systems: list[str]` - a list of glob patterns to match the system folders
   that should be processed. The default value is `["**/*"]` which means that
   all system folders will be processed.
+- `log_path: str` - a path for outputting the log file with the information
+  about which files are responsible for creating the output files in what
+  way. If omitted, the log will not be generated. The path is relative to root
+  of the project (next to the `config.json` file).
 
 # Examples
 There is an example in the `test` subfolder of this filter.
@@ -122,7 +126,7 @@ Properties of the dictionary inside the `_map.py` list:
 
   The scope accessible during the evaluation of the file is created by merging
   multiple sources:
-  - The default scope `{'true': True, 'false': False, 'math': math, 'uuid': uuid`, "AUTO": AUTO}`
+  - The default scope `{'true': True, 'false': False, 'math': math, 'uuid': uuid, "AUTO": AUTO}`
   - The scope that the "scope_path" property points to.
   - The `_scope.json` file in the system folder.
   - The `scope` property of the dictionary.
@@ -258,3 +262,41 @@ Example: Undoing the last operation.
 ```
 regolith apply-filter -- system_template undo
 ```
+
+# The log file
+
+If you specify the `log_path` property in the `config.json` file,
+system_template can create a log file for you from running the default
+operation. The log file contains the information about the files that were
+used in the operation and the files that were created. The code below shows
+an example log with additional comments as an explanation:
+
+```jsonc
+[
+  {
+    // The path of the file that has been created
+    "target": "BP/entities/pig_green.behavior.json",
+
+    // The list of the files that were used to create/modify the target file
+    "sources": [
+      {
+        // The name of a file that was used to create/modify the target file
+        "path": "data/system_template/colorful_pigs/1_pig_.behavior.py",
+
+         //  Can be: 'merged', 'skipped', 'overwritten', 'created'
+         // - merged - the file was merged with the target file
+         // - skipped - the file was skipped (not used, target already exists)
+         // - overwritten - the file completely overwrote the target file
+         // - created - the file was used to create the target file (target didn't exist)
+        "status": "created"
+      },
+      {
+        // Other source...
+      }
+    ]
+  },
+  // Other files...
+]
+```
+
+
