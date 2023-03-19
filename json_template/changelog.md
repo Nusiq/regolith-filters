@@ -1,4 +1,8 @@
 # Changelog
+## 2.0.0
+Renamed the `Ext` class to `K` inside the template files and to
+`JsonTemplateK` internally in the code of the filter.
+
 ## 1.0.0
 Initial release.
 

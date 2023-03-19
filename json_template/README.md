@@ -98,13 +98,13 @@ You can use variables defined in the `scope.json` file.
     "bar": 12345
 }
 ```
-## The `Ext` object
-There is a special `Ext` object that lets you extend the scope by providing it with new variables. The `Ext` object is especially useful when you define your keys in a loop. It can be used to pass the variables from the loop into the generated JSON objects.
+## The `K` object
+There is a special `K` object that lets you extend the scope by providing it with new variables. The `K` object is especially useful when you define your keys in a loop. It can be used to pass the variables from the loop into the generated JSON objects.
 
 *Input*
 ```json
 {
-    "`[Ext(f'foo{i}', number=i) for i in range(2)]`": {
+    "`[K(f'foo{i}', number=i) for i in range(2)]`": {
         "bar": "`number`"
     }
 }
@@ -120,5 +120,5 @@ There is a special `Ext` object that lets you extend the scope by providing it w
     }
 }
 ```
-The first value of `Ext` is the key to the generated JSON object,
+The first value of `K` is the key to the generated JSON object,
 the rest of the arguments must be keyword arguments. The keyword arguments are passed to the scope of the object.

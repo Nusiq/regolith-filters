@@ -1,5 +1,5 @@
 {
-	"`[Ext(i, i=i, j='Hello') for i in range(5)]`": {
+	"`[K(i, i=i, j='Hello') for i in range(5)]`": {
 		"something": 123,
 		"j": "`j`",
 		"mathpow": "`math.pow(i, 2)`",

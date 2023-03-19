@@ -25,10 +25,12 @@ class JsonTemplateException(Exception):
     '''Root exception for json_template.'''
     pass
 
-class Ext:
+class JsonTemplateK:
     '''
     A data class used during the evalution of the template in eval_key to
-    pass the key value and extend the scope.
+    pass the key value and extend the scope. In JSON files this class is
+    known as "K" to reduce the amount of characters needed to write the
+    template.
     '''
 
     def __init__(self, __key: str, **kwargs):
@@ -66,7 +68,7 @@ def eval_json(data, scope: dict[str, Any]):
                 last_item_index = len(evaluated_keys) - 1
                 for i, evaluated_key in enumerate(evaluated_keys):
                     child_scope = scope  # No need for deepcopy
-                    if isinstance(evaluated_key, Ext):
+                    if isinstance(evaluated_key, JsonTemplateK):
                         child_scope = scope | evaluated_key.scope_extension
                         evaluated_key = evaluated_key.key
                     # Don't copy the last item, simply use the old value. Note
@@ -91,23 +93,23 @@ def eval_json(data, scope: dict[str, Any]):
         return data
     return data
 
-def eval_key(key: str, scope: dict[str, Any]) -> list[str | Ext]:
+def eval_key(key: str, scope: dict[str, Any]) -> list[str | JsonTemplateK]:
     '''
     Evaluates JSON key using python's eval function. Works on a copy of the
     scope to prevent the scope from being modified.
 
-    The result is always a list of strings or Ext objects, which can be passed
-    to the eval_json function to provide it with information about the furhter
-    evaluation of the JSON file. The Ext objects are used to extend the scope
-    of the objects nested in this object.
+    The result is always a list of strings or JsonTempalteK objects, which can
+    be passed to the eval_json function to provide it with information about
+    the furhter evaluation of the JSON file. The JsonTemplateK objects are used
+    to extend the scope of the objects nested in this object.
     '''
     evaluated = eval(key, copy(scope))
     if isinstance(evaluated, str):
         return [evaluated]
     elif isinstance(evaluated, list):
-        result: list[str | Ext] = []
+        result: list[str | JsonTemplateK] = []
         for eval_item in evaluated:
-            if isinstance(eval_item, Ext):
+            if isinstance(eval_item, JsonTemplateK):
                 if not isinstance(eval_item.key, str):
                     eval_item.key = str(eval_item.key)
                 result.append(eval_item)
@@ -140,7 +142,8 @@ def main():
 
     # Base scope
     scope = {
-        'true': True, 'false': False, 'math': math, 'uuid': uuid, "Ext": Ext}
+        'true': True, 'false': False, 'math': math, 'uuid': uuid,
+        "K": JsonTemplateK}
     
     # Load the combined scope
     scope = scope | load_jsonc(DATA_PATH / config['scope_path']).data
