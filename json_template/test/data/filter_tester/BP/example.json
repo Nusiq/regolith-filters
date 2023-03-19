@@ -1,0 +1,39 @@
+{
+	"my_scope_variable": 1,
+	"hello": "world",
+	"0": {
+		"something": 123,
+		"j": "Hello",
+		"mathpow": 0.0,
+		"generated_list": [],
+		"access_the_value_of_i_0": 0
+	},
+	"1": {
+		"something": 123,
+		"j": "Hello",
+		"mathpow": 1.0,
+		"generated_list": [0],
+		"access_the_value_of_i_1": 1
+	},
+	"2": {
+		"something": 123,
+		"j": "Hello",
+		"mathpow": 4.0,
+		"generated_list": [0, 1],
+		"access_the_value_of_i_2": 2
+	},
+	"3": {
+		"something": 123,
+		"j": "Hello",
+		"mathpow": 9.0,
+		"generated_list": [0, 1, 2],
+		"access_the_value_of_i_3": 3
+	},
+	"4": {
+		"something": 123,
+		"j": "Hello",
+		"mathpow": 16.0,
+		"generated_list": [0, 1, 2, 3],
+		"access_the_value_of_i_4": 4
+	}
+}

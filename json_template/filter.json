@@ -1,0 +1,10 @@
+{
+	"description": "JSON templating tool based on special strings with Python syntax.",
+	"filters": [
+		{
+			"runWith": "python",
+			"script": "./main.py",
+			"name": "nusiq:json_template"
+		}
+	]
+}

@@ -1,0 +1,11 @@
+{
+	"`[Ext(i, i=i, j='Hello') for i in range(5)]`": {
+		"something": 123,
+		"j": "`j`",
+		"mathpow": "`math.pow(i, 2)`",
+		"`f'access_the_value_of_i_{i}'`": "`i`",
+		"generated_list": "`[j for j in range(i)]`"
+	},
+	"my_scope_variable": "`my_scope_variable`",
+	"hello": "world"
+}

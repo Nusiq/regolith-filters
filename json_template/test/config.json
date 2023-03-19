@@ -1,0 +1,42 @@
+{
+	"author": "Nusiq",
+	"name": "json_template_example",
+	"packs": {
+		"behaviorPack": "./packs/BP",
+		"resourcePack": "./packs/RP"
+	},
+	"regolith": {
+		"dataPath": "./data",
+		"filterDefinitions": {
+			"filter_tester": {
+				"version": "1.0.0"
+			},
+			"json_template": {
+				"runWith": "python",
+				"script": "../main.py"
+			}
+		},
+		"profiles": {
+			"default": {
+				"export": {
+					"readOnly": false,
+					"target": "local"
+				},
+				"filters": [
+					{
+						"filter": "json_template",
+						"settings": {
+							"scope_path": "scope.json"
+						}
+					},
+					{
+						"filter": "filter_tester",
+						"settings": {
+							"errors_stop_execution": true
+						}
+					}
+				]
+			}
+		}
+	}
+}
