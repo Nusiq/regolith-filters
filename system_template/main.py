@@ -13,6 +13,7 @@ from enum import Enum, auto
 from better_json_tools import load_jsonc
 from better_json_tools.compact_encoder import CompactEncoder
 from regolith_subfunctions import CodeTree
+from regolith_json_template import eval_json, JsonTemplateK
 import argparse
 from typing import TypedDict, Literal
 import io
@@ -199,6 +200,7 @@ class SystemItem:
         self.parent = parent
         self.target = self._init_target(data)
         self.on_conflict = self._init_on_conflict(data)
+        self.json_template = data.get('json_template', False)
         self.scope = self.parent.scope | data.get('scope', {})
 
         self.subfunctions = data.get(
@@ -335,6 +337,9 @@ class SystemItem:
                         file_json = eval(source_text, self.scope)
                 elif source_path.suffix in ('.material', '.json'):
                     file_json = load_jsonc(source_path).data
+                    if self.json_template:
+                        file_json = eval_json(
+                            file_json, {'K': JsonTemplateK} | self.scope)
                 if self.on_conflict == 'merge':
                     file_json = merge.deep_merge_objects(
                         target_data, file_json,

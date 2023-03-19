@@ -1,4 +1,7 @@
 # Change log
+## 2.4.0
+Added option to evaluate JSON files (`.json` or `.material`) with the
+`json_template` regolith filter if explicitly specified in the `_map.py` file.
 ## 2.3.0
 Added `pathlib.Path` to the default scope. The files are evaluated with the
 working directory set to the system folder, which means that the `Path(".")`

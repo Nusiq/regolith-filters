@@ -141,6 +141,12 @@ Properties of the dictionary inside the `_map.py` list:
   > file, or the scope form "scope_path". Hiding variables in multiple sources may
   > hinder the readability of the code.
 
+- `json_template` - if the source file is a `.material` or `.json` file (
+  material files are also JSON files), this property enables the evaluation
+  of the file using the `json_template` filter, with the provided scope. You
+  can read more about the `json_template` filter in its documentation
+  [here](https://github.com/Nusiq/regolith-filters/tree/master/json_template).
+
 - `on_conflict` - defines what to do when the target file already exists.
   Possible values are:
   - `stop` - an error is raised.
