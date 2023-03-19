@@ -1,4 +1,6 @@
 # Changelog
+## 2.0.1
+Moved some of the code to an external library called `regolith-json-template`.
 ## 2.0.0
 Renamed the `Ext` class to `K` inside the template files and to
 `JsonTemplateK` internally in the code of the filter.
