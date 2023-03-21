@@ -525,7 +525,8 @@ def main():
                 print(f"Generating system: {rel_sys_path}")
                 for system_item in system.walk_system_items():
                     system_item.eval(report)
-            report.dump_report(log_path)
+            if log_path is not None:
+                report.dump_report(log_path)
         elif mode == 'pack':
             scope = get_scope()
             for system_path in walk_system_paths(system_patterns):
