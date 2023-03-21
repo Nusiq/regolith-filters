@@ -1,5 +1,9 @@
 [
     {
+        "source": "unpack.mcfunction",
+        "target": AUTO
+    },
+    {
         "source": "my_source.mcfunction",
         "target": AUTO,
         "scope": {

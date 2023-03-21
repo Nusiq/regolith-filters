@@ -19,6 +19,12 @@ from typing import TypedDict, Literal
 import io
 import os
 
+# Overwrite the functions path of the regolith_subfunctions to be an absolute
+# path. This shoudln't break anything, but it will allow us to set pass
+# absolute paths to the subfunction files.
+import regolith_subfunctions
+regolith_subfunctions.FUNCTIONS_PATH = Path('BP/functions').absolute()
+
 class WdSwitch:
     '''
     A context manager that switches the working directory to the specified path
@@ -369,6 +375,7 @@ class SystemItem:
                             code.root.eval_and_dump(
                                 self.scope, abs_target, abs_target)
         except Exception as e:
+            raise e
             raise SystemTemplateException([
                 f'Failed to evaluate {source_path.as_posix()} for '
                 f'{self.target.as_posix()}":',

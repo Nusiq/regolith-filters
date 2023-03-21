@@ -153,6 +153,15 @@
 		]
 	},
 	{
+		"target": "BP/functions/unpack.mcfunction",
+		"sources": [
+			{
+				"path": "data/system_template/subfunctions/unpack.mcfunction",
+				"status": "created"
+			}
+		]
+	},
+	{
 		"target": "BP/functions/my_source.mcfunction",
 		"sources": [
 			{
