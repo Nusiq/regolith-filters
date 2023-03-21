@@ -40,7 +40,13 @@ class WdSwitch:
         os.chdir(self.old_path)
 
 class SpecialKeys(Enum):
-    AUTO = auto()  # Special key used for the "target" property in "_map.py"
+    '''
+    Special keys used for the "target" property in "_map.py"
+    '''
+    # Use auto mapping, treat the root of the system as the root of the path
+    AUTO = auto()
+    # Use auto mapping, but add the name of the system to the export path
+    AUTO_SUBFOLDER = auto()
 
 DATA_PATH = Path('data')
 SYSTEM_TEMPLATE_DATA_PATH = DATA_PATH / 'system_template'
@@ -106,10 +112,21 @@ def print_yellow(text):
     for t in text.split('\n'):
         print("\033[93m {}\033[00m".format(t))
 
-def get_auto_target_mapping(source: Path, auto_map: Dict[str, str]) -> Path:
+def get_auto_target_mapping(source: Path, auto_map: Dict[str, str], middle: str="") -> Path:
+    '''
+    Gets the target path for the AUTO mapping (using the AUTO or AUTO_SUBFOLDER)
+    special keys.
+
+    :param source: The path to the source file
+    :param auto_map: The mapping dictionary using the extensions as keys and
+        the output paths as the values
+    :param middle: The middle part inserted into the path. When using the
+        AUTO_SUBFOLDER special key, this will be the name of the system.
+        Otherwise it will be an empty string (nothing will be inserted).
+    '''
     for key, value in auto_map.items():
         if source.name.endswith(key):
-            return Path(value) / source
+            return Path(value) / middle / source
     raise Exception(
         "Failed to find an AUTO mapping export target for "
         f"{source.as_posix()}")
@@ -226,6 +243,13 @@ class SystemItem:
         if target is SpecialKeys.AUTO:
             target = get_auto_target_mapping(
                 self.relative_source_path, self.parent.auto_map)
+        elif target is SpecialKeys.AUTO_SUBFOLDER:
+            target = get_auto_target_mapping(
+                self.relative_source_path,
+                self.parent.auto_map,
+                middle=self.parent.system_path.relative_to(
+                    SYSTEM_TEMPLATE_DATA_PATH).as_posix()
+            )
         elif isinstance(target, str) and (target.startswith('BP/') or target.startswith('RP/')):
             target = Path(target)
         else:
@@ -497,7 +521,9 @@ def main():
     def get_scope():
         scope = {
             'true': True, 'false': False, 'math': math, 'uuid': uuid,
-            "AUTO": SpecialKeys.AUTO, 'Path': Path}
+            "AUTO": SpecialKeys.AUTO,
+            "AUTO_SUBFOLDER": SpecialKeys.AUTO_SUBFOLDER,
+            'Path': Path}
         scope_path = DATA_PATH / config.get(
             'scope_path', 'system_template/scope.json')
         scope = scope | load_jsonc(scope_path).data

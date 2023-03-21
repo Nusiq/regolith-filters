@@ -1,5 +1,14 @@
 [
 	{
+		"target": "RP/models/entity/auto_subfolder/auto_subfolder_example.geo.json",
+		"sources": [
+			{
+				"path": "data/system_template/auto_subfolder/auto_subfolder_example.geo.json",
+				"status": "created"
+			}
+		]
+	},
+	{
 		"target": "BP/entities/pig_red.behavior.json",
 		"sources": [
 			{
