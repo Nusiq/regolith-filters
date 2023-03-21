@@ -1,4 +1,7 @@
 # Change log
+## 2.4.1
+- Fixed the issue of crashing when using `subfunctions` to create nested file structures.
+- Fixed crashing when the `config.json` file is not defining the `log_path` property.
 ## 2.4.0
 Added option to evaluate JSON files (`.json` or `.material`) with the
 `json_template` regolith filter if explicitly specified in the `_map.py` file.
