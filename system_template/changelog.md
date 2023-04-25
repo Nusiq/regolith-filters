@@ -1,4 +1,6 @@
 # Change log
+## 2.6.0
+Added `AUTO_FLAT` and `AUTO_FLAT_SUBFOLDER` keywords for new auto mapping.
 ## 2.5.0
 Added `AUTO_SUBFOLDER` keyword that can be used with the "target" property of a system in `_map.py`. To automatically map the file to a path in RP or BP folder with the addition of a subfolder named after the path of the system.
 ## 2.4.1

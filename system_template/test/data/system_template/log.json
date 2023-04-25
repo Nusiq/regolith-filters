@@ -1,9 +1,36 @@
 [
 	{
-		"target": "RP/models/entity/auto_subfolder/auto_subfolder_example.geo.json",
+		"target": "RP/models/entity/some_path/auto_example.geo.json",
 		"sources": [
 			{
-				"path": "data/system_template/auto_subfolder/auto_subfolder_example.geo.json",
+				"path": "data/system_template/auto/some_path/auto_example.geo.json",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "RP/models/entity/auto_flat_example.geo.json",
+		"sources": [
+			{
+				"path": "data/system_template/auto_flat/some_path/auto_flat_example.geo.json",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "RP/models/entity/auto_flat_subfolder/auto_flat_subfolder_example.geo.json",
+		"sources": [
+			{
+				"path": "data/system_template/auto_flat_subfolder/some_path/auto_flat_subfolder_example.geo.json",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "RP/models/entity/auto_subfolder/some_path/auto_subfolder_example.geo.json",
+		"sources": [
+			{
+				"path": "data/system_template/auto_subfolder/some_path/auto_subfolder_example.geo.json",
 				"status": "created"
 			}
 		]

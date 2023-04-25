@@ -36,7 +36,7 @@ next section):
 - `scope_path: str` - a path to JSON file that diefines the scope of variables provided
   to the template during its evaluation. This propery is merged with the scope
   provided directly in the modified JSON file and with the default scope which is:
-  `{'true': True, 'false': False, 'math': math, 'uuid': uuid, 'AUTO_SUBFOLDER': AUTO_SUBFOLDER, 'AUTO': AUTO, 'Path': pathlib.Path}`
+  `{'true': True, 'false': False, 'math': math, 'uuid': uuid, 'AUTO_SUBFOLDER': AUTO_SUBFOLDER, 'AUTO': AUTO, 'AUTO_FLAT': AUTO_FLAT, 'AUTO_FLAT_SUBFOLDER': AUTO_FLAT_SUBFOLDER, 'Path': pathlib.Path}`
   where math and uuid are standard python modules, and AUTO is a special value
   used to mark that the target file should be mapped automatically based on its
   extension. The 'AUTO_SUBFOLDER' is a keyword that works like the AUTO keyword but the generated target path contains the name of the system. The default value of this property is `system_template/scope.json`.
@@ -82,7 +82,7 @@ Other files inside
     📝 _map.py
 ```
 - `auto_map.json` - a file that defines how to automatically map files of the
-  systems to the resource and behavior packs using the "AUTO" and "AUTO_SUBFOLDER" keywords, based
+  systems to the resource and behavior packs using the `AUTO...` keywords, based
   on the file extension. The file maps the ending of the file to the folder
   in RP or BP.
 - `_scope.json` - defines the scope used for evaluating the `_map.py`
@@ -109,11 +109,11 @@ the destination file already exists.
 Properties of the dictionary inside the `_map.py` list:
 - `source` - the path to the source file relative to the folder of the sytem.
   The source is treated as a glob pattern if it contains `*` or `?` characters.
-  Using glob patterns is useful in combination with the `AUTO` and `AUTO_SUBFOLDER` keywords for the
+  Using glob patterns is useful in combination with the `AUTO...` keywords for the
   target file.
 - `target` - the destination of the file. Remember to include `RP` or `BP` in
   the destination path to output it to a resource or behavior pack. Alternatively,
-  you can use the `AUTO` or `AUTO_SUBFOLDER` keywords to automatically map the file to the resource
+  you can use the `AUTO...` keywords to automatically map the file to the resource
   or behavior pack based on the file extension. The rules of mapping are
   defined in the `auto_map.json` file.
 - `scope` - The sustem_template filter lets you define the output files using
@@ -282,7 +282,7 @@ regolith apply-filter -- system_template undo
 
 # The AUTO mapping
 
-The AUTO mapping is a feature that allows you to automatically detect the target path of a file based on its ending. The AUTO mapping is using `AUTO` or `AUTO_SUBFOLDER` keywords in the `"target"` propert of an item in the `_map.py` list. The rules of the mapping are defined in the `auto_map.json` file.
+The AUTO mapping is a feature that allows you to automatically detect the target path of a file based on its ending. The AUTO mapping is using `AUTO...` keywords in the `"target"` properties of the items in the `_map.py` list. The rules of the mapping are defined in the `auto_map.json` file.
 
 ## The `auto_map.json` file
 
@@ -299,9 +299,15 @@ This auto map defines 2 rules:
 
 When you install the filter for the first time, the `auto_map.json` file is created for you. It contains many rules, among which there are the rules mentioned above.
 
-## The `AUTO` and `AUTO_SUBFOLDER` keywords
+## The `AUTO...` keywords
 
-In order to use the AUTO mapping feature you have to use the `AUTO` or `AUTO_SUBFOLDER` keywords. These keywords belong to the `_map.py` file of the system. They are assigned to the `"target"` property of an item in the `_map.py` list.
+In order to use the AUTO mapping feature you have to use one of the following `AUTO...` keywords.
+- `AUTO` - export to `<path defined in auto_map.json>/<subpath inside the system>/<file name>`
+- `AUTO_SUBFOLDER` - export to `<path defined in auto_map.json>/<system name>/<subpath inside the system>/<file name>`
+- `AUTO_FLAT` - export to `<path defined in auto_map.json>/<file name>`
+- `AUTO_FLAT_SUBFOLDER` - export to `<path defined in auto_map.json>/<system name>/<file name>`
+
+These keywords belong to the `_map.py` file of the system. They are assigned to the `"target"` property of an item in the `_map.py` list.
 
 ### The `AUTO` keyword example
 
@@ -309,12 +315,49 @@ In order to use the AUTO mapping feature you have to use the `AUTO` or `AUTO_SUB
 ```py
 [
   {
-    "source": "my_texture_entity.png",
+    "source": "some_path/my_texture_entity.png",
     "target": AUTO
   },
   {
-    "source": "my_model.geo.json",
+    "source": "some_path/my_model.geo.json",
     "target": AUTO
+  }
+]
+```
+This configuration defines two files (that are hopefully in your system folder). Assuming that the `auto_map.json` file contains the rules mentioned above, the result of the mapping will be:
+- The `my_texture_entity.png` file will be copied to the `RP/textures/entity/some_path/my_texture_entity.png` path.
+- The `my_model.geo.json` file will be copied to the `RP/models/entity/some_path/my_model.geo.json` path.
+
+### The `AUTO_SUBFOLDER` keyword example
+*my_system/_map.py*
+```py
+[
+  {
+    "source": "some_path/my_texture_entity.png",
+    "target": AUTO_SUBFOLDER
+  },
+  {
+    "source": "some_path/my_model.geo.json",
+    "target": AUTO_SUBFOLDER
+  }
+]
+```
+This configuration is very similar to the previous one. The only difference is that the `AUTO_SUBFOLDER` keyword will create a subfolder for the file based on the name of the system. The name of the system is based on its path in the data folder of the `system_tempalte` regolith filter (in this case it's `my_system`). The result of the mapping will be:
+- The `my_texture_entity.png` file will be copied to the `RP/textures/entity/my_system/some_path/my_texture_entity.png` path.
+- The `my_model.geo.json` file will be copied to the `RP/models/entity/my_system/some_path/my_model.geo.json` path.
+
+### The `AUTO_FLAT` keyword example
+
+*my_system/_map.py*
+```py
+[
+  {
+    "source": "some_path/my_texture_entity.png",
+    "target": AUTO_FLAT
+  },
+  {
+    "source": "some_path/my_model.geo.json",
+    "target": AUTO_FLAT
   }
 ]
 ```
@@ -322,23 +365,24 @@ This configuration defines two files (that are hopefully in your system folder).
 - The `my_texture_entity.png` file will be copied to the `RP/textures/entity/my_texture_entity.png` path.
 - The `my_model.geo.json` file will be copied to the `RP/models/entity/my_model.geo.json` path.
 
-### The `AUTO_SUBFOLDER` keyword example
+### The `AUTO_FLAT_SUBFOLDER` keyword example
 *my_system/_map.py*
 ```py
 [
   {
-    "source": "my_texture_entity.png",
-    "target": AUTO_SUBFOLDER
+    "source": "some_path/my_texture_entity.png",
+    "target": AUTO_FLAT_SUBFOLDER
   },
   {
-    "source": "my_model.geo.json",
-    "target": AUTO_SUBFOLDER
+    "source": "some_path/my_model.geo.json",
+    "target": AUTO_FLAT_SUBFOLDER
   }
 ]
 ```
-This configuration is very similar to the previous one. The only difference is that the `AUTO_SUBFOLDER` keyword will create a subfolder for the file based on the name of the system. The name of the system is based on its path in the data folder of the `system_tempalte` regolith filter (in this case it's `my_system`). The result of the mapping will be:
+This configuration is very similar to the previous one. The only difference is that the `AUTO_FLAT_SUBFOLDER` keyword will create a subfolder for the file based on the name of the system. The name of the system is based on its path in the data folder of the `system_tempalte` regolith filter (in this case it's `my_system`). The result of the mapping will be:
 - The `my_texture_entity.png` file will be copied to the `RP/textures/entity/my_system/my_texture_entity.png` path.
 - The `my_model.geo.json` file will be copied to the `RP/models/entity/my_system/my_model.geo.json` path.
+
 
 # The log file
 

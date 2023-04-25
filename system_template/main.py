@@ -45,8 +45,13 @@ class SpecialKeys(Enum):
     '''
     # Use auto mapping, treat the root of the system as the root of the path
     AUTO = auto()
-    # Use auto mapping, but add the name of the system to the export path
+    # Same as the AUTO mapping, but add the name of the system to the export path
     AUTO_SUBFOLDER = auto()
+    # Auto map to the correct folders in the RP or BP folders, but don't add the
+    # subpath in the system folder
+    AUTO_FLAT = auto()
+    # Works like AUTO_FLAT, but adds the name of the system to the export path
+    AUTO_FLAT_SUBFOLDER = auto()
 
 DATA_PATH = Path('data')
 SYSTEM_TEMPLATE_DATA_PATH = DATA_PATH / 'system_template'
@@ -246,6 +251,18 @@ class SystemItem:
         elif target is SpecialKeys.AUTO_SUBFOLDER:
             target = get_auto_target_mapping(
                 self.relative_source_path,
+                self.parent.auto_map,
+                middle=self.parent.system_path.relative_to(
+                    SYSTEM_TEMPLATE_DATA_PATH).as_posix()
+            )
+        elif target is SpecialKeys.AUTO_FLAT:
+            target = get_auto_target_mapping(
+                Path(self.relative_source_path.name),
+                self.parent.auto_map,
+            )
+        elif target is SpecialKeys.AUTO_FLAT_SUBFOLDER:
+            target = get_auto_target_mapping(
+                Path(self.relative_source_path.name),
                 self.parent.auto_map,
                 middle=self.parent.system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
@@ -523,6 +540,8 @@ def main():
             'true': True, 'false': False, 'math': math, 'uuid': uuid,
             "AUTO": SpecialKeys.AUTO,
             "AUTO_SUBFOLDER": SpecialKeys.AUTO_SUBFOLDER,
+            "AUTO_FLAT_SUBFOLDER": SpecialKeys.AUTO_FLAT_SUBFOLDER,
+            "AUTO_FLAT": SpecialKeys.AUTO_FLAT,
             'Path': Path}
         scope_path = DATA_PATH / config.get(
             'scope_path', 'system_template/scope.json')
