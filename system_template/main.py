@@ -12,6 +12,7 @@ from copy import copy
 from enum import Enum, auto
 from better_json_tools import load_jsonc
 from better_json_tools.compact_encoder import CompactEncoder
+from better_json_tools.json_walker import JSONWalker
 from regolith_subfunctions import CodeTree
 from regolith_json_template import eval_json, JsonTemplateK
 import argparse
@@ -117,24 +118,77 @@ def print_yellow(text):
     for t in text.split('\n'):
         print("\033[93m {}\033[00m".format(t))
 
-def get_auto_target_mapping(source: Path, auto_map: Dict[str, str], middle: str="") -> Path:
-    '''
-    Gets the target path for the AUTO mapping (using the AUTO or AUTO_SUBFOLDER)
-    special keys.
+class Mapping(TypedDict):
+    target: str
+    replace_extension: str
 
-    :param source: The path to the source file
-    :param auto_map: The mapping dictionary using the extensions as keys and
-        the output paths as the values
-    :param middle: The middle part inserted into the path. When using the
-        AUTO_SUBFOLDER special key, this will be the name of the system.
-        Otherwise it will be an empty string (nothing will be inserted).
-    '''
-    for key, value in auto_map.items():
-        if source.name.endswith(key):
-            return Path(value) / middle / source
-    raise Exception(
-        "Failed to find an AUTO mapping export target for "
-        f"{source.as_posix()}")
+class AutoMappingProvider:
+    def __init__(self, data_walker: Optional[JSONWalker]=None):
+        self.data: Dict[str, Mapping] = {}
+        if data_walker is None:
+            return
+        for mapping_walker in data_walker // str:
+            key: str = mapping_walker.parent_key
+            value: Any = mapping_walker.data
+            if isinstance(value, str):
+                self.data[key] = {
+                    "target": value,
+                    "replace_extension": key
+                }
+            elif isinstance(value, dict):
+                target_walker = mapping_walker / "target"
+                if not target_walker.exists:
+                    raise SystemTemplateException([
+                        'The "target" property of the auto mapping is missing.',
+                        f'Key: {key}',
+                        f'JSON path: {mapping_walker.path_str}'])
+                if not isinstance(target_walker.data, str):
+                    raise SystemTemplateException([
+                        'The "target" property of the auto mapping must be a'
+                        'string with the mapping path.',
+                        f'Key: {key}',
+                        f'JSON path: {mapping_walker.path_str}'])
+                replace_extension_walker = mapping_walker / "replace_extension"
+                if not replace_extension_walker.exists:
+                    replace_extension = key
+                elif not isinstance(replace_extension_walker.data, str):
+                    raise SystemTemplateException([
+                        'The "replace_extension" property of the auto mapping must '
+                        'be a string.',
+                        f'Key: {key}',
+                        f'JSON path: {mapping_walker.path_str}'])
+                else:
+                    replace_extension = replace_extension_walker.data
+                self.data[key] = {
+                    "target": target_walker.data,
+                    "replace_extension": replace_extension
+                }
+            else:
+                raise SystemTemplateException([
+                    'The auto mapping must be a string or an object.',
+                    f'Key: {key}',
+                    f'JSON path: {mapping_walker.path_str}'])
+
+    def get_auto_target_mapping(self, source: Path, middle: str="") -> Path:
+        '''
+        Gets the target path for the AUTO mapping (using the AUTO or AUTO_SUBFOLDER)
+        special keys.
+
+        :param source: The path to the source file
+        :param middle: The middle part inserted into the path. When using the
+            AUTO_SUBFOLDER special key, this will be the name of the system.
+            Otherwise it will be an empty string (nothing will be inserted).
+        '''
+        for key, map_data in self.data.items():
+            if key == "":
+                continue  # Maybe this should be an error?
+            if source.name.endswith(key):
+                name = source.name[:-len(key)] + map_data['replace_extension']
+                return (
+                    Path(map_data['target']) / middle / source.with_name(name))
+        raise Exception(
+            "Failed to find an AUTO mapping export target for "
+            f"{source.as_posix()}")
 
 def walk_system_paths(systems: List[str]) -> Iterable[Path]:
     for system_path in DATA_PATH.rglob("*"):
@@ -154,12 +208,14 @@ def walk_system_paths(systems: List[str]) -> Iterable[Path]:
                 break
 
 class System:
-    def __init__(self, scope: Dict, system_path: Path, auto_map: Dict[str, str]):
+    def __init__(
+            self, scope: Dict, system_path: Path,
+            auto_map: AutoMappingProvider):
         self.scope: Dict[str, Any] = scope | load_jsonc(system_path / '_scope.json').data
         self.system_path: Path = system_path
         self.file_map: List[Dict] = self._init_file_map(
             system_path / '_map.py')
-        self.auto_map: Dict[str, str] = auto_map
+        self.auto_map: AutoMappingProvider = auto_map
 
     def _init_file_map(self, file_map_path: Path) -> List[Dict]:
         try:
@@ -243,36 +299,39 @@ class SystemItem:
         if 'target' not in data:
             raise SystemTemplateException([
                 f"Missing 'target'  property in one of the "
-                f"_map.py items: : {data}"])
+                f"_map.py items: {data}"])
         target = data['target']
         if target is SpecialKeys.AUTO:
-            target = get_auto_target_mapping(
-                self.relative_source_path, self.parent.auto_map)
+            target = self.parent.auto_map.get_auto_target_mapping(
+                self.relative_source_path)
         elif target is SpecialKeys.AUTO_SUBFOLDER:
-            target = get_auto_target_mapping(
+            target = self.parent.auto_map.get_auto_target_mapping(
                 self.relative_source_path,
-                self.parent.auto_map,
                 middle=self.parent.system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
             )
         elif target is SpecialKeys.AUTO_FLAT:
-            target = get_auto_target_mapping(
-                Path(self.relative_source_path.name),
-                self.parent.auto_map,
+            target = self.parent.auto_map.get_auto_target_mapping(
+                Path(self.relative_source_path.name)
             )
         elif target is SpecialKeys.AUTO_FLAT_SUBFOLDER:
-            target = get_auto_target_mapping(
+            target = self.parent.auto_map.get_auto_target_mapping(
                 Path(self.relative_source_path.name),
-                self.parent.auto_map,
                 middle=self.parent.system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
             )
-        elif isinstance(target, str) and (target.startswith('BP/') or target.startswith('RP/')):
-            target = Path(target)
-        else:
+        elif not isinstance(target, str):
             raise SystemTemplateException([
                 f'Export target must be "AUTO" or a path that starts with "BP/" or "RP/": {target}'])
-        return target
+        else: # isinstance(target, str)
+            target = Path(target)
+        target_str = target.as_posix()
+        if not (target_str.startswith('BP/') or target_str.startswith('RP/')):
+            raise SystemTemplateException([
+                'Failed to resolve the export target to a valid path. The '
+                'target must start with "BP/" or "RP/".',
+                f'Export target: {target_str}'])
+        return Path(target)
 
     def _init_on_conflict(
             self, data: Dict,
@@ -560,9 +619,9 @@ def main():
 
     try:
         auto_map_path = SYSTEM_TEMPLATE_DATA_PATH / "auto_map.json"
-        auto_map = load_jsonc(auto_map_path).data
+        auto_map = AutoMappingProvider(load_jsonc(auto_map_path))
     except FileNotFoundError:
-        auto_map = {}
+        auto_map = AutoMappingProvider(JSONWalker({}))
     # Prepare the undo stack (for pack, unpack and undo)
     undo_path = SYSTEM_TEMPLATE_DATA_PATH / '.pack_undo.json'
     op_stack: List[Tuple[str, str]] = []

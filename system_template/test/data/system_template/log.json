@@ -1,5 +1,41 @@
 [
 	{
+		"target": "RP/textures/blocks/advanced_auto_map/aam_blue.png",
+		"sources": [
+			{
+				"path": "data/system_template/advanced_auto_map/some_path/aam_blue.block.png",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "BP/entities/advanced_auto_map/aam_entity.behavior.json",
+		"sources": [
+			{
+				"path": "data/system_template/advanced_auto_map/some_path/aam_entity.behavior.py",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "RP/textures/entity/advanced_auto_map/aam_green.png",
+		"sources": [
+			{
+				"path": "data/system_template/advanced_auto_map/some_path/aam_green.entity.png",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "RP/textures/items/advanced_auto_map/aam_red.png",
+		"sources": [
+			{
+				"path": "data/system_template/advanced_auto_map/some_path/aam_red.item.png",
+				"status": "created"
+			}
+		]
+	},
+	{
 		"target": "RP/models/entity/some_path/auto_example.geo.json",
 		"sources": [
 			{

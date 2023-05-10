@@ -1,4 +1,13 @@
 # Change log
+## 2.7.0
+- The auto_map.json file supports new mapping format. The values of the mapping can be a string (old format) or an object with the following properties:
+  - `target` - the target path of the file (used for the same purpose as the string value in the old format)
+  - `replace_extension` - the value to be used to replace the extension being mapped (optional)
+- Updated the default `auto_map.json` file.
+  - Added mapping for the `.<some suffix>.py` files into their coressponding json files (e.g. `.bp_ac.py` -> `.bp_ac.json`)
+  - Added new mapping for the texture files using the new mapping format. The newly added texture mapping uses similar prefixes to the old mapping, but starting with a dot instead of an underscore. The old mapping is still present for backwards compatibility. Example:
+    - Old: `_block.png` -> `_block.png` (still works)
+    - New: `.block.png` -> `.png`
 ## 2.6.1
 Fixed filter crashing on invalid JSON files instead of printing an error message with useful information.
 ## 2.6.0

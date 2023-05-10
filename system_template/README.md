@@ -290,12 +290,22 @@ The `auto_map.json` file is a JSON file that contains a dictionary that maps the
 ```json
 {
   ".geo.json": "RP/models/entity",
-  "_entity.png": "RP/textures/entity"
+  "_entity.png": "RP/textures/entity",
+  ".entity.png": {
+    "target": "RP/textures/entity",
+    "replace_extension": ".png"
+  },
+  ".bp_ac.py": {
+    "target": "BP/animation_controllers",
+    "replace_extension": ".bp_ac.json"
+  }
 }
 ```
 This auto map defines 2 rules:
 - The files that end with `.geo.json` will be placed in the `RP/models/entity` folder.
 - The files that end with `_entity.png` will be placed in the `RP/textures/entity` folder.
+- The files that end with `.entity.png` will be placed in the `RP/textures/entity` folder, but the `.entity.png` ending will be replaced with `.png`.
+- The files that end with `.bp_ac.py` will be placed in the `BP/animation_controllers` folder, but the `.bp_ac.py` ending will be replaced with `.bp_ac.json`. Note that when you change the extension from `.py` to `.json` the content of the Python file is evaluated and than saved using the JSON format.
 
 When you install the filter for the first time, the `auto_map.json` file is created for you. It contains many rules, among which there are the rules mentioned above.
 
