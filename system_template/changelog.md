@@ -1,4 +1,6 @@
 # Change log
+## 2.6.1
+Fixed filter crashing on invalid JSON files instead of printing an error message with useful information.
 ## 2.6.0
 Added `AUTO_FLAT` and `AUTO_FLAT_SUBFOLDER` keywords for new auto mapping.
 ## 2.5.0

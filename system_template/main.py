@@ -416,11 +416,11 @@ class SystemItem:
                             code.root.eval_and_dump(
                                 self.scope, abs_target, abs_target)
         except Exception as e:
-            raise e
             raise SystemTemplateException([
-                f'Failed to evaluate {source_path.as_posix()} for '
-                f'{self.target.as_posix()}":',
-                str(e)])
+                f'Failed to evaluate file.',
+                f'Source: {source_path.as_posix()}',
+                f'Target: {self.target.as_posix()}',
+                f'Error: {e}'])
 
     def pack(self, op_stack: Optional[List[Tuple[str, str]]]=None) -> None:
         '''
