@@ -1,4 +1,6 @@
 # Changelog
+## 2.0.3
+subfunctions: added missing module "better-json-tools".
 ## 2.0.2
 Update the `regolith-subfunctions` dependency to ~=1.1. This allowes using comments
 in the scope.json file.
