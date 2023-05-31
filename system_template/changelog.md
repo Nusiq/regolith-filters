@@ -1,4 +1,7 @@
 # Change log
+## 2.8.0
+Updated the `regolith-json-template` library to version `1.1.0` to unlock the `__unpack__` and `__value__` keys. See the `json_template` filter's `README.md` for more information.
+
 ## 2.7.0
 - The auto_map.json file supports new mapping format. The values of the mapping can be a string (old format) or an object with the following properties:
   - `target` - the target path of the file (used for the same purpose as the string value in the old format)
