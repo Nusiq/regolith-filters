@@ -122,3 +122,71 @@ There is a special `K` object that lets you extend the scope by providing it wit
 ```
 The first value of `K` is the key to the generated JSON object,
 the rest of the arguments must be keyword arguments. The keyword arguments are passed to the scope of the object.
+
+## The `__unpack__` and `__value__` keys
+
+The `__unpack__` and `__value__` keys are special keys that can be used to generate objects inside a list. They only work inside objects directly contained in a list.
+
+Using the `__unpack__` key inside such an object marks it as a template for generating values for the list. The value of `__unpack__` must be a list of dictionaries. Each dictionary is a scope of variables to be used when evaluating the template. The evaluated values are unpacked into the list in place of the original object.
+
+If the generated values shouldn't be objects, but other types of values, you can use the `__value__` key. If the `__value__` key is present, the generated values will be the values of the `__value__` keys. The `__value__` key can be anything including an expression surrounded with backticks.
+
+**Example 1:**
+
+*Input*
+```json
+[
+    {
+        "my_favourite_color": "I don't know"
+    },
+    {
+        "__unpack__": [{"color": "red"}, {"color": "green"}],
+        "my_favourite_color": "`color.upper()`"
+    },
+    {
+        "my_favourite_color": "BLACK"
+    }
+]
+```
+
+*Output*
+```json
+[
+    {
+        "my_favourite_color": "I don't know"
+    },
+    {
+        "my_favourite_color": "RED"
+    },
+    {
+        "my_favourite_color": "GREEN"
+    },
+    {
+        "my_favourite_color": "BLACK"
+    }
+]
+```
+
+**Example 2:**
+
+*Input*
+```json
+[
+    "It's not green",
+    {
+        "__unpack__": "`[dict(color=c) for c in ('red', 'green')]`",
+        "__value__": "`color == 'green'`"
+    },
+    "Not green"
+]
+```
+
+*Output*
+```json
+[
+    "It's not green",
+    false,
+    true,
+    "Not green"
+]
+```
