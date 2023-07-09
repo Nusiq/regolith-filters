@@ -1,4 +1,7 @@
 # Change log
+## 2.9.0
+Updated the `regolith-json-template` module to version `1.2.0`. This adds `JoinStr` feature and adds `random` module to the default scope. See the `README.md` file of the `json_template` filter for more information.
+
 ## 2.8.0
 Updated the `regolith-json-template` library to version `1.1.0` to unlock the `__unpack__` and `__value__` keys. See the `json_template` filter's `README.md` for more information.
 
