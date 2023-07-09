@@ -14,7 +14,7 @@ from better_json_tools import load_jsonc
 from better_json_tools.compact_encoder import CompactEncoder
 from better_json_tools.json_walker import JSONWalker
 from regolith_subfunctions import CodeTree
-from regolith_json_template import eval_json, JsonTemplateK
+from regolith_json_template import eval_json, DEFAULT_SCOPE
 import argparse
 from typing import TypedDict, Literal
 import io
@@ -445,7 +445,7 @@ class SystemItem:
                     file_json = load_jsonc(source_path).data
                     if self.json_template:
                         file_json = eval_json(
-                            file_json, {'K': JsonTemplateK} | self.scope)
+                            file_json, DEFAULT_SCOPE | self.scope)
                 if self.on_conflict == 'merge':
                     file_json = merge.deep_merge_objects(
                         target_data, file_json,
