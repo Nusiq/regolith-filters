@@ -1,4 +1,11 @@
 # Changelog
+## 2.2.0
+Updated the `regolith-json-template` library to version 1.2.0.
+
+This update allows using `JoinStr()` function for joining lists of strings that start with this object into a single string.
+
+This update also adds `random` module to the default scope.
+
 ## 2.1.0
 Updated the `regolith-json-template` library to version 1.1.0.
 

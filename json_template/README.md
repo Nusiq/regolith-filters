@@ -190,3 +190,44 @@ If the generated values shouldn't be objects, but other types of values, you can
     "Not green"
 ]
 ```
+
+## The `JoinStr` object
+
+The `JoinStr` object can be used to join list of strings into a single string. Every list that starts with a `JoinStr` object is expected to contain only strings. The evaluated list discards the `JoinStr` object and uses the rest of the list as arguments for the `str.join` method. You can use `JoinStr` in combination with the `__unpack__` and `__value__` keys as long as the result contains only strings.
+
+**Example 1:**
+
+*Input*
+```json
+[
+    "`JoinStr(';')`",
+    "a = 1",
+    "b = 2",
+    "c = 3",
+]
+```
+
+*Output*
+```json
+"a = 1;b = 2;c = 3"
+```
+
+**Example 2:**
+
+*Input*
+```json
+[
+    {
+        "__unpack__": "`[dict(value=v) for v in (JoinStr(' '), 'hi', 'there')]`",
+        "__value__": "`value`"
+    },
+    "hello",
+    "there",
+    "it's me"
+]
+```
+
+*Output*
+```json
+"hi there hello there it's me"
+```
