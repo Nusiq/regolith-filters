@@ -281,6 +281,8 @@ class System:
                     relative_source_path = source_path.relative_to(self.system_path)
                     if relative_source_path.as_posix() in ["_map.py", "_scope.json"]:
                         continue
+                    if source_path.is_relative_to(self.system_path / '_plugins'):
+                        continue
                     yield SystemItem(relative_source_path, shared, data, self)
                 if not has_items:
                     print_yellow(
