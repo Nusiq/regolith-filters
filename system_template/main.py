@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Iterable, Literal, Tuple, Any, Optional
+from typing import Dict, List, Iterable, Literal, Tuple, Any, Optional, cast
 import json
 import merge
 import sys
@@ -233,7 +233,13 @@ class System:
         with the SystemItem objects that correspond to the matched glob patterns in
         the source property.
         '''
+        if not isinstance(self.file_map, list):
+            raise SystemTemplateException([
+                "The _map.py must be a list of dicts."])
         for data in self.file_map:
+            if not isinstance(data, dict):
+                raise SystemTemplateException([
+                    "The _map.py must be a list of dicts."])
             if 'source' not in data:
                 raise SystemTemplateException([
                     "Missing 'source' property in one of the "
@@ -437,21 +443,35 @@ class SystemItem:
             if (
                     self.target.suffix in ('.material', '.json') and
                     source_path.suffix in ('.material', '.json', '.py')):
+                file_json: Any = None
+                file_text: str = None  # Used if parsing is not necessary
+                needs_parsing = (
+                    source_path.suffix == '.py' or
+                    self.json_template or
+                    self.on_conflict == 'merge')
                 if source_path.suffix == '.py':
                     source_text = source_path.read_text(encoding='utf8')
                     with WdSwitch(self.parent.system_path):
                         file_json = eval(source_text, self.scope)
                 elif source_path.suffix in ('.material', '.json'):
-                    file_json = load_jsonc(source_path).data
-                    if self.json_template:
-                        file_json = eval_json(
-                            file_json, DEFAULT_SCOPE | self.scope)
+                    if needs_parsing:
+                        file_json = load_jsonc(source_path).data
+                        if self.json_template:
+                            file_json = eval_json(
+                                file_json, DEFAULT_SCOPE | self.scope)
+                    else:
+                        file_text = source_path.read_text(encoding='utf8')
+                file_json = cast(Dict[str, Any], file_json)  # assertion for mypy
                 if self.on_conflict == 'merge':
                     file_json = merge.deep_merge_objects(
                         target_data, file_json,
                         list_merge_policy=merge.ListMergePolicy.APPEND)
-                with self.target.open('w') as f:
-                    json.dump(file_json, f, cls=CompactEncoder)
+                if needs_parsing:  # File was parsed, so we need to dump it
+                    with self.target.open('w') as f:
+                        json.dump(file_json, f, cls=CompactEncoder)
+                else:  # File was not parsed, so we just write the text
+                    with self.target.open('w', encoding='utf8') as f:
+                        f.write(file_text)
             else:  # Other files (append_start, append_end or overwrite)
                 if self.on_conflict == 'append_start':
                     target_data = "" if target_data is None else target_data
