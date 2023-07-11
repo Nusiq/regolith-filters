@@ -5,8 +5,14 @@
 	".block.json": "BP/blocks",
 	".dialogue.json": "BP/dialogue",
 	".behavior.json": "BP/entities",
-	".feature_rule.json": "BP/feature_rules",
-	".feature.json": "BP/features",
+	".feature_rule.json": {
+		"target": "BP/feature_rules",
+		"replace_extension": ".json"
+	},
+	".feature.json": {
+		"target": "BP/features",
+		"replace_extension": ".json"
+	},
 	".mcfunction": "BP/functions",
 	".bp_item.json": "BP/items",
 	".loot.json": "BP/loot_tables",
@@ -50,11 +56,11 @@
 	},
 	".feature_rule.py": {
 		"target": "BP/feature_rules",
-		"replace_extension": ".feature_rule.json"
+		"replace_extension": ".json"
 	},
 	".feature.py": {
 		"target": "BP/features",
-		"replace_extension": ".feature.json"
+		"replace_extension": ".json"
 	},
 	".bp_item.py": {
 		"target": "BP/items",
