@@ -1,4 +1,38 @@
 # Change log
+## 3.0.0
+
+## Added plugins
+The plugins are Python files stored in `_plugins` foler. There are two types of plugins:
+- global plugins - stored in `<filters-data>/system_template/_plugins` folder. These are shared between all systems.
+- local plugins - stored in `<filters-data>/system_tempalte/<system>/_plugins` folder. These are specific to the system.
+
+Plugins are executed using `exec` function, and then their local scope is merged with the scope of the system. The order of execution of the plugins in the same folder is not defined (current implementation uses `pathlib.Path.glob`).
+
+The priority of the data defined by plugins, and local and global scopes is as follows (things higher on the list are overriden by things lower on the list):
+- global plugins
+- global scope
+- local plugins
+- local scope
+
+## Removed some of the default variables from the scope
+The following variables are no longer defined in the default scope:
+- `Path`
+- `uuid`
+- `math`
+- `random`
+
+They are added using a `_default_plugin.py` file from the `_plugins` folder available in the new default `data` folder.
+
+> **WARNING:** If you're upgrading from a previous version, you need to add the `_default_plugin.py` file to your `_plugins` folder to get the same functionality as before.
+
+## JSON files are only parsed when needed
+Some of the JSON files of the systems are not parsed anymore and are treated as regular text files. This is done to improve the performance of the filter. The files are only evaluated when it's needed, that is:
+- when they use the `"on_conflict": "merge"` option (so that their content can be merged with an existing file)
+- when they use `"json_template": true` so that their content can be generated using the `regolith-json-template` library
+
+## Updated the default `auto_map.json` file
+The feature and feature rule now strip the `.feature` and `.feature_rule` suffixes from the file names when exported. This is done because the feature and feature rule files are required to have matching file names and identifiers.
+
 ## 2.9.1
 Added missing `regolith-json-template` variables to the default scope.
 

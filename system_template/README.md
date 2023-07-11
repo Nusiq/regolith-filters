@@ -36,11 +36,8 @@ next section):
 - `scope_path: str` - a path to JSON file that diefines the scope of variables provided
   to the template during its evaluation. This propery is merged with the scope
   provided directly in the modified JSON file and with the default scope which is:
-  `{'true': True, 'false': False, 'math': math, 'uuid': uuid, 'AUTO_SUBFOLDER': AUTO_SUBFOLDER, 'AUTO': AUTO, 'AUTO_FLAT': AUTO_FLAT, 'AUTO_FLAT_SUBFOLDER': AUTO_FLAT_SUBFOLDER, 'Path': pathlib.Path}`
-  where math and uuid are standard python modules, and AUTO is a special value
-  used to mark that the target file should be mapped automatically based on its
-  extension. The 'AUTO_SUBFOLDER' is a keyword that works like the AUTO keyword but the generated target path contains the name of the system. The default value of this property is `system_template/scope.json`.
-  The path is relative to data folder in working directory of regolith.
+  `{'true': True, 'false': False, 'AUTO_SUBFOLDER': AUTO_SUBFOLDER, 'AUTO': AUTO, 'AUTO_FLAT': AUTO_FLAT, 'AUTO_FLAT_SUBFOLDER': AUTO_FLAT_SUBFOLDER}`
+  (the `AUTO...` keywords are explained in the next section).
 - `systems: list[str]` - a list of glob patterns to match the system folders
   that should be processed. The default value is `["**/*"]` which means that
   all system folders will be processed.
@@ -49,8 +46,8 @@ next section):
   way. If omitted, the log will not be generated. The path is relative to root
   of the project (next to the `config.json` file).
 
-# Examples
-There is an example in the `test` subfolder of this filter.
+## Configuration settings example
+There is an example in the `test` subfolder of this filter. The project in the test subfolder also shows various features of the system template filter.
 
 > Note:
 >
@@ -126,7 +123,7 @@ Properties of the dictionary inside the `_map.py` list:
 
   The scope accessible during the evaluation of the file is created by merging
   multiple sources:
-  - The default scope `{'true': True, 'false': False, 'math': math, 'uuid': uuid, 'AUTO': AUTO, 'Path': pathlib.Path}`
+  - The default scope `{'true': True, 'false': False, 'AUTO_SUBFOLDER': AUTO_SUBFOLDER, 'AUTO': AUTO, 'AUTO_FLAT': AUTO_FLAT, 'AUTO_FLAT_SUBFOLDER': AUTO_FLAT_SUBFOLDER}`
   - The scope that the "scope_path" property points to.
   - The `_scope.json` file in the system folder.
   - The `scope` property of the dictionary.
@@ -175,17 +172,18 @@ Properties of the dictionary inside the `_map.py` list:
   [here](https://github.com/Nusiq/regolith-filters/tree/master/subfunctions). The
   value of this property is True by default for the `.mcfunction` files and
   False by default for the `.lang` files.
-## Using `Path` in the `_map.py` and the templates
 
-The `Path` class from the `pathlib` module is exposed in the default scope.
-This means that all of the templates can use it. During the evaluation of the
-`_map.py` file, or any of the files included in the system, the working
-directory is set to the folder of the system. You can use `Path('.')` and
+## The working directory during system evaluation
+
+During the evaluation of the `_map.py` file, or any of the files included in the system, the working
+directory is set to the folder of the system. If you import `pathlib.Path`, you can use `Path('.')` and
 methods like `Path.glob` to find files in the system folder. This is especially
 useful when you want to have a system that changes based on its resources. For
 example, it can be used to generate a list of textures that are used in the
 system, which may be useful for example while generating a client entity
 file for the resource pack.
+
+You can learn about importing modules and defining functions in the `Plugins` section below.
 
 ## Shared files
 Sometimes you want to share some files between multiple systems. You can do
@@ -393,6 +391,27 @@ This configuration is very similar to the previous one. The only difference is t
 - The `my_texture_entity.png` file will be copied to the `RP/textures/entity/my_system/my_texture_entity.png` path.
 - The `my_model.geo.json` file will be copied to the `RP/models/entity/my_system/my_model.geo.json` path.
 
+# Plugins
+
+The plugins are Python files stored in `_plugins` foler. There are two types of plugins:
+- global plugins - stored in `<filters-data>/system_template/_plugins` folder. These are shared between all systems.
+- local plugins - stored in `<filters-data>/system_tempalte/<system>/_plugins` folder. These are specific to the system.
+
+Plugins are executed using `exec` function, and then their local scope is merged with the scope of the system.
+
+The priority of the data defined by plugins, and local and global scopes is as follows (things higher on the list are overriden by things lower on the list):
+- global plugins
+- global scope.json
+- local plugins
+- local _scope.json
+
+It is recommended to use the plugins only for defining functions. The data should be defined in the _scope.json files and in the global scope file of system_template. Plugins can run arbitrary code, but it is not recommended to use them for anything else than defining functions.
+
+When you do a fresh install of the system_template filter in your project, the default global plugins folder will contain one file - `_default.py`. This file defines a plugin that imports following objects and modules from Python's standard library:
+- `math`
+- `random`
+- `uuid`
+- `pathlib.Path`
 
 # The log file
 
@@ -429,5 +448,4 @@ an example log with additional comments as an explanation:
   // Other files...
 ]
 ```
-
 
