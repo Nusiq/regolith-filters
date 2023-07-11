@@ -1,3 +1,4 @@
 {
-	"hello": "`hello_plugin('Nusiq')`"
+	"hello": "`hello_global_plugin('Nusiq')`",
+	"hi": "`hello_local_plugin('Nusiq')`"
 }

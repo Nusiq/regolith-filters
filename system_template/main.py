@@ -211,6 +211,13 @@ class System:
     def __init__(
             self, scope: Dict, system_path: Path,
             auto_map: AutoMappingProvider):
+        plugins_path = system_path / '_plugins'
+        if plugins_path.exists():
+            for plugin_path in plugins_path.rglob("*.py"):
+                if plugin_path.is_dir():
+                    continue
+                plugin_scope = load_plugin(plugin_path, system_path)
+                scope = scope | plugin_scope
         scope_path = system_path / '_scope.json'
         try:
             self.scope: Dict[str, Any] = scope | load_jsonc(scope_path).data

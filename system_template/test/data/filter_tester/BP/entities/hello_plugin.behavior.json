@@ -1,3 +1,4 @@
 {
-	"hello": "Hello Nusiq! I am a plugin!"
+	"hello": "Hello Nusiq! I am a global plugin!",
+	"hi": "Hi Nusiq! I am a local plugin!"
 }
