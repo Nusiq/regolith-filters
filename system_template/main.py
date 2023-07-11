@@ -14,7 +14,7 @@ from better_json_tools import load_jsonc
 from better_json_tools.compact_encoder import CompactEncoder
 from better_json_tools.json_walker import JSONWalker
 from regolith_subfunctions import CodeTree
-from regolith_json_template import eval_json, DEFAULT_SCOPE
+from regolith_json_template import eval_json, JsonTemplateK, JsonTemplateJoinStr
 import argparse
 from typing import TypedDict, Literal
 import io
@@ -211,7 +211,14 @@ class System:
     def __init__(
             self, scope: Dict, system_path: Path,
             auto_map: AutoMappingProvider):
-        self.scope: Dict[str, Any] = scope | load_jsonc(system_path / '_scope.json').data
+        scope_path = system_path / '_scope.json'
+        try:
+            self.scope: Dict[str, Any] = scope | load_jsonc(scope_path).data
+        except Exception as e:
+            raise SystemTemplateException([
+                f"Failed to load the _scope.json file due to an error:",
+                f"Path: {scope_path.as_posix()}",
+                str(e)])
         self.system_path: Path = system_path
         self.file_map: List[Dict] = self._init_file_map(
             system_path / '_map.py')
@@ -458,7 +465,10 @@ class SystemItem:
                         file_json = load_jsonc(source_path).data
                         if self.json_template:
                             file_json = eval_json(
-                                file_json, DEFAULT_SCOPE | self.scope)
+                                file_json, {
+                                    "K": JsonTemplateK,
+                                    "JoinStr": JsonTemplateJoinStr,
+                                } | self.scope)
                     else:
                         file_text = source_path.read_text(encoding='utf8')
                 file_json = cast(Dict[str, Any], file_json)  # assertion for mypy
@@ -597,6 +607,37 @@ def parse_args() -> Tuple[Dict, Literal['pack', 'unpack']]:
     }
     return config, args.command
 
+
+def load_plugin(plugin_path: Path, wd_path: Path) -> Dict:
+    '''
+    Loads a plugin from give file path and returns its scope.
+    '''
+    plugin_scope = {}
+    try:
+        plugin_text = plugin_path.read_text()
+        with WdSwitch(wd_path):
+            exec(plugin_text, {}, plugin_scope)
+    except Exception as e:
+        raise SystemTemplateException([
+            f'Failed to load global plugin.',
+            f'Path: {plugin_path.as_posix()}',
+            f'Error:',
+            str(e)
+        ])
+    for reserved_variable in [
+            'K', 'JoinStr', 'true', 'false', 'AUTO', 'AUTO_SUBFOLDER',
+            'AUTO_FLAT_SUBFOLDER', 'AUTO_FLAT']:
+        if reserved_variable in plugin_scope:
+            raise SystemTemplateException([
+                'Failed to load plugin.',
+                f'Path: {plugin_path.as_posix()}',
+                'Error:',
+                'The plugin cannot define '
+                f'"{reserved_variable}" variable as it is '
+                'reserved for system_template.'
+            ])
+    return plugin_scope
+
 def main():
     mode = 'eval'
     config = {}
@@ -616,12 +657,18 @@ def main():
     # Add scope
     def get_scope():
         scope = {
-            'true': True, 'false': False, 'math': math, 'uuid': uuid,
+            'true': True, 'false': False,
             "AUTO": SpecialKeys.AUTO,
             "AUTO_SUBFOLDER": SpecialKeys.AUTO_SUBFOLDER,
             "AUTO_FLAT_SUBFOLDER": SpecialKeys.AUTO_FLAT_SUBFOLDER,
-            "AUTO_FLAT": SpecialKeys.AUTO_FLAT,
-            'Path': Path}
+            "AUTO_FLAT": SpecialKeys.AUTO_FLAT}
+        plugins_path = DATA_PATH / 'system_template/_plugins'
+        for plugin_path in plugins_path.rglob('*.py'):
+            if plugin_path.is_dir():
+                continue
+            plugin_scope = load_plugin(
+                plugin_path, DATA_PATH / 'system_template')
+            scope = scope | plugin_scope
         scope_path = DATA_PATH / config.get(
             'scope_path', 'system_template/scope.json')
         scope = scope | load_jsonc(scope_path).data

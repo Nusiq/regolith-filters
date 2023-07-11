@@ -189,6 +189,15 @@
 		]
 	},
 	{
+		"target": "BP/entities/hello_plugin.behavior.json",
+		"sources": [
+			{
+				"path": "data/system_template/hello_plugin/hello_plugin.behavior.json",
+				"status": "created"
+			}
+		]
+	},
+	{
 		"target": "BP/entities/my_non_json_file.behavior.json",
 		"sources": [
 			{
