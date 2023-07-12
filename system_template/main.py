@@ -625,7 +625,8 @@ def load_plugin(plugin_path: Path, wd_path: Path) -> Dict:
     try:
         plugin_text = plugin_path.read_text()
         with WdSwitch(wd_path):
-            exec(plugin_text, {}, plugin_scope)
+            exec(plugin_text, plugin_scope)
+            del plugin_scope['__builtins__']
     except Exception as e:
         raise SystemTemplateException([
             f'Failed to load global plugin.',

@@ -1,4 +1,6 @@
 {
 	"hello": "`hello_global_plugin('Nusiq')`",
-	"hi": "`hello_local_plugin('Nusiq')`"
+	"hi": "`hello_local_plugin('Nusiq')`",
+	"nested_local": "`hello_nested_local_plugin()`",
+	"nested_global": "`hello_nested_global_plugin()`"
 }

@@ -1,4 +1,6 @@
 {
 	"hello": "Hello Nusiq! I am a global plugin!",
-	"hi": "Hi Nusiq! I am a local plugin!"
+	"hi": "Hi Nusiq! I am a local plugin!",
+	"nested_local": "Hi NESTED LOCAL! I am a local plugin!",
+	"nested_global": "Hello NESTED GLOBAL! I am a global plugin!"
 }

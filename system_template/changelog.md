@@ -1,4 +1,7 @@
 # Change log
+## 3.0.1
+Fixed plugin functions not being able to call other plugin functions from their scope.
+
 ## 3.0.0
 
 ## Added plugins
