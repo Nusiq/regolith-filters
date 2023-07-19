@@ -1,4 +1,7 @@
 # Change log
+## 3.1.0
+The "append_start" and "append_end" values of the "on_conflict" are not limited to the `.mcfunction` and `.lang` files anymore.
+
 ## 3.0.1
 Fixed plugin functions not being able to call other plugin functions from their scope.
 
