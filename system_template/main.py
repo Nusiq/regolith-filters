@@ -396,7 +396,8 @@ class SystemItem:
                     f"are: {valid_keys}"])
         else:
             on_conflict = data.get('on_conflict', 'stop')
-            valid_keys = ['stop', 'overwrite', 'skip']
+            valid_keys = [
+                'stop', 'overwrite', 'skip', 'append_start', 'append_end']
             if on_conflict not in valid_keys:
                 raise SystemTemplateException([
                     f"Invalid 'on_conflict' value: {on_conflict} for "
