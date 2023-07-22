@@ -309,11 +309,19 @@ When you install the filter for the first time, the `auto_map.json` file is crea
 
 ## The `AUTO...` keywords
 
-In order to use the AUTO mapping feature you have to use one of the following `AUTO...` keywords.
-- `AUTO` - export to `<path defined in auto_map.json>/<subpath inside the system>/<file name>`
-- `AUTO_SUBFOLDER` - export to `<path defined in auto_map.json>/<system name>/<subpath inside the system>/<file name>`
-- `AUTO_FLAT` - export to `<path defined in auto_map.json>/<file name>`
-- `AUTO_FLAT_SUBFOLDER` - export to `<path defined in auto_map.json>/<system name>/<file name>`
+In order to use the AUTO mapping feature you have to use one of the `AUTO...` keywords. The keywords build the target path based on the following components:
+- `<autom mapping>` - the path defined in the `auto_map.json` file
+- `<system name>` - the name of the system. The name of the system is based on its path in the data folder of the `system_tempalte` regolith filter. For example, if the system is in `data/system_template/my_system`, the name of the system is `my_system`.
+- `<subpath>` - subpath inside the system folder (the path to the source file relative to the system folder).
+- `<file name>` - the file name (the name of the source file without the path).
+
+The `system_template` filter defines following keywords:
+- `AUTO` - export to `<auto mapping>/<subpath>/<file name>`
+- `AUTO_SUBFOLDER` - export to `<auto mapping>/<system name>/<subpath>/<file name>`
+- `AUTO_FLAT` - export to `<auto mapping>/<file name>`
+- `AUTO_FLAT_SUBFOLDER` - export to `<auto mapping>/<system name>/<file name>`
+
+This means that the `FLAT` removes the `<subpath>` component from the path, and the `SUBFOLDER` adds the `<system name>` component to the path.
 
 These keywords belong to the `_map.py` file of the system. They are assigned to the `"target"` property of an item in the `_map.py` list.
 
