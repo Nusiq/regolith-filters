@@ -1,4 +1,18 @@
 # Change log
+## 3.2.0
+## Groups
+The systems can now be groupped together in directories called groups.
+- Any directory that contains a `_group_scope.json` file is considered a group.
+- The `_group_scope.json` file can define variables that are visible to all systems in the group. During the evaluation of the system it is merged with the global and the system scope. It overrides the global scope and is overriden by the system scope.
+- When using `AUTO_SUBFOLDER` or `AUTO_FLAT_SUBFOLDER` keywords, the name of the systems of the group is based on the path from the root of the group instead of the root of the project.
+- Groups have their own `_shared` resources folders but the can also access the files in the global `_shared` folder.
+- The `unpack` command for `reoglith apply-filter` unpacks the files to the `_shared` folder of the group instead of the global `_shared` folder.
+- The `pack` command for `reoglith apply-filter` can pack the files from both of the `_shared` folders (global and group) into the system's data folder but the files from the group's `_shared` folder have priority over the files from the global `_shared` folder.
+- Currently nested groups are not supported.
+
+## File scanning improvements and changes
+Fixed the bug that caused the filter to scan entire filter data folder looking for systems instead of scanning just the system template folder. This fix should also improve the performance on projects that are big enough to make walking files significant part of the execution time. Additionally, the function that scans the files won't go into the folders of the systems anymore. This means that the nested systems aren't supported anymore but in most cases it's a performance gain at the cost of supporting a rarely used feature that decreases readability of the project.
+
 ## 3.1.0
 The "append_start" and "append_end" values of the "on_conflict" are not limited to the `.mcfunction` and `.lang` files anymore.
 

@@ -67,6 +67,9 @@ is considered a system template. The folder doesn't have to be a direct
 subfolder of the `system_template` folder (you can organize the folder
 structure to your preference).
 
+Some of the directories may be used to group multiple systems together. The
+group directories are marked with the `_group_scope.json` file.
+
 Other files inside
 ```
 📁 system_template
@@ -77,6 +80,12 @@ Other files inside
     📝 example_file.example_extension
     📝 _scope.json
     📝 _map.py
+  📁 [path/to/group/of/systems]
+    📝 _group_scope.json
+     📁 [path/to/system]
+      ...
+     📁 [path/to/system]
+      ...
 ```
 - `auto_map.json` - a file that defines how to automatically map files of the
   systems to the resource and behavior packs using the `AUTO...` keywords, based
@@ -90,6 +99,11 @@ Other files inside
   their properties used during code generation (see the section below).
 - Other files are the temlpates. You can put any kind of files here. The
   `_scope.json` and `_map.py` files define what to do with them.
+- `_group_scope.json` - just like the `_scope.json` file it defines variables
+  to be used during the evaluation of the `_map.py` file. The difference is
+  that the `_group_scope.json` file is used for all systems inside the group.
+  Additionally, the `_group_scope.json` file marks the root folder of the
+  group. More details about the group folders are in dedicated section below.
 
 ## The `_map.py` file
 
@@ -100,7 +114,7 @@ used for evaluating the `_map.py` file.
 
 The `_map.py` file should contain a single expresion that evaluates to a
 list of dictionaries. Every dictionary defines a single relation between the
-source file, its destination. It also defines how to handle situations when
+source file and its destination. It also defines how to handle situations when
 the destination file already exists.
 
 Properties of the dictionary inside the `_map.py` list:
@@ -125,6 +139,7 @@ Properties of the dictionary inside the `_map.py` list:
   multiple sources:
   - The default scope `{'true': True, 'false': False, 'AUTO_SUBFOLDER': AUTO_SUBFOLDER, 'AUTO': AUTO, 'AUTO_FLAT': AUTO_FLAT, 'AUTO_FLAT_SUBFOLDER': AUTO_FLAT_SUBFOLDER}`
   - The scope that the "scope_path" property points to.
+  - The `_group_scope.json` file in the group folder (if the system is in a group).
   - The `_scope.json` file in the system folder.
   - The `scope` property of the dictionary.
 
@@ -176,7 +191,7 @@ Properties of the dictionary inside the `_map.py` list:
 ## The working directory during system evaluation
 
 During the evaluation of the `_map.py` file, or any of the files included in the system, the working
-directory is set to the folder of the system. If you import `pathlib.Path`, you can use `Path('.')` and
+directory is set to the folder of the system. If you import `pathlib.Path` using plugins, you can use `Path('.')` and
 methods like `Path.glob` to find files in the system folder. This is especially
 useful when you want to have a system that changes based on its resources. For
 example, it can be used to generate a list of textures that are used in the
@@ -185,11 +200,37 @@ file for the resource pack.
 
 You can learn about importing modules and defining functions in the `Plugins` section below.
 
+## Groups and the `_group_scope.json` file
+
+Groups let you create a hierarchy of the systems and connect multiple closely
+related systems together. Any directory in the `system_template` that contains
+the `_group_scope.json` file is considered a group.
+
+The `_group_scope.json` file defines a scope of variables shared between all
+systems inside the group. It also marks the root folder of the group. The root
+folder is important when you use the `AUTO_SUBFOLDER` or `AUTO_FLAT_SUBFOLDER`
+keywords in the `_map.py` file, as it changes what is considered the name of
+the system. You can read more about the `AUTO...` keywords in the dedicated section
+below.
+
+Groups can use a special directory called `_shared` stored in the same folder as
+the `_group_scope.json` file. The `_shared` folder lets you use the same resource
+between multiple systems. You can read more about the `_shared` folder in the
+next section.
+
 ## Shared files
 Sometimes you want to share some files between multiple systems. You can do
 it using a special `_shared` folder and `SHARED:` prefix in the file `source`
 property.
 
+There are two ways to use the shared resources:
+- You can put the shared resources in the `_shared` folder in the group folder.
+- You can put the shared resources in the `_shared` folder in the root of the data folder of system_template (in the `system_template/_shared` folder).
+
+The `_shared` folder in the group folder is used for sharing resources inside
+the group. The `_shared` folder in the root of the data folder of system_template
+is visible to all systems. The groupped systems also have access to the global
+`_shared` folder but it has lower priority than the group's `_shared` folder.
 
 Example:
 
@@ -220,7 +261,7 @@ project. The `system_template` implements a solution to this problem. It
 adds 3 new commands that are intended to be used with the
 `regolith apply-filter` command:
 - `pack` - packs the `_shared` resources into the system folder.
-- `unpack` - unpacks the system folders into the `_shared` folder.
+- `unpack` - unpacks the system folders into the `_shared` folder. If the system is in a group, then it unpacks the system into the `_shared` folder of the group.
 - `undo` - undoes the last operation.
 
 A typical workflow of moving the system from project A to project B would look
@@ -311,7 +352,10 @@ When you install the filter for the first time, the `auto_map.json` file is crea
 
 In order to use the AUTO mapping feature you have to use one of the `AUTO...` keywords. The keywords build the target path based on the following components:
 - `<autom mapping>` - the path defined in the `auto_map.json` file
-- `<system name>` - the name of the system. The name of the system is based on its path in the data folder of the `system_tempalte` regolith filter. For example, if the system is in `data/system_template/my_system`, the name of the system is `my_system`.
+- `<system name>` - the name of the system. The name of the system is based on its path in the data folder of the `system_tempalte` regolith filter. If the system is in a group of systems, then the name of the system is based on the path from the root of the group to the root of the system. Otherwise, the name of the system is based on the path from the `system_template` folder to the root of the system.
+
+  For example, if the system is in `data/system_template/something/my_system`, the name of the system is `something/my_system`, but if `something` is a group folder, then the name of the system is `my_system`.
+
 - `<subpath>` - subpath inside the system folder (the path to the source file relative to the system folder).
 - `<file name>` - the file name (the name of the source file without the path).
 
