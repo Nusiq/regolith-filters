@@ -189,6 +189,78 @@
 		]
 	},
 	{
+		"target": "BP/functions/g1_system/g1_auto_flat_subfolder.mcfunction",
+		"sources": [
+			{
+				"path": "data/system_template/groupped_systems/g1_system/g1_subdir/g1_auto_flat_subfolder.mcfunction",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "BP/functions/g1_subdir/g1_auto.mcfunction",
+		"sources": [
+			{
+				"path": "data/system_template/groupped_systems/g1_system/g1_subdir/g1_auto.mcfunction",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "BP/functions/g1_auto_flat.mcfunction",
+		"sources": [
+			{
+				"path": "data/system_template/groupped_systems/g1_system/g1_subdir/g1_auto_flat.mcfunction",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "BP/functions/g1_system/g1_subdir/g1_subfolder.mcfunction",
+		"sources": [
+			{
+				"path": "data/system_template/groupped_systems/g1_system/g1_subdir/g1_subfolder.mcfunction",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "BP/functions/g2_system/g2_auto_flat_subfolder.mcfunction",
+		"sources": [
+			{
+				"path": "data/system_template/groupped_systems/g2_system/g2_subdir/g2_auto_flat_subfolder.mcfunction",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "BP/functions/g2_subdir/g2_auto.mcfunction",
+		"sources": [
+			{
+				"path": "data/system_template/groupped_systems/g2_system/g2_subdir/g2_auto.mcfunction",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "BP/functions/g2_auto_flat.mcfunction",
+		"sources": [
+			{
+				"path": "data/system_template/groupped_systems/g2_system/g2_subdir/g2_auto_flat.mcfunction",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "BP/functions/g2_system/g2_subdir/g2_subfolder.mcfunction",
+		"sources": [
+			{
+				"path": "data/system_template/groupped_systems/g2_system/g2_subdir/g2_subfolder.mcfunction",
+				"status": "created"
+			}
+		]
+	},
+	{
 		"target": "BP/entities/hello_plugin.behavior.json",
 		"sources": [
 			{

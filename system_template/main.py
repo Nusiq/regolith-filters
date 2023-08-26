@@ -191,12 +191,36 @@ class AutoMappingProvider:
             f"{source.as_posix()}")
 
 
-def walk_system_paths(systems: List[str]) -> Iterable[Path]:
+def walk_system_paths(systems: List[str]) -> Iterable[tuple[Path, Optional[Path]]]:
     '''
     Recursively walks the directories inside the SYSTEM_TEMPLATE_DATA_PATH
-    and yields the paths to the valid systems.
+    and yields pairs of (system_path, group_path). The group_path is the path
+    to a directory that contains the _group_scope.json file and is an ancestor
+    of the system_path. If such directory doesn't exist, the group_path is
+    None.
     '''
+    group_path: Optional[Path] = None
     for root, dirs_, _ in os.walk(SYSTEM_TEMPLATE_DATA_PATH.as_posix()):
+        # If there is a group path, check if we are still in it
+        if group_path is not None:
+            if not Path(root).is_relative_to(group_path):
+                group_path = None
+        
+        # Check if the root is a group
+        group_path_candidate = Path(root)
+        group_scope_path = group_path_candidate / '_group_scope.json'
+        found_group = False
+        if group_scope_path.exists() and group_scope_path.is_file():
+            # Don't allow nested groups
+            if group_path is not None:
+                raise SystemTemplateException([
+                    "Nested groups are not allowed. The group path is "
+                    "already in a group:",
+                    f"Path: {group_path_candidate.as_posix()}",
+                    f"Parent group path: {group_path.as_posix()}"
+                ])
+            group_path = group_path_candidate
+            found_group = True
         # Check if the root is a system
         system_path = Path(root)
         system_scope_path = system_path / '_scope.json'
@@ -205,10 +229,17 @@ def walk_system_paths(systems: List[str]) -> Iterable[Path]:
         file_map_path = system_path / '_map.py'
         if not file_map_path.exists() or file_map_path.is_dir():
             continue
+        # The system can't be both a group and a system at the same time
+        if found_group:
+            raise SystemTemplateException([
+                f"You can't have a group and a system at the same path. "
+                "The directory of a system can't contain a _group_scope.json:",
+                f"Path: {system_path.as_posix()}"])
+
         relative_path = system_path.relative_to(DATA_PATH)
         for system_glob in systems:
             if relative_path.match(system_glob):
-                yield system_path
+                yield system_path, group_path
                 # Don't walk into the system. No nested systems allowed!
                 dirs_.clear()
                 break
@@ -224,7 +255,7 @@ def walk_system_paths(systems: List[str]) -> Iterable[Path]:
 
 class System:
     def __init__(
-            self, scope: Dict, system_path: Path,
+            self, scope: Dict, system_path: Path, group_path: Optional[Path],
             auto_map: AutoMappingProvider):
         plugins_path = system_path / '_plugins'
         if plugins_path.exists():
@@ -234,6 +265,15 @@ class System:
                 plugin_scope = load_plugin(plugin_path, system_path)
                 scope = scope | plugin_scope
         scope_path = system_path / '_scope.json'
+        if group_path is not None:
+            try:
+                group_scope = load_jsonc(group_path / '_group_scope.json').data
+                scope = scope | group_scope
+            except Exception as e:
+                raise SystemTemplateException([
+                    f"Failed to load the _group_scope.json file due to an error:",
+                    f"Path: {group_path.as_posix()}",
+                    str(e)])
         try:
             self.scope: Dict[str, Any] = scope | load_jsonc(scope_path).data
         except Exception as e:
@@ -242,6 +282,7 @@ class System:
                 f"Path: {scope_path.as_posix()}",
                 str(e)])
         self.system_path: Path = system_path
+        self.group_path: Optional[Path] = group_path
         self.file_map: List[Dict] = self._init_file_map(
             system_path / '_map.py')
         self.auto_map: AutoMappingProvider = auto_map
@@ -345,7 +386,13 @@ class SystemItem:
             target = self.parent.auto_map.get_auto_target_mapping(
                 self.relative_source_path,
                 middle=self.parent.system_path.relative_to(
-                    SYSTEM_TEMPLATE_DATA_PATH).as_posix()
+                    # Insert the name of the system. If the system is a part
+                    # of a group, then the name of the system is a path
+                    # relative to the group.
+                    SYSTEM_TEMPLATE_DATA_PATH
+                    if self.parent.group_path is None
+                    else self.parent.group_path
+                ).as_posix()
             )
         elif target is SpecialKeys.AUTO_FLAT:
             target = self.parent.auto_map.get_auto_target_mapping(
@@ -355,7 +402,13 @@ class SystemItem:
             target = self.parent.auto_map.get_auto_target_mapping(
                 Path(self.relative_source_path.name),
                 middle=self.parent.system_path.relative_to(
-                    SYSTEM_TEMPLATE_DATA_PATH).as_posix()
+                    # Insert the name of the system. If the system is a part
+                    # of a group, then the name of the system is a path
+                    # relative to the group.
+                    SYSTEM_TEMPLATE_DATA_PATH
+                    if self.parent.group_path is None
+                    else self.parent.group_path
+                ).as_posix()
             )
         elif not isinstance(target, str):
             raise SystemTemplateException([
@@ -722,10 +775,10 @@ def main():
         if mode == 'eval':
             scope = get_scope()
             report = Report()
-            for system_path in walk_system_paths(system_patterns):
+            for system_path, group_path in walk_system_paths(system_patterns):
+                system = System(scope, system_path, group_path, auto_map)
                 rel_sys_path = system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
-                system = System(scope, system_path, auto_map)
                 print(f"Generating system: {rel_sys_path}")
                 for system_item in system.walk_system_items():
                     system_item.eval(report)
@@ -733,10 +786,10 @@ def main():
                 report.dump_report(log_path)
         elif mode == 'pack':
             scope = get_scope()
-            for system_path in walk_system_paths(system_patterns):
+            for system_path, group_path in walk_system_paths(system_patterns):
+                system = System(scope, system_path, group_path, auto_map)
                 rel_sys_path = system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
-                system = System(scope, system_path, auto_map)
                 print(f"Packing system: {rel_sys_path}")
                 for system_item in system.walk_system_items():
                     system_item.pack(op_stack)
@@ -745,10 +798,10 @@ def main():
                 json.dump(op_stack, f, indent='\t')
         elif mode == 'unpack':
             scope = get_scope()
-            for system_path in walk_system_paths(system_patterns):
+            for system_path, group_path in walk_system_paths(system_patterns):
+                system = System(scope, system_path, group_path, auto_map)
                 rel_sys_path = system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
-                system = System(scope, system_path, auto_map)
                 print(f"Unpacking system: {rel_sys_path}")
                 for system_item in system.walk_system_items():
                     system_item.unpack(op_stack)
