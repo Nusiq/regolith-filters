@@ -478,11 +478,26 @@ class SystemItem:
         Evaluates the SystemItem by writing to the target file.
         '''
         # DETERMINE THE SOURCE PATH
-        source_path: Path = self.parent.system_path / self.relative_source_path
-        if self.shared and not source_path.exists():
-            source_path = (
-                SYSTEM_TEMPLATE_DATA_PATH / "_shared" /
-                self.relative_source_path)
+        source_path_candidates: List[Path] = [
+            self.parent.system_path / self.relative_source_path
+        ]
+        if self.shared:
+            if self.parent.group_path is not None:
+                source_path_candidates.append(
+                    self.parent.group_path / "_shared" /
+                    self.relative_source_path)
+            source_path_candidates.append(
+                SYSTEM_TEMPLATE_DATA_PATH / "_shared" / self.relative_source_path)
+
+        source_path: Path = source_path_candidates[0]
+        for source_path_candidate in source_path_candidates:
+            if source_path_candidate.exists():
+                source_path = source_path_candidate
+                break
+        else:
+            raise SystemTemplateException([
+                "The source file doesn't exist:",
+                f"{source_path.as_posix()}"])
 
         # READ TARGET DATA AND HANDLE CONFLICTS
         target_data = None
@@ -601,12 +616,27 @@ class SystemItem:
         system_path: Path = self.parent.system_path / self.relative_source_path
         shared_path: Path = (
             SYSTEM_TEMPLATE_DATA_PATH / "_shared" / self.relative_source_path)
+        group_shared_path: Optional[Path] = None
+        if self.parent.group_path is not None:
+            group_shared_path = (
+                self.parent.group_path / "_shared" / self.relative_source_path)
+            group_shared_exists = group_shared_path.exists()
+        else:
+            group_shared_exists = False
         system_exists = system_path.exists()
         shared_exists = shared_path.exists()
-        if not system_exists and not shared_exists:
+        if not system_exists and not shared_exists and not group_shared_exists:
             raise SystemTemplateException([
                 f"Failed to pack the file because it doesn't exist in the "
                 f"system or shared folder: {self.relative_source_path}"])
+        elif not system_exists and group_shared_exists:
+            # It's impossible for group_shared_path to be None here
+            group_shared_path = cast(Path, group_shared_path)
+            group_shared_path.rename(system_path)
+            if op_stack is not None:
+                op_stack.append([
+                    group_shared_path.as_posix(),
+                    system_path.as_posix()])
         elif not system_exists and shared_exists:
             shared_path.rename(system_path)
             if op_stack is not None:
@@ -628,22 +658,38 @@ class SystemItem:
         system_path: Path = self.parent.system_path / self.relative_source_path
         shared_path: Path = (
             SYSTEM_TEMPLATE_DATA_PATH / "_shared" / self.relative_source_path)
+        group_shared_path: Optional[Path] = None
+        if self.parent.group_path is not None:
+            group_shared_path = (
+                self.parent.group_path / "_shared" / self.relative_source_path)
+            group_shared_exists = group_shared_path.exists()
+        else:
+            group_shared_exists = False
+        is_group = group_shared_path is not None
         system_exists = system_path.exists()
         shared_exists = shared_path.exists()
-        if not system_exists and not shared_exists:
+        if not system_exists and not shared_exists and not group_shared_exists:
             raise SystemTemplateException([
                 f"Failed to unpack the file because it doesn't exist in the "
                 f"system or shared folder: {self.relative_source_path}"])
-        elif system_exists and not shared_exists:
+        elif system_exists and not group_shared_exists and is_group:
+            system_path.rename(group_shared_path)
+            if op_stack is not None:
+                op_stack.append([
+                    system_path.as_posix(),
+                    group_shared_path.as_posix()])
+        elif system_exists and not shared_exists and not is_group:
             system_path.rename(shared_path)
             if op_stack is not None:
                 op_stack.append([
                     system_path.as_posix(),
                     shared_path.as_posix()])
-        elif system_exists and shared_exists:
+        elif (
+                (system_exists and group_shared_exists and is_group) or
+                (system_exists and shared_exists and not is_group)):
             print_yellow(
                 "WARNING: Unable to unpack the file because a file with the "
-                "same name already exists in the shared folder:\n"
+                "same name already exists in the target shared folder:\n"
                 f"- Path: {self.relative_source_path}"
             )
         # not system_exists and shared_exists: Already unpacked
@@ -723,8 +769,8 @@ def main():
     if len(sys.argv) > 1:
         if sys.argv[1] in ['pack', 'unpack']:
             config, mode = parse_args()
-            print(sys.argv)
-            print(config, mode)
+            # print(sys.argv)
+            # print(config, mode)
         elif sys.argv[1] == 'undo':
             mode = 'undo'
         else:

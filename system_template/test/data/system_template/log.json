@@ -225,6 +225,33 @@
 		]
 	},
 	{
+		"target": "BP/functions/g1_system/groupped_system_global_shared.mcfunction",
+		"sources": [
+			{
+				"path": "data/system_template/_shared/groupped_system_global_shared.mcfunction",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "BP/functions/g1_system/groupped_system_local_shared.mcfunction",
+		"sources": [
+			{
+				"path": "data/system_template/groupped_systems/_shared/groupped_system_local_shared.mcfunction",
+				"status": "created"
+			}
+		]
+	},
+	{
+		"target": "BP/functions/g1_system/groupped_system_not_really_shared.mcfunction",
+		"sources": [
+			{
+				"path": "data/system_template/groupped_systems/g1_system/groupped_system_not_really_shared.mcfunction",
+				"status": "created"
+			}
+		]
+	},
+	{
 		"target": "BP/functions/g2_system/g2_auto_flat_subfolder.mcfunction",
 		"sources": [
 			{

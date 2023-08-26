@@ -1,0 +1,1 @@
+say This file of groupped_systems/g1_system is stored in the group's _shared folder
