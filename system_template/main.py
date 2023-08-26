@@ -197,28 +197,30 @@ def walk_system_paths(systems: List[str]) -> Iterable[Path]:
     and yields the paths to the valid systems.
     '''
     for root, dirs_, _ in os.walk(SYSTEM_TEMPLATE_DATA_PATH.as_posix()):
-        # The dirs_ can be modified to remove the directories that we don't
-        # want to walk into or to change the walk order.
-        dirs_.sort()
-        for special in ["_shared", "_plugins"]:
-            try:
-                dirs_.remove(special)
-            except ValueError:
-                pass
-        for dir_ in dirs_:
-            system_path = Path(root) / dir_
-            system_scope_path = system_path / '_scope.json'
-            if not system_scope_path.exists() or system_scope_path.is_dir():
-                continue
-            file_map_path = system_path / '_map.py'
-            if not file_map_path.exists() or file_map_path.is_dir():
-                continue
-            relative_path = system_path.relative_to(DATA_PATH)
-            for system_glob in systems:
-                if relative_path.match(system_glob):
-                    yield system_path
-                    break
-
+        # Check if the root is a system
+        system_path = Path(root)
+        system_scope_path = system_path / '_scope.json'
+        if not system_scope_path.exists() or system_scope_path.is_dir():
+            continue
+        file_map_path = system_path / '_map.py'
+        if not file_map_path.exists() or file_map_path.is_dir():
+            continue
+        relative_path = system_path.relative_to(DATA_PATH)
+        for system_glob in systems:
+            if relative_path.match(system_glob):
+                yield system_path
+                # Don't walk into the system. No nested systems allowed!
+                dirs_.clear()
+                break
+        else:  # It's not a system. Manage the childern to walk into them.
+            # The dirs_ can be modified to remove the directories that we don't
+            # want to walk into or to change the walk order.
+            dirs_.sort()
+            for special in ["_shared", "_plugins"]:
+                try:
+                    dirs_.remove(special)
+                except ValueError:
+                    pass
 
 class System:
     def __init__(
