@@ -1,4 +1,7 @@
 # Change log
+## 3.2.1
+Added `.material` to the default `auto_map.json` file.
+
 ## 3.2.0
 ## Groups
 The systems can now be groupped together in directories called groups.
