@@ -178,5 +178,5 @@
 		"replace_extension": ".png"
 	},
 	".js": "BP/scripts",
-	".material": "RP/material"
+	".material": "RP/materials"
 }
