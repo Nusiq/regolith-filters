@@ -1,2 +1,2 @@
-regolith-subfunctions~=1.1
+regolith-subfunctions~=1.2
 better-json-tools~=1.0,>=1.0.3

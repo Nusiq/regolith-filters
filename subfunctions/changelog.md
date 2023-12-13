@@ -1,4 +1,8 @@
 # Changelog
+## 2.1.0
+Updated the subfunctions module to 1.2.0. This allows creating subfunctions from
+the 'schedule' command, in a similar way to how it works with the 'function'
+command (using the `schedule ... <function_name>:` syntax).
 ## 2.0.3
 subfunctions: added missing module "better-json-tools".
 ## 2.0.2

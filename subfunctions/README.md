@@ -43,6 +43,7 @@ next section):
 ## Table of contents
 - [`function` - subfunctions defined executed instantly](#function---subfunctions-defined-executed-instantly)
 - [`definefunction` - definition of subfunction without execution](#definefunction---definition-of-subfunction-without-execution)
+- [`schedule` - subfunctions defined in a schedule command](#schedule---subfunctions-defined-in-a-schedule-command)
 - [`functiontree` - a binary tree of functions](#functiontree---a-binary-tree-of-functions)
 - [`for` - generating code in a loop](#for---generating-code-in-a-loop)
 - [`foreach` - generating code from collections](#foreach---generating-code-from-collections)
@@ -129,6 +130,52 @@ Subfunction definitions can be created by using
 `definefunction <subfunction name>:` pattern. You can't combine
 `definefunction` with any other commands (like `execute`). The `definefunction`
 line must start with `definefunction` keyword or with indentation.
+
+## `schedule` - subfunctions defined in a schedule command
+### Syntax
+```
+[any_code] schedule [any_schedule_options] <[function_name]>:
+    [function_body]
+
+- any_code - usually an execute command or chain of execute commands, but
+  since subfunctions don't parse mcfunction files, you can put there any
+  string.
+- any_schedule_options - any options valid for schedule command (anything that
+  goes after the 'schedule' keyword and before the function name)
+- function_name - a name of the new function to create [A-Za-z0-9]+, the file
+  is created inside a folder with the same name as the root function
+- function_body - multiline body of the function. The body ends
+  with the line that doesn't have enough indentation (like in Python
+  programming language)
+```
+## Description
+The `schedule` command can be used to create subfunctions in the same way as
+`function` command. If you put the function name between `<` and `>` symbols,
+it creates a subfolder with the same name as the root function, and with
+the subfunction in it named after provided name.
+
+Inside the root function the code of the subfunction is replaced with
+subfunction call (using schedule command).
+
+## Example
+*BP/functions/xxx/yyy/zzz.mcfunction*
+```mcfunction
+# Some code
+schedule on_area_loaded 1 2 3 11 22 33 <aaa>:
+    # The code of the subfunction
+```
+
+File above would resolve into:
+*BP/functions/xxx/yyy/zzz.mcfunction*
+```mcfunction
+# Some code
+schedule on_area_loaded 1 2 3 11 22 33 xxx/yyy/zzz/aaa
+```
+
+*BP/functions/xxx/yyy/zzz/aaa.mcfunction*
+```mcfunction
+# The code of the subfunction
+```
 
 ## Calling subfunctions from `definefunction` and `function`
 Since the pattern of creating the subfunction names is known you can call them
