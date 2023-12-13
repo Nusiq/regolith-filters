@@ -1,4 +1,7 @@
 # Change log
+## 3.3.0
+Updated the subfunctions module to 1.2.0. The same version that is used by the subfunctions filter version 2.1.0. This allows creating subfunctions from the 'schedule' command (you can check the 'subfunctions' filter's README for more information).
+
 ## 3.2.1
 Added `.material` to the default `auto_map.json` file.
 
