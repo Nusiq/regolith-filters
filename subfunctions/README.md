@@ -148,7 +148,7 @@ line must start with `definefunction` keyword or with indentation.
   with the line that doesn't have enough indentation (like in Python
   programming language)
 ```
-## Description
+### Description
 The `schedule` command can be used to create subfunctions in the same way as
 `function` command. If you put the function name between `<` and `>` symbols,
 it creates a subfolder with the same name as the root function, and with
@@ -157,7 +157,7 @@ the subfunction in it named after provided name.
 Inside the root function the code of the subfunction is replaced with
 subfunction call (using schedule command).
 
-## Example
+### Example
 *BP/functions/xxx/yyy/zzz.mcfunction*
 ```mcfunction
 # Some code
