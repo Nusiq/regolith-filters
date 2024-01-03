@@ -1,4 +1,4 @@
-![](../.resources/pytemplate-title.svg)
+# PYTEMPLATE
 
 # 📝 Description
 The Pytemplate filter lets you insert code into JSON files based on Python
