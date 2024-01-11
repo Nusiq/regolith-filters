@@ -1,4 +1,7 @@
 # Change log
+## 3.4.0
+The `auto_map.json` file is now evaulated using JSON Tempalte, with the access to the global scope and global plugins. This means that the output paths can be dynamically generated based on the configuration of the project.
+
 ## 3.3.0
 Updated the subfunctions module to 1.2.0. The same version that is used by the subfunctions filter version 2.1.0. This allows creating subfunctions from the 'schedule' command (you can check the 'subfunctions' filter's README for more information).
 
