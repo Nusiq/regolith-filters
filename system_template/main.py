@@ -780,7 +780,7 @@ def main():
                 raise SystemTemplateException([f'Failed load the config data'])
 
     # Add scope
-    def get_scope():
+    def get_scope() -> Dict[str, Any]:
         scope = {
             'true': True, 'false': False,
             "AUTO": SpecialKeys.AUTO,
@@ -809,11 +809,24 @@ def main():
     else:
         log_path = None
 
-    try:
-        auto_map_path = SYSTEM_TEMPLATE_DATA_PATH / "auto_map.json"
-        auto_map = AutoMappingProvider(load_jsonc(auto_map_path))
-    except FileNotFoundError:
-        auto_map = AutoMappingProvider(JSONWalker({}))
+    # Reused in different modes to get the ayto map
+    def get_auto_map(scope: Dict[str, Any]) -> AutoMappingProvider:
+        try:
+            auto_map_path = SYSTEM_TEMPLATE_DATA_PATH / "auto_map.json"
+            auto_map = AutoMappingProvider(
+                JSONWalker(
+                    eval_json(
+                        load_jsonc(auto_map_path).data,
+                        {
+                            "K": JsonTemplateK,
+                            "JoinStr": JsonTemplateJoinStr,
+                        } | scope
+                    )
+                )
+            )
+        except FileNotFoundError:
+            auto_map = AutoMappingProvider(JSONWalker({}))
+        return auto_map
     # Prepare the undo stack (for pack, unpack and undo)
     undo_path = SYSTEM_TEMPLATE_DATA_PATH / '.pack_undo.json'
     op_stack: List[Tuple[str, str]] = []
@@ -821,6 +834,7 @@ def main():
         if mode == 'eval':
             scope = get_scope()
             report = Report()
+            auto_map = get_auto_map(scope)
             for system_path, group_path in walk_system_paths(system_patterns):
                 system = System(scope, system_path, group_path, auto_map)
                 rel_sys_path = system_path.relative_to(
@@ -832,6 +846,7 @@ def main():
                 report.dump_report(log_path)
         elif mode == 'pack':
             scope = get_scope()
+            auto_map = get_auto_map(scope)
             for system_path, group_path in walk_system_paths(system_patterns):
                 system = System(scope, system_path, group_path, auto_map)
                 rel_sys_path = system_path.relative_to(
@@ -844,6 +859,7 @@ def main():
                 json.dump(op_stack, f, indent='\t')
         elif mode == 'unpack':
             scope = get_scope()
+            auto_map = get_auto_map(scope)
             for system_path, group_path in walk_system_paths(system_patterns):
                 system = System(scope, system_path, group_path, auto_map)
                 rel_sys_path = system_path.relative_to(

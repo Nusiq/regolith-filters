@@ -4,6 +4,13 @@
 	".biome.json": "BP/biomes",
 	".block.json": "BP/blocks",
 	".dialogue.json": "BP/dialogue",
+
+	// .namespaced.behavior needs to be before .behavior because otherwise
+	// .behavior.json will be matched first
+	".namespaced.behavior.json": {
+		"target": "`f'BP/entities/{namespace}'`",
+		"replace_extension": ".behavior.json"
+	},
 	".behavior.json": "BP/entities",
 	".feature_rule.json": "BP/feature_rules",
 	".feature.json": "BP/features",

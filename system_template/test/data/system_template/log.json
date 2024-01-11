@@ -315,6 +315,15 @@
 		]
 	},
 	{
+		"target": "BP/entities/nusiq/namespaced_entity.behavior.json",
+		"sources": [
+			{
+				"path": "data/system_template/namespaced_auto_map/namespaced_entity.namespaced.behavior.json",
+				"status": "created"
+			}
+		]
+	},
+	{
 		"target": "RP/entity/aaa.entity.json",
 		"sources": [
 			{
