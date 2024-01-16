@@ -1,4 +1,7 @@
 # Change log
+## 3.5.0
+Added new property available for the mapping objects - `file_type`. It overrides how the file is treated by the System Template filter pretending that the file is a different type of a file than its extension suggests. This is useful for integrating System Template with other filters that require using specific file types but use a syntax recognized by System Template. For example, when you want to write a JSON file with an extension that is not `.json` but still want to use the `json_template` filter to generate the file.
+
 ## 3.4.0
 The `auto_map.json` file is now evaulated using JSON Tempalte, with the access to the global scope and global plugins. This means that the output paths can be dynamically generated based on the configuration of the project.
 

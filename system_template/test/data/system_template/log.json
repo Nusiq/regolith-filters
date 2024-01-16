@@ -162,6 +162,23 @@
 		]
 	},
 	{
+		"target": "BP/items/item.templ",
+		"sources": [
+			{
+				"path": "data/system_template/custom_extension/item_part1.templ",
+				"status": "created"
+			},
+			{
+				"path": "data/system_template/custom_extension/item_part2.templ",
+				"status": "merged"
+			},
+			{
+				"path": "data/system_template/custom_extension/item_part3.templ",
+				"status": "merged"
+			}
+		]
+	},
+	{
 		"target": "RP/models/entity/test_1.geo.json",
 		"sources": [
 			{

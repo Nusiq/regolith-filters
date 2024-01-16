@@ -1,0 +1,1 @@
+This system is used to test usage of a custom file extension. It uses custom `.templ` file from the [jsonte](https://github.com/MCDevKit/jsonte/tree/master/jsonte) Regolith filter, but it treats it as a `.json` file. It exports the file in 3 parts, to present the merging capabilites. Merging files like this doesn't make much sense in normal situations.

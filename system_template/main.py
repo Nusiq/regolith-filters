@@ -6,8 +6,6 @@ import merge
 import sys
 from pathlib import Path
 import shutil
-import math
-import uuid
 from copy import copy
 from enum import Enum, auto
 from better_json_tools import load_jsonc
@@ -361,13 +359,18 @@ class SystemItem:
         self.shared = shared
         self.parent = parent
         self.target = self._init_target(data)
+
+        source_file_type, target_file_type = self._init_file_types(
+            data, self.relative_source_path.suffix, self.target.suffix)
+        self.source_file_type = source_file_type
+        self.target_file_type = target_file_type
+
         self.on_conflict = self._init_on_conflict(data)
         self.json_template = data.get('json_template', False)
         self.scope = self.parent.scope | data.get('scope', {})
-
         self.subfunctions = data.get(
             # default for .mcfunction is True but for .lang is False
-            'subfunctions', self.target.suffix == '.mcfunction')
+            'subfunctions', self.target_file_type == '.mcfunction')
 
     def _init_target(self, data: Dict) -> Path:
         '''
@@ -423,8 +426,45 @@ class SystemItem:
                 f'Export target: {target_str}'])
         return Path(target)
 
+    def _init_file_types(
+        self, data: Dict[Any, Any],
+        source_suffix: str,
+        target_suffix: str
+    ) -> tuple[str, str]:
+        '''
+        In the __init__ function, creates the source_file_type and
+        target_file_type either by reading them from the data or by inserting
+        the default values (based on the actual file extensions).
+
+        The file types are file extensions with the leading dot. For example:
+        ".json" not "json", even though the user prvides "json" in the _map.py
+        '''
+        source_file_type: str = source_suffix
+        target_file_type: str = target_suffix
+        match data:
+            case {'file_type': str(ft)}:
+                source_file_type = target_file_type = ft
+            case {'file_type': dict(ft)}:  # type: ignore
+                if 'source' in ft:
+                    if not isinstance(ft['source'], str):
+                        raise SystemTemplateException([
+                            "Invalid source file type (must be a string)"])
+                    source_file_type = ft['source']
+                if 'target' in ft:
+                    if not isinstance(ft['target'], str):
+                        raise SystemTemplateException([
+                            "Invalid target file type (must be a string)"])
+                    target_file_type = ft['target']
+            case _: pass
+
+        # Removing and adding the leading dot makes sure that the end result
+        # will always have the leading dot regardles of the user input.
+        source_file_type = source_file_type.removeprefix('.')
+        target_file_type = target_file_type.removeprefix('.')
+        return f'.{source_file_type}', f'.{target_file_type}'
+
     def _init_on_conflict(
-            self, data: Dict,
+        self, data: Dict
     ) -> Literal[
         'stop', 'overwrite', 'merge', 'skip', 'append_start', 'append_end',
         'skip'
@@ -436,7 +476,7 @@ class SystemItem:
         '''
         # Get on_conflict policy: stop, overwrite, append_end, append_start,
         # skip or merge
-        if self.target.suffix in ('.material', '.json'):
+        if self.target_file_type in ('.material', '.json'):
             on_conflict = data.get('on_conflict', 'stop')
             valid_keys = ['stop', 'overwrite', 'merge', 'skip']
             if on_conflict not in valid_keys:
@@ -444,7 +484,7 @@ class SystemItem:
                     f"Invalid 'on_conflict' value: {on_conflict} for "
                     f"{self.target.as_posix()}. Valid values for JSON files "
                     f"are: {valid_keys}"])
-        elif self.target.suffix == '.lang':
+        elif self.target_file_type == '.lang':
             on_conflict = data.get('on_conflict', 'append_end')
             valid_keys = [
                 'stop', 'overwrite', 'append_end', 'append_start', 'skip']
@@ -453,7 +493,7 @@ class SystemItem:
                     f"Invalid 'on_conflict' value: {on_conflict} for "
                     f"{self.target.as_posix()}. Valid values for .lang files "
                     f"are: {valid_keys}"])
-        elif self.target.suffix == '.mcfunction':
+        elif self.target_file_type == '.mcfunction':
             on_conflict = data.get('on_conflict', 'stop')
             valid_keys = [
                 'stop', 'overwrite', 'append_end', 'append_start', 'skip']
@@ -522,7 +562,7 @@ class SystemItem:
             elif self.on_conflict in ('merge', 'append_end', 'append_start'):
                 try:
                     report.append_source(self.target, source_path, 'merged')
-                    if self.target.suffix in ('.material', '.json'):
+                    if self.target_file_type in ('.material', '.json'):
                         target_data = load_jsonc(self.target).data
                     else:
                         with self.target.open('r', encoding='utf8') as f:
@@ -541,19 +581,19 @@ class SystemItem:
             # Merging is possible only if target is JSON and source is either
             # python or JSON
             if (
-                    self.target.suffix in ('.material', '.json') and
-                    source_path.suffix in ('.material', '.json', '.py')):
+                    self.target_file_type in ('.material', '.json') and
+                    self.source_file_type in ('.material', '.json', '.py')):
                 file_json: Any = None
                 file_text: str = None  # Used if parsing is not necessary
                 needs_parsing = (
-                    source_path.suffix == '.py' or
+                    self.source_file_type == '.py' or
                     self.json_template or
                     self.on_conflict == 'merge')
-                if source_path.suffix == '.py':
+                if self.source_file_type == '.py':
                     source_text = source_path.read_text(encoding='utf8')
                     with WdSwitch(self.parent.system_path):
                         file_json = eval(source_text, self.scope)
-                elif source_path.suffix in ('.material', '.json'):
+                elif self.source_file_type in ('.material', '.json'):
                     if needs_parsing:
                         file_json = load_jsonc(source_path).data
                         if self.json_template:
@@ -590,7 +630,7 @@ class SystemItem:
                         f.write("\n".join([target_data, source_data]))
                 else:
                     shutil.copy(source_path.as_posix(), self.target.as_posix())
-                if self.target.suffix == '.mcfunction' or self.target.suffix == '.lang':
+                if self.target_file_type in ['.mcfunction', '.lang']:
                     if self.subfunctions:
                         abs_target = self.target.absolute()
                         code = CodeTree(abs_target)

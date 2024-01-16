@@ -1,0 +1,30 @@
+{
+	"$scope": {
+		"items": [
+			{
+				"name": "apple"
+			},
+			{
+				"name": "banana"
+			},
+			{
+				"name": "orange"
+			}
+		]
+	},
+	"$files": {
+		"array": "items",
+		"fileName": "{{name}}.item"
+	},
+	"$template": {
+		"minecraft:item": {
+			"description": {
+				"identifier": "nusiq:{{name}}",
+				"category": "Nature"
+			},
+			"components": {
+				"minecraft:icon": "{{name}}"
+			}
+		}
+	}
+}
