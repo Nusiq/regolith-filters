@@ -415,14 +415,19 @@ class SystemItem:
             )
         elif not isinstance(target, str):
             raise SystemTemplateException([
-                f'Export target must be "AUTO" or a path that starts with "BP/" or "RP/": {target}'])
+                f'Export target must be "AUTO" or a path that starts with '
+                f'"BP/", "RP/" or "data/": {target}'])
         else: # isinstance(target, str)
             target = Path(target)
         target_str = target.as_posix()
-        if not (target_str.startswith('BP/') or target_str.startswith('RP/')):
+        if not (
+                target_str.startswith('BP/') or
+                target_str.startswith('RP/') or
+                target_str.startswith('data/')
+        ):
             raise SystemTemplateException([
                 'Failed to resolve the export target to a valid path. The '
-                'target must start with "BP/" or "RP/".',
+                'target must start with "BP/", "RP/" or "data/".',
                 f'Export target: {target_str}'])
         return Path(target)
 

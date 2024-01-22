@@ -1,4 +1,5 @@
 {
+	"$schema": "https://raw.githubusercontent.com/Bedrock-OSS/regolith-schemas/main/config/v1.1.json",
 	"name": "system_template example",
 	"author": "Nusiq",
 	"packs": {
@@ -14,6 +15,10 @@
 			"system_template": {
 				"runWith": "python",
 				"script": "../main.py"
+			},
+			"check_data_export": {
+				"runWith": "python",
+				"script": "./local_filters/check_data_export.py"
 			}
 		},
 		"profiles": {
@@ -29,6 +34,9 @@
 							"scope_path": "scope.json",
 							"log_path": "data/system_template/log.json"
 						}
+					},
+					{
+						"filter": "check_data_export"
 					},
 					{
 						"filter": "filter_tester",

@@ -179,6 +179,15 @@
 		]
 	},
 	{
+		"target": "data/check_data/custom_data_file.txt",
+		"sources": [
+			{
+				"path": "data/system_template/data_export/custom_data_file.txt",
+				"status": "created"
+			}
+		]
+	},
+	{
 		"target": "RP/models/entity/test_1.geo.json",
 		"sources": [
 			{

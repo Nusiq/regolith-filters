@@ -1,4 +1,7 @@
 # Change log
+## 3.6.0
+Exporting to the `data/` folder is now supported. This should help System Tempalte cooperate with other filters.
+
 ## 3.5.0
 Added new property available for the mapping objects - `file_type`. It overrides how the file is treated by the System Template filter pretending that the file is a different type of a file than its extension suggests. This is useful for integrating System Template with other filters that require using specific file types but use a syntax recognized by System Template. For example, when you want to write a JSON file with an extension that is not `.json` but still want to use the `json_template` filter to generate the file.
 
