@@ -3,7 +3,7 @@ const fs = require("fs");
 
 const defaultSettings = {
 	minify: false,
-	entryPoint: "data/main.ts",
+	entryPoint: "data/system_template_esbuild/main.ts",
 	outfile: "BP/scripts/main.js",
 	external: ["@minecraft/server"],
 	scope_path: null,

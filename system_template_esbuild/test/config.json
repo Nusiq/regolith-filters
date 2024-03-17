@@ -42,7 +42,7 @@
 						"settings": {
 							"scope_path": "data/scope.json",
 							"minify": false,
-							// "entryPoint": "data/main.ts",
+							// "entryPoint": "data/system_template_esbuild/main.ts",
 							// "external": ["@minecraft/server"],
 							"outfile": "`BP/scripts/{namespace}/main.js`"
 						}
