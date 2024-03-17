@@ -1,0 +1,60 @@
+{
+	"$schema": "https://raw.githubusercontent.com/Bedrock-OSS/regolith-schemas/main/config/v1.2.json",
+	"author": "Nusiq",
+	"name": "System-Template-Esbuild",
+	"packs": {
+		"behaviorPack": "./packs/BP",
+		"resourcePack": "./packs/RP"
+	},
+	"regolith": {
+		"dataPath": "./packs/data",
+		"filterDefinitions": {
+			"filter_tester": {
+				"url": "github.com/Bedrock-OSS/regolith-filters",
+				"version": "1.0.0"
+			},
+			"system_template": {
+				"url": "github.com/Nusiq/regolith-filters",
+				"version": "3.6.0"
+			},
+			"system_template_esbuild": {
+				"runWith": "nodejs",
+				"script": "../build.js"
+			}
+		},
+		"profiles": {
+			"default": {
+				"export": {
+					"readOnly": false,
+					"target": "local",
+					"bpName": "'BP'",
+					"rpName": "'RP'"
+				},
+				"filters": [
+					{
+						"filter": "system_template",
+						"settings": {
+							"scope_path": "scope.json"
+						}
+					},
+					{
+						"filter": "system_template_esbuild",
+						"settings": {
+							"scope_path": "data/scope.json",
+							"minify": false,
+							// "entryPoint": "data/main.ts",
+							// "external": ["@minecraft/server"],
+							"outfile": "`BP/scripts/{namespace}/main.js`"
+						}
+					},
+					{
+						"filter": "filter_tester",
+						"settings": {
+							"errors_stop_execution": false
+						}
+					}
+				]
+			}
+		}
+	}
+}

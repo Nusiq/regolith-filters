@@ -1,0 +1,10 @@
+{
+	"description": "Script compiler that uses Esbuild designed to be used with the System Tempalte filter.",
+	"filters": [
+		{
+			"name": "nusiq:system_template_esbuild",
+			"runWith": "nodejs",
+			"script": "./build.js"
+		}
+	]
+}
