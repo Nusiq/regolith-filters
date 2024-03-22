@@ -40,7 +40,7 @@
 					{
 						"filter": "system_template_esbuild",
 						"settings": {
-							"scope_path": "data/scope.json",
+							"scope_path": "scope.json",
 							"minify": false,
 							// "entryPoint": "data/system_template_esbuild/main.ts",
 							// "external": ["@minecraft/server"],

@@ -73,7 +73,7 @@ if (!external.includes("@minecraft/server")) {
 let scope = {};
 if (scope_path !== null) {
 	const jsoncParser = require("jsonc-parser");
-	scope = jsoncParser.parse(fs.readFileSync(scope_path, "utf8"));
+	scope = jsoncParser.parse(fs.readFileSync("data/" + scope_path, "utf8"));
 }
 
 // Evaluate the settings with the scope
