@@ -1,4 +1,7 @@
 # Change log
+## 3.6.1
+Updated the default auto_map.json file to export `.js` and `.ts` files into `data/system_template_esbuild` directory, intended for further processing with the `system_template_esbuild` filter.
+
 ## 3.6.0
 Exporting to the `data/` folder is now supported. This should help System Tempalte cooperate with other filters.
 

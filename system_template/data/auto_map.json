@@ -177,6 +177,7 @@
 		"target": "RP/textures/particle",
 		"replace_extension": ".png"
 	},
-	".js": "BP/scripts",
+	".js": "data/system_template_esbuild",
+	".ts": "data/system_template_esbuild",
 	".material": "RP/materials"
 }
