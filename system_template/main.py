@@ -58,9 +58,18 @@ BP_PATH = Path('BP')
 RP_PATH = Path('RP')
 
 
+MergeStatus = Literal[
+    'merged',
+    'appended to the end',
+    'appended to the front',
+    'skipped',
+    'overwritten',
+    'created'
+]
+
 class Source(TypedDict):
     path: str
-    status: Literal['merged', 'skipped', 'overwritten', 'created']
+    status: MergeStatus
 
 class FileReport(TypedDict):
     target: str
@@ -83,7 +92,7 @@ class Report:
     def append_source(
             self, target: Path,
             source: Path,
-            status: Literal['merged', 'skipped', 'overwritten', 'created']):
+            status: MergeStatus):
         self._init_report(target)
         self.file_reports[target]['sources'].append(
             Source(path=source.as_posix(), status=status))
@@ -564,14 +573,29 @@ class SystemItem:
                 print(f"Skipping {self.target.as_posix()}")
                 report.append_source(self.target, source_path, 'skipped')
                 return
-            elif self.on_conflict in ('merge', 'append_end', 'append_start'):
+            elif self.on_conflict == 'merge':
                 try:
                     report.append_source(self.target, source_path, 'merged')
-                    if self.target_file_type in ('.material', '.json'):
-                        target_data = load_jsonc(self.target).data
-                    else:
-                        with self.target.open('r', encoding='utf8') as f:
-                            target_data = f.read()
+                    target_data = load_jsonc(self.target).data
+                except Exception as e:
+                    raise SystemTemplateException([
+                        "Failed to load the target file for merging:\n"
+                        f"- Source file: {source_path.as_posix()}\n"
+                        f"- Error: {str(e)}"])
+                self.target.unlink()
+            elif self.on_conflict in ['append_start', 'append_end']:
+                try:
+                    report.append_source(
+                        self.target,
+                        source_path,
+                        (
+                            'appended to the end'
+                            if self.on_conflict == 'append_end'
+                            else 'appended to the front'
+                        )
+                    )
+                    with self.target.open('r', encoding='utf8') as f:
+                        target_data = f.read()
                 except Exception as e:
                     raise SystemTemplateException([
                         "Failed to load the target file for merging:\n"
