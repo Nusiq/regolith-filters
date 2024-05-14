@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Dict, List, Iterable, Literal, Tuple, Any, Optional, cast
+from typing import (
+    Dict, List, Iterable, Literal, Tuple, Any, Optional, cast, TypeGuard)
 import json
 import merge
 import sys
@@ -65,6 +66,16 @@ MergeStatus = Literal[
     'skipped',
     'overwritten',
     'created'
+]
+
+OnConflictPolicy = Literal[
+    'stop',
+    'overwrite',
+    'merge',
+    'skip',
+    'append_start',
+    'append_end',
+    'skip'
 ]
 
 class Source(TypedDict):
@@ -478,11 +489,8 @@ class SystemItem:
         return f'.{source_file_type}', f'.{target_file_type}'
 
     def _init_on_conflict(
-        self, data: Dict
-    ) -> Literal[
-        'stop', 'overwrite', 'merge', 'skip', 'append_start', 'append_end',
-        'skip'
-    ]:
+        self, data: dict[str, Any]
+    ) -> OnConflictPolicy:
         '''
         In the __init__ function, creates the on_conflict policy either by
         reading it from the data or by inserting the default value.
@@ -490,10 +498,17 @@ class SystemItem:
         '''
         # Get on_conflict policy: stop, overwrite, append_end, append_start,
         # skip or merge
+        def _in_valid_on_conflict_keys(
+                value: Any,
+                valid_keys: List[OnConflictPolicy]
+        ) -> TypeGuard[OnConflictPolicy]:
+            return value in valid_keys
+
+        valid_keys: List[OnConflictPolicy]
         if self.target_file_type in ('.material', '.json'):
             on_conflict = data.get('on_conflict', 'stop')
             valid_keys = ['stop', 'overwrite', 'merge', 'skip']
-            if on_conflict not in valid_keys:
+            if not _in_valid_on_conflict_keys(on_conflict, valid_keys):
                 raise SystemTemplateException([
                     f"Invalid 'on_conflict' value: {on_conflict} for "
                     f"{self.target.as_posix()}. Valid values for JSON files "
@@ -502,7 +517,7 @@ class SystemItem:
             on_conflict = data.get('on_conflict', 'append_end')
             valid_keys = [
                 'stop', 'overwrite', 'append_end', 'append_start', 'skip']
-            if on_conflict not in valid_keys:
+            if not _in_valid_on_conflict_keys(on_conflict, valid_keys):
                 raise SystemTemplateException([
                     f"Invalid 'on_conflict' value: {on_conflict} for "
                     f"{self.target.as_posix()}. Valid values for .lang files "
@@ -511,7 +526,7 @@ class SystemItem:
             on_conflict = data.get('on_conflict', 'stop')
             valid_keys = [
                 'stop', 'overwrite', 'append_end', 'append_start', 'skip']
-            if on_conflict not in valid_keys:
+            if not _in_valid_on_conflict_keys(on_conflict, valid_keys):
                 raise SystemTemplateException([
                     f"Invalid 'on_conflict' value: {on_conflict} for "
                     f"{self.target.as_posix()}. Valid values for .lang files "
@@ -520,7 +535,7 @@ class SystemItem:
             on_conflict = data.get('on_conflict', 'stop')
             valid_keys = [
                 'stop', 'overwrite', 'skip', 'append_start', 'append_end']
-            if on_conflict not in valid_keys:
+            if not _in_valid_on_conflict_keys(on_conflict, valid_keys):
                 raise SystemTemplateException([
                     f"Invalid 'on_conflict' value: {on_conflict} for "
                     f"{self.target.as_posix()}. Valid values for this kind of file "
