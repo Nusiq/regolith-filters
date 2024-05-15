@@ -1,0 +1,13 @@
+{
+	"minecraft:entity": {
+		"components": {
+			"minecraft:type_family": {
+				"family": [
+					// If export_once doesn't work, this family will show
+					// up on the list multiple times
+					"animal"
+				]
+			}
+		}
+	}
+}

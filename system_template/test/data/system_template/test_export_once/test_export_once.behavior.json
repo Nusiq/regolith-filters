@@ -1,0 +1,10 @@
+{
+	"format_version": "1.20.41",
+	"minecraft:entity": {
+		"description": {
+			"identifier": "nusiq:test_export_once",
+			"is_spawnable": true,
+			"is_summonable": true
+		}
+	}
+}

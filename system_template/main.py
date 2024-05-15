@@ -58,15 +58,15 @@ SYSTEM_TEMPLATE_DATA_PATH = DATA_PATH / 'system_template'
 BP_PATH = Path('BP')
 RP_PATH = Path('RP')
 
+class MergeStatus(Enum):
+    MERGED = 'Merged.'
+    APPENDED_END = 'Appended content to the end.'
+    APPENDED_START = 'Inserted content at the start.'
+    SKIPPED = 'Skipped.'
+    OVERWRITTEN = 'Overwritten.'
+    CREATED = 'Created.'
+    SKIPPED_EXPORT_ONCE = 'Skipped (export once enabled).'
 
-MergeStatus = Literal[
-    'merged',
-    'appended to the end',
-    'appended to the front',
-    'skipped',
-    'overwritten',
-    'created'
-]
 
 OnConflictPolicy = Literal[
     'stop',
@@ -74,52 +74,60 @@ OnConflictPolicy = Literal[
     'merge',
     'skip',
     'append_start',
-    'append_end',
-    'skip'
+    'append_end'
 ]
 
 class Source(TypedDict):
     path: str
-    status: MergeStatus
+    status: str
 
 class FileReport(TypedDict):
-    target: str
     sources: list[Source]
+
 
 class Report:
     def __init__(self):
         self.file_reports: dict[str, FileReport] = {}
     
-    def _init_report(self, target: Path):
+    def _init_report(self, target: str):
         '''
         Initializes a report for a file if it doesn't exist.
         '''
         if target not in self.file_reports:
-            self.file_reports[target] = FileReport(
-                target=target.as_posix(),
-                sources=[],
-            )
+            self.file_reports[target] = FileReport(sources=[],)
 
     def append_source(
             self, target: Path,
             source: Path,
             status: MergeStatus):
-        self._init_report(target)
-        self.file_reports[target]['sources'].append(
-            Source(path=source.as_posix(), status=status))
+        target_posix = target.as_posix()
+        self._init_report(target_posix)
+        self.file_reports[target_posix]['sources'].append(
+            Source(path=source.as_posix(), status=status.value)
+        )
 
     def dump_report(self, path: Path):
         '''Dump the report to the specified path'''
-        nice_report: list[FileReport] = [r for r in self.file_reports.values()]
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open('w', encoding='utf8') as f:
-            json.dump(nice_report, f, indent=4, cls=CompactEncoder)
+            json.dump(self.file_reports, f, cls=CompactEncoder)
 
     def dump_report_to_file(self, file: io.TextIOWrapper):
         '''Dump the report to the file'''
-        nice_report: list[FileReport] = [r for r in self.file_reports.values()]
-        json.dump(nice_report, file, indent=4, cls=CompactEncoder)
+        json.dump(self.file_reports, file, indent=4, cls=CompactEncoder)
 
+    def is_known_source_target_pair(self, source: Path, target: Path) -> bool:
+        '''
+        Checks if the specified source file, has been already used to modify
+        the target file. Returns True if if it has been used, False otherwise.
+        '''
+        source_posix = source.as_posix()
+        target_posix = target.as_posix()
+        if target_posix in self.file_reports:
+            for report in self.file_reports[target_posix]['sources']:
+                if report['path'] == source_posix:
+                    return True
+        return False
 
 class SystemTemplateException(Exception):
     def __init__(self, errors: List[str]=None):
@@ -385,12 +393,24 @@ class SystemItem:
         self.source_file_type = source_file_type
         self.target_file_type = target_file_type
 
-        self.on_conflict = self._init_on_conflict(data)
-        self.json_template = data.get('json_template', False)
+        self.on_conflict: OnConflictPolicy = self._init_on_conflict(data)
+        self.json_template: bool = data.get('json_template', False)
         self.scope = self.parent.scope | data.get('scope', {})
-        self.subfunctions = data.get(
+        self.subfunctions: bool = data.get(
             # default for .mcfunction is True but for .lang is False
             'subfunctions', self.target_file_type == '.mcfunction')
+        self.export_once: bool = data.get('export_once', False)
+
+        if (
+                self.on_conflict not in [
+                    'merge', 'append_start', 'append_end'
+                ] and
+                self.export_once):
+            raise SystemTemplateException([
+                "The 'export_once' property can be used only with the "
+                "export policies that try to merge the files: "
+                "'append_start', 'append_end' and 'merge'.\n"
+                f"Item: {self.relative_source_path.as_posix()}"])
 
     def _init_target(self, data: Dict) -> Path:
         '''
@@ -568,6 +588,15 @@ class SystemItem:
                 "The source file doesn't exist:",
                 f"{source_path.as_posix()}"])
 
+        # HANDLE EXPORT ONCE OPTION
+        if (
+                self.export_once and
+                report.is_known_source_target_pair(source_path, self.target)):
+            report.append_source(
+                self.target, source_path,
+                MergeStatus.SKIPPED_EXPORT_ONCE)
+            return
+
         # READ TARGET DATA AND HANDLE CONFLICTS
         target_data = None
         if self.target.exists():
@@ -582,15 +611,18 @@ class SystemItem:
                     f"Target already exists: {self.target.as_posix()}"])
             elif self.on_conflict == 'overwrite':
                 print(f"Overwriting {self.target.as_posix()}")
-                report.append_source(self.target, source_path, 'overwritten')
+                report.append_source(
+                    self.target, source_path, MergeStatus.OVERWRITTEN)
                 self.target.unlink()
             elif self.on_conflict == 'skip':
                 print(f"Skipping {self.target.as_posix()}")
-                report.append_source(self.target, source_path, 'skipped')
+                report.append_source(
+                    self.target, source_path, MergeStatus.SKIPPED)
                 return
             elif self.on_conflict == 'merge':
                 try:
-                    report.append_source(self.target, source_path, 'merged')
+                    report.append_source(
+                        self.target, source_path,  MergeStatus.MERGED)
                     target_data = load_jsonc(self.target).data
                 except Exception as e:
                     raise SystemTemplateException([
@@ -604,9 +636,9 @@ class SystemItem:
                         self.target,
                         source_path,
                         (
-                            'appended to the end'
+                            MergeStatus.APPENDED_END
                             if self.on_conflict == 'append_end'
-                            else 'appended to the front'
+                            else MergeStatus.APPENDED_START
                         )
                     )
                     with self.target.open('r', encoding='utf8') as f:
@@ -618,7 +650,7 @@ class SystemItem:
                         f"- Error: {str(e)}"])
                 self.target.unlink()
         else:
-            report.append_source(self.target, source_path, 'created')
+            report.append_source(self.target, source_path, MergeStatus.CREATED)
         # INSERT SOURCE/GENERATED DATA INTO TARGET
         try:
             self.target.parent.mkdir(parents=True, exist_ok=True)
