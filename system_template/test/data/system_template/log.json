@@ -375,6 +375,30 @@
 			}
 		]
 	},
+	"BP/features/diamond_block.json": {
+		"sources": [
+			{
+				"path": "data/system_template/target_stem/simple_block.feature.json",
+				"status": "Created."
+			}
+		]
+	},
+	"BP/features/stone.json": {
+		"sources": [
+			{
+				"path": "data/system_template/target_stem/simple_block.feature.json",
+				"status": "Created."
+			}
+		]
+	},
+	"BP/features/emerald_block.json": {
+		"sources": [
+			{
+				"path": "data/system_template/target_stem/simple_block.feature.json",
+				"status": "Created."
+			}
+		]
+	},
 	"BP/entities/test_export_once.behavior.json": {
 		"sources": [
 			{

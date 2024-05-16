@@ -195,7 +195,9 @@ class AutoMappingProvider:
                     f'Key: {key}',
                     f'JSON path: {mapping_walker.path_str}'])
 
-    def get_auto_target_mapping(self, source: Path, middle: str="") -> Path:
+    def get_auto_target_mapping(
+            self, source: Path, middle: str="",
+            stem: None | str = None) -> Path:
         '''
         Gets the target path for the AUTO mapping (using the AUTO or AUTO_SUBFOLDER)
         special keys.
@@ -204,14 +206,19 @@ class AutoMappingProvider:
         :param middle: The middle part inserted into the path. When using the
             AUTO_SUBFOLDER special key, this will be the name of the system.
             Otherwise it will be an empty string (nothing will be inserted).
+        :param stem: The optional property that overwrites the stem of the
+            target path.
         '''
         for key, map_data in self.data.items():
             if key == "":
                 continue  # Maybe this should be an error?
             if source.name.endswith(key):
                 name = source.name[:-len(key)] + map_data['replace_extension']
-                return (
+                result = (
                     Path(map_data['target']) / middle / source.with_name(name))
+                if stem is not None:
+                    result = result.with_stem(stem)
+                return result
         raise Exception(
             "Failed to find an AUTO mapping export target for "
             f"{source.as_posix()}")
@@ -412,7 +419,7 @@ class SystemItem:
                 "'append_start', 'append_end' and 'merge'.\n"
                 f"Item: {self.relative_source_path.as_posix()}"])
 
-    def _init_target(self, data: Dict) -> Path:
+    def _init_target(self, data: dict[str, Any]) -> Path:
         '''
         In the __init__ function, creates teh target path either by reading it
         from the data or by evaluating the AUTO mapping.
@@ -421,44 +428,62 @@ class SystemItem:
             raise SystemTemplateException([
                 f"Missing 'target'  property in one of the "
                 f"_map.py items: {data}"])
-        target = data['target']
-        if target is SpecialKeys.AUTO:
-            target = self.parent.auto_map.get_auto_target_mapping(
-                self.relative_source_path)
-        elif target is SpecialKeys.AUTO_SUBFOLDER:
-            target = self.parent.auto_map.get_auto_target_mapping(
-                self.relative_source_path,
-                middle=self.parent.system_path.relative_to(
-                    # Insert the name of the system. If the system is a part
-                    # of a group, then the name of the system is a path
-                    # relative to the group.
-                    SYSTEM_TEMPLATE_DATA_PATH
-                    if self.parent.group_path is None
-                    else self.parent.group_path
-                ).as_posix()
-            )
-        elif target is SpecialKeys.AUTO_FLAT:
-            target = self.parent.auto_map.get_auto_target_mapping(
-                Path(self.relative_source_path.name)
-            )
-        elif target is SpecialKeys.AUTO_FLAT_SUBFOLDER:
-            target = self.parent.auto_map.get_auto_target_mapping(
-                Path(self.relative_source_path.name),
-                middle=self.parent.system_path.relative_to(
-                    # Insert the name of the system. If the system is a part
-                    # of a group, then the name of the system is a path
-                    # relative to the group.
-                    SYSTEM_TEMPLATE_DATA_PATH
-                    if self.parent.group_path is None
-                    else self.parent.group_path
-                ).as_posix()
-            )
-        elif not isinstance(target, str):
-            raise SystemTemplateException([
-                f'Export target must be "AUTO" or a path that starts with '
-                f'"BP/", "RP/" or "data/": {target}'])
-        else: # isinstance(target, str)
-            target = Path(target)
+        
+        # Parse the target property
+        target_dir: str | SpecialKeys
+        target_stem: Optional[str] = None
+        t = data['target']
+        match t:
+            case str() | SpecialKeys():
+                target_dir = t
+            case {'stem': str(), 'dir': str() | SpecialKeys()}:
+                target_dir = t['dir']
+                target_stem = t['stem']
+            case _:
+                raise SystemTemplateException([
+                    f"Invalid target value in the _map.py item:\n{data}.\n"
+                    "The target must be one of the following:\n"
+                    "- A string with the path to the target directory\n"
+                    "- An AUTO mapping object\n"
+                    "- An object with 'dir' (AUTO maping or str) and 'stem' "
+                    "(str) properties."
+                ])
+        
+        # Resolve the target to a path
+        system_name_path: str = self.parent.system_path.relative_to(
+            # Insert the name of the system. If the system is a part
+            # of a group, then the name of the system is a path
+            # relative to the group.
+            SYSTEM_TEMPLATE_DATA_PATH
+            if self.parent.group_path is None
+            else self.parent.group_path
+        ).as_posix()
+
+        match target_dir:
+            case SpecialKeys.AUTO:
+                target = self.parent.auto_map.get_auto_target_mapping(
+                    source=self.relative_source_path,
+                    stem=target_stem)
+            case SpecialKeys.AUTO_SUBFOLDER:
+                target = self.parent.auto_map.get_auto_target_mapping(
+                    source=self.relative_source_path,
+                    middle=system_name_path,
+                    stem=target_stem
+                )
+            case SpecialKeys.AUTO_FLAT:
+                target = self.parent.auto_map.get_auto_target_mapping(
+                    source=Path(self.relative_source_path.name),
+                    stem=target_stem
+                )
+            case SpecialKeys.AUTO_FLAT_SUBFOLDER:
+                target = self.parent.auto_map.get_auto_target_mapping(
+                    source=Path(self.relative_source_path.name),
+                    middle=system_name_path,
+                    stem=target_stem
+                )
+            case _:
+                target = Path(target_dir)
+
         target_str = target.as_posix()
         if not (
                 target_str.startswith('BP/') or
