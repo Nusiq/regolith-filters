@@ -1,4 +1,9 @@
 # Change log
+## 3.7.0
+- Added a new feature that lets you mark a file to be exported only once. The `export_once` flag in `_map.py` set to `True` means that if the same source file is being exported to the same target multipe times (e.g from different systems), the file is exported only once. This is useful when you want to export a shared file from multiple systems but you want to make sure that the target won't have duplicated content.
+- More flexible AUTO mapping, lets you specify the directory mapping separately from the stem of the file (with `target->dir` and `target->stem` properties). This means that you can combine the AUTO mapping to detect the target directory and file extension, while still having the ability to set the custom name of the file. This is useful when you want to use a file as a template to generate multiple files with different names.
+- Updated the format of the log file. Now the messages are more detailed. When the file is merged, the log distinguishes between the merge type (appending at the end, appending at the start, or merging). The log file also includes the information about the cause of skipping the file (skipping because of the `"on_conflict": "skip"` policy or skipping because of the `export_once` setting).
+
 ## 3.6.1
 Updated the default auto_map.json file to export `.js` and `.ts` files into `data/system_template_esbuild` directory, intended for further processing with the `system_template_esbuild` filter.
 
