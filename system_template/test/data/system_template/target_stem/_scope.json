@@ -1,1 +1,22 @@
-{}
+{
+	"colors": [
+		{
+			"color_name": "red",
+			"color_r": [0.9, 1.0],
+			"color_g": [0.1, 0.2],
+			"color_b": [0.1, 0.2]
+		},
+		{
+			"color_name": "green",
+			"color_r": [0.1, 0.2],
+			"color_g": [0.9, 1.0],
+			"color_b": [0.1, 0.2]
+		},
+		{
+			"color_name": "blue",
+			"color_r": [0.1, 0.2],
+			"color_g": [0.1, 0.2],
+			"color_b": [0.9, 1.0]
+		}
+	]
+}

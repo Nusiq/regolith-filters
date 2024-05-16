@@ -375,26 +375,26 @@
 			}
 		]
 	},
-	"BP/features/diamond_block.json": {
+	"RP/particles/red_glow.particle.json": {
 		"sources": [
 			{
-				"path": "data/system_template/target_stem/simple_block.feature.json",
+				"path": "data/system_template/target_stem/glow.particle.json",
 				"status": "Created."
 			}
 		]
 	},
-	"BP/features/stone.json": {
+	"RP/particles/green_glow.particle.json": {
 		"sources": [
 			{
-				"path": "data/system_template/target_stem/simple_block.feature.json",
+				"path": "data/system_template/target_stem/glow.particle.json",
 				"status": "Created."
 			}
 		]
 	},
-	"BP/features/emerald_block.json": {
+	"RP/particles/blue_glow.particle.json": {
 		"sources": [
 			{
-				"path": "data/system_template/target_stem/simple_block.feature.json",
+				"path": "data/system_template/target_stem/glow.particle.json",
 				"status": "Created."
 			}
 		]

@@ -213,12 +213,11 @@ class AutoMappingProvider:
             if key == "":
                 continue  # Maybe this should be an error?
             if source.name.endswith(key):
-                name = source.name[:-len(key)] + map_data['replace_extension']
-                result = (
+                if stem is None:
+                    stem = source.name[:-len(key)]
+                name = stem + map_data['replace_extension']
+                return (
                     Path(map_data['target']) / middle / source.with_name(name))
-                if stem is not None:
-                    result = result.with_stem(stem)
-                return result
         raise Exception(
             "Failed to find an AUTO mapping export target for "
             f"{source.as_posix()}")
