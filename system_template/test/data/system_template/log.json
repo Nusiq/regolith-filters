@@ -167,6 +167,22 @@
 			}
 		]
 	},
+	"BP/entities/baby_ellipsis.behavior.json": {
+		"sources": [
+			{
+				"path": "data/system_template/ellipsis/ellipsis.behavior.json",
+				"status": "Created."
+			}
+		]
+	},
+	"BP/entities/ellipsis.behavior.json": {
+		"sources": [
+			{
+				"path": "data/system_template/ellipsis/ellipsis.behavior.json",
+				"status": "Created."
+			}
+		]
+	},
 	"RP/models/entity/test_1.geo.json": {
 		"sources": [
 			{

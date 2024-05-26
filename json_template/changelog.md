@@ -1,4 +1,9 @@
 # Changelog
+## 2.3.0
+Updated the `regolith-json-template` library to version 1.3.0.
+
+When a value in a dictionary evaluates to `Ellipsis` (`...`), the key-value pair is removed from the dictionary. This can be used to conditionally remove keys from the dictionary.
+
 ## 2.2.0
 Updated the `regolith-json-template` library to version 1.2.0.
 

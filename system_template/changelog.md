@@ -1,4 +1,9 @@
 # Change log
+## 3.8.0
+Updated the `regolith-json-template` library to version 1.3.0.
+
+When a value in a dictionary evaluates to `Ellipsis` (`...`), the key-value pair is removed from the dictionary. This can be used to conditionally remove keys from the dictionary.
+
 ## 3.7.0
 - Added a new feature that lets you mark a file to be exported only once. The `export_once` flag in `_map.py` set to `True` means that if the same source file is being exported to the same target multipe times (e.g from different systems), the file is exported only once. This is useful when you want to export a shared file from multiple systems but you want to make sure that the target won't have duplicated content.
 - More flexible AUTO mapping, lets you specify the directory mapping separately from the stem of the file (with `target->dir` and `target->stem` properties). This means that you can combine the AUTO mapping to detect the target directory and file extension, while still having the ability to set the custom name of the file. This is useful when you want to use a file as a template to generate multiple files with different names.

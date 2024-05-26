@@ -1,0 +1,14 @@
+{
+	"format_version": "1.20.41",
+	"minecraft:entity": {
+		"description": {
+			"identifier": "baby_ellipsis",
+			"is_spawnable": true,
+			"is_summonable": true,
+			"is_experimental": false
+		},
+		"components": {
+			"minecraft:is_baby": {}
+		}
+	}
+}

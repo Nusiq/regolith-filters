@@ -7,5 +7,6 @@
 		"generated_list": "`[j for j in range(i)]`"
 	},
 	"my_scope_variable": "`my_scope_variable`",
-	"hello": "world"
+	"hello": "world",
+	"nothing": "`...`"
 }

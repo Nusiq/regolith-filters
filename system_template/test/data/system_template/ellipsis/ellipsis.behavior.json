@@ -1,0 +1,14 @@
+{
+	"format_version": "1.20.41",
+	"minecraft:entity": {
+		"description": {
+			"identifier": "`identifier`",
+			"is_spawnable": true,
+			"is_summonable": true,
+			"is_experimental": false
+		},
+		"components": {
+			"minecraft:is_baby": "`{} if is_baby else ...`"
+		}
+	}
+}
