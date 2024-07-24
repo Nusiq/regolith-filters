@@ -1,4 +1,9 @@
 # Change log
+## 2.0.1
+Update to ES2023.
+
+Thanks to @Fabrimat for the contribution.
+
 ## 2.0.0
 The `scope` property in the config of the filter is now relative to `data/` directory to make the behavior of the filter consistent with `system_template`
 
