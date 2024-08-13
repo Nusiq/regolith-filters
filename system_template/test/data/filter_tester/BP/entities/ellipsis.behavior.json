@@ -7,6 +7,10 @@
 			"is_summonable": true,
 			"is_experimental": false
 		},
-		"components": {}
+		"components": {
+			"minecraft:type_family": {
+				"family": ["family_a", "family_b"]
+			}
+		}
 	}
 }

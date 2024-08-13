@@ -1,4 +1,9 @@
 # Changelog
+## 2.3.1
+Updated the `regolith-json-template` library to version 1.3.1.
+
+Enables using the `Ellipsis` (`...`) in the lists.
+
 ## 2.3.0
 Updated the `regolith-json-template` library to version 1.3.0.
 

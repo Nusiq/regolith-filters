@@ -8,7 +8,10 @@
 			"is_experimental": false
 		},
 		"components": {
-			"minecraft:is_baby": "`{} if is_baby else ...`"
+			"minecraft:is_baby": "`{} if is_baby else ...`",
+			"minecraft:type_family": {
+				"family": ["family_a", "`...`", "family_b"]
+			}
 		}
 	}
 }
