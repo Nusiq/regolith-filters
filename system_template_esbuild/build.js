@@ -85,7 +85,7 @@ require("esbuild")
 	.build({
 		external: external,
 		entryPoints: [entryPoint],
-		target: "es2023",
+		target: "es2020",
 		format: "esm",
 		bundle: true,
 		minify: minify,

@@ -1,4 +1,7 @@
 # Change log
+## 2.0.2
+Undo the previous change. Minecraft doesn't seem to support ES2023 yet.
+
 ## 2.0.1
 Update to ES2023.
 
