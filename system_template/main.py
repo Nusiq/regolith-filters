@@ -36,7 +36,7 @@ class WdSwitch:
     def __enter__(self):
         os.chdir(self.path)
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any):
         os.chdir(self.old_path)
 
 class SpecialKeys(Enum):
@@ -130,17 +130,17 @@ class Report:
         return False
 
 class SystemTemplateException(Exception):
-    def __init__(self, errors: List[str]=None):
+    def __init__(self, errors: List[str] | None=None):
         self.errors = [] if errors is None else errors
     
     def __str__(self):
         return "\n".join(self.errors)
 
-def print_red(text):
+def print_red(text: str):
     for t in text.split('\n'):
         print("\033[91m {}\033[00m".format(t))
 
-def print_yellow(text):
+def print_yellow(text: str):
     for t in text.split('\n'):
         print("\033[93m {}\033[00m".format(t))
 
@@ -154,7 +154,7 @@ class AutoMappingProvider:
         if data_walker is None:
             return
         for mapping_walker in data_walker // str:
-            key: str = mapping_walker.parent_key
+            key: str = cast(str, mapping_walker.parent_key)
             value: Any = mapping_walker.data
             if isinstance(value, str):
                 self.data[key] = {
@@ -287,7 +287,7 @@ def walk_system_paths(systems: List[str]) -> Iterable[tuple[Path, Optional[Path]
 
 class System:
     def __init__(
-            self, scope: Dict, system_path: Path, group_path: Optional[Path],
+            self, scope: Dict[str, Any], system_path: Path, group_path: Optional[Path],
             auto_map: AutoMappingProvider):
         plugins_path = system_path / '_plugins'
         if plugins_path.exists():
@@ -300,6 +300,8 @@ class System:
         if group_path is not None:
             try:
                 group_scope = load_jsonc(group_path / '_group_scope.json').data
+                if not isinstance(group_scope, dict):
+                    raise Exception("The _group_scope.json must be an object.")
                 scope = scope | group_scope
             except Exception as e:
                 raise SystemTemplateException([
@@ -307,7 +309,10 @@ class System:
                     f"Path: {group_path.as_posix()}",
                     str(e)])
         try:
-            self.scope: Dict[str, Any] = scope | load_jsonc(scope_path).data
+            system_scope = load_jsonc(scope_path).data
+            if not isinstance(system_scope, dict):
+                raise Exception("The _scope.json must be an object.")
+            self.scope: Dict[str, Any] = scope | system_scope
         except Exception as e:
             raise SystemTemplateException([
                 f"Failed to load the _scope.json file due to an error:",
@@ -315,11 +320,11 @@ class System:
                 str(e)])
         self.system_path: Path = system_path
         self.group_path: Optional[Path] = group_path
-        self.file_map: List[Dict] = self._init_file_map(
+        self.file_map: Any = self._init_file_map(
             system_path / '_map.py')
         self.auto_map: AutoMappingProvider = auto_map
 
-    def _init_file_map(self, file_map_path: Path) -> List[Dict]:
+    def _init_file_map(self, file_map_path: Path) -> Any:
         try:
             file_map_text = file_map_path.read_text(encoding='utf8')
             with WdSwitch(self.system_path):
@@ -338,6 +343,7 @@ class System:
         if not isinstance(self.file_map, list):
             raise SystemTemplateException([
                 "The _map.py must be a list of dicts."])
+        data: Any
         for data in self.file_map:
             if not isinstance(data, dict):
                 raise SystemTemplateException([
@@ -346,9 +352,8 @@ class System:
                 raise SystemTemplateException([
                     "Missing 'source' property in one of the "
                     f"_map.py items: {data}"])
-
             # Treat as a glob pattern only if it contains a "*" or "?" characters
-            source_pattern: str = data['source']
+            source_pattern: Any = data['source']
             if not isinstance(source_pattern, str):
                 raise SystemTemplateException([
                     f"Invalid source value: {source_pattern} in {data}"])
@@ -371,23 +376,27 @@ class System:
                         continue
                     if source_path.is_relative_to(self.system_path / '_plugins'):
                         continue
-                    yield SystemItem(relative_source_path, shared, data, self)
+                    yield SystemItem(
+                        relative_source_path, shared,
+                        cast(dict[Any, Any], data), self)
                 if not has_items:
                     print_yellow(
                         f"Warning: No files found for the source pattern: "
                         f"{source_pattern} in {self.system_path.as_posix()}"
                     )
             else:
-                yield SystemItem(Path(source_pattern), shared, data, self)
+                yield SystemItem(
+                    Path(source_pattern), shared,
+                    cast(dict[Any, Any], data), self)
 
 class SystemItem:
     '''
     An object based of one item in the _map.py file, after evaluation of the
     glob pattern to the source file.
     '''
-    def __init__(self, source: Path, shared: bool, data: Dict, parent: System):
-            # , system_path: Path,
-            # external_scope: Dict, auto_map: Dict):
+    def __init__(
+            self, source: Path, shared: bool, data: Dict[Any, Any],
+            parent: System):
         data = copy(data)  # copy to avoid outputing values from evalation
         self.relative_source_path = source
         self.shared = shared
@@ -684,7 +693,7 @@ class SystemItem:
                     self.target_file_type in ('.material', '.json') and
                     self.source_file_type in ('.material', '.json', '.py')):
                 file_json: Any = None
-                file_text: str = None  # Used if parsing is not necessary
+                file_text: str | None = None  # Used if parsing is not necessary
                 needs_parsing = (
                     self.source_file_type == '.py' or
                     self.json_template or
@@ -713,17 +722,23 @@ class SystemItem:
                     with self.target.open('w') as f:
                         json.dump(file_json, f, cls=CompactEncoder)
                 else:  # File was not parsed, so we just write the text
+                    assert file_text is not None, (
+                        "Unexpected error - failed to load the file text.")
                     with self.target.open('w', encoding='utf8') as f:
                         f.write(file_text)
             else:  # Other files (append_start, append_end or overwrite)
                 if self.on_conflict == 'append_start':
                     target_data = "" if target_data is None else target_data
+                    assert isinstance(target_data, str), (
+                        "Unexpected error - the target data must be a string.")
                     with source_path.open('r', encoding='utf8') as f:
                         source_data = f.read()
                     with self.target.open('w', encoding='utf8') as f:
                         f.write("\n".join([source_data, target_data]))
                 elif self.on_conflict == 'append_end':
                     target_data = "" if target_data is None else target_data
+                    assert isinstance(target_data, str), (
+                        "Unexpected error - the target data must be a string.")
                     with source_path.open('r', encoding='utf8') as f:
                         source_data = f.read()
                     with self.target.open('w', encoding='utf8') as f:
@@ -774,19 +789,19 @@ class SystemItem:
             group_shared_path = cast(Path, group_shared_path)
             group_shared_path.rename(system_path)
             if op_stack is not None:
-                op_stack.append([
+                op_stack.append((
                     group_shared_path.as_posix(),
-                    system_path.as_posix()])
+                    system_path.as_posix()))
         elif not system_exists and shared_exists:
             shared_path.rename(system_path)
             if op_stack is not None:
-                op_stack.append([
+                op_stack.append((
                     shared_path.as_posix(),
-                    system_path.as_posix()])
+                    system_path.as_posix()))
         # system_exists and not shared_exists: Already packed
         # system_exists and shared_exists: System file has priority
 
-    def unpack(self, op_stack: Optional[List]=None) -> None:
+    def unpack(self, op_stack: Optional[List[Tuple[str, str]]]=None) -> None:
         '''
         Unpacks the files from the system folder into the _shared folder by
         moving them. Optionally, it can record the operation in the
@@ -815,15 +830,15 @@ class SystemItem:
         elif system_exists and not group_shared_exists and is_group:
             system_path.rename(group_shared_path)
             if op_stack is not None:
-                op_stack.append([
+                op_stack.append((
                     system_path.as_posix(),
-                    group_shared_path.as_posix()])
+                    group_shared_path.as_posix()))
         elif system_exists and not shared_exists and not is_group:
             system_path.rename(shared_path)
             if op_stack is not None:
-                op_stack.append([
+                op_stack.append((
                     system_path.as_posix(),
-                    shared_path.as_posix()])
+                    shared_path.as_posix()))
         elif (
                 (system_exists and group_shared_exists and is_group) or
                 (system_exists and shared_exists and not is_group)):
@@ -835,7 +850,7 @@ class SystemItem:
         # not system_exists and shared_exists: Already unpacked
 
 
-def parse_args() -> Tuple[Dict, Literal['pack', 'unpack']]:
+def parse_args() -> Tuple[Dict[str, Any], Literal['pack', 'unpack']]:
     parser = argparse.ArgumentParser(
         description=(
             'System template: Regolith filter for grouping files into systems')
@@ -872,11 +887,11 @@ def parse_args() -> Tuple[Dict, Literal['pack', 'unpack']]:
     return config, args.command
 
 
-def load_plugin(plugin_path: Path, wd_path: Path) -> Dict:
+def load_plugin(plugin_path: Path, wd_path: Path) -> Dict[str, Any]:
     '''
     Loads a plugin from give file path and returns its scope.
     '''
-    plugin_scope = {}
+    plugin_scope: Dict[str, Any] = {}
     try:
         plugin_text = plugin_path.read_text()
         with WdSwitch(wd_path):
@@ -936,7 +951,11 @@ def main():
             scope = scope | plugin_scope
         scope_path = DATA_PATH / config.get(
             'scope_path', 'system_template/scope.json')
-        scope = scope | load_jsonc(scope_path).data
+        local_scope  = load_jsonc(scope_path).data
+        if not isinstance(local_scope, dict):
+            raise SystemTemplateException([
+                "The scope file must be an object."])
+        scope = scope | local_scope
         return scope
     # Try to load the auto map
     system_patterns = config.get('systems', ['**/*'])
@@ -953,10 +972,14 @@ def main():
     def get_auto_map(scope: Dict[str, Any]) -> AutoMappingProvider:
         try:
             auto_map_path = SYSTEM_TEMPLATE_DATA_PATH / "auto_map.json"
+            auto_map_data = load_jsonc(auto_map_path).data
+            if not isinstance(auto_map_data, dict):
+                raise SystemTemplateException([
+                    "The auto_map.json must be an object."])
             auto_map = AutoMappingProvider(
                 JSONWalker(
                     eval_json(
-                        load_jsonc(auto_map_path).data,
+                        auto_map_data,
                         {
                             "K": JsonTemplateK,
                             "JoinStr": JsonTemplateJoinStr,
@@ -1034,7 +1057,7 @@ def main():
                         f"Target path already exists: {target}"])
                 source.rename(target)
                 # Record reverted operation
-                op_stack.append([source.as_posix(), target.as_posix()])
+                op_stack.append((source.as_posix(), target.as_posix()))
             # Save the undo stack
             with open(undo_path, 'w', encoding='utf8') as f:
                 json.dump(op_stack, f, indent='\t')

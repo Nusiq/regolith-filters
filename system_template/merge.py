@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, TypeVar, Any
 from enum import Enum, auto
 
 class ListMergePolicy(Enum):
@@ -7,7 +7,12 @@ class ListMergePolicy(Enum):
     B_LENGHT = auto()
     APPEND = auto()
 
-def deep_merge_objects(a, b, list_merge_policy=ListMergePolicy.GREATER_LENGHT):
+T = TypeVar('T')
+
+def deep_merge_objects(
+    a: Any, b: T,
+    list_merge_policy: ListMergePolicy=ListMergePolicy.GREATER_LENGHT
+) -> T:
     '''
     Merges two JSON objeccts A and B recursively.  In case of conflicts (
     situations where merging is not possible) the value from B overwrites value
@@ -20,23 +25,25 @@ def deep_merge_objects(a, b, list_merge_policy=ListMergePolicy.GREATER_LENGHT):
         return b
     # Both types are the same
     if isinstance(a, dict):  # Both types are dicts
-        return deep_merge_dicts(a, b, list_merge_policy)
+        return deep_merge_dicts(a, b, list_merge_policy)  # type: ignore
     elif isinstance(a, list):  # Both types are lists
-        return deep_merge_lists(a, b, list_merge_policy)
+        return deep_merge_lists(a, b, list_merge_policy)  # type: ignore
     # Both types are smoething unknown
     return b
 
 def deep_merge_dicts(
-        a: Dict, b: Dict, list_merge_policy=ListMergePolicy.GREATER_LENGHT):
+        a: Dict[Any, Any], b: Dict[Any, Any],
+        list_merge_policy: ListMergePolicy=ListMergePolicy.GREATER_LENGHT
+) -> Dict[Any, Any]:
     '''
     Merges two dictionaries A and B recursively. In case of conflicts (
     situations where merging is not possible) the value from B overwrites value
     from A.
     '''
-    result = {}
+    result: Dict[Any, Any] = {}
     # a.keys() | b.keys() could be used but it doesn't preserve order
     keys = list(a.keys()) + list(b.keys())
-    used_keys = set()
+    used_keys: set[Any] = set()
     for k in keys:
         if k in used_keys:
             continue
@@ -51,7 +58,9 @@ def deep_merge_dicts(
     return result
 
 def deep_merge_lists(
-        a: List, b: List, list_merge_policy=ListMergePolicy.GREATER_LENGHT):
+    a: List[Any], b: List[Any],
+    list_merge_policy: ListMergePolicy=ListMergePolicy.GREATER_LENGHT
+) -> List[Any]:
     '''
     Merges two lists A and B recursively. In case of conflicts (
     situations where merging is not possible) the value from B overwrites value
