@@ -918,6 +918,20 @@ def load_plugin(plugin_path: Path, wd_path: Path) -> Dict[str, Any]:
             ])
     return plugin_scope
 
+def system_paths_sort_key(
+        walk_system_paths_item: tuple[Path, Optional[Path]],
+        prioritized_systems: List[Path]) -> tuple[int, Path]:
+    '''
+    Used as 'key' argument in the 'sorted' function to sort the results of
+    the 'walk_system_paths' function.
+    '''
+    system_path, _ = walk_system_paths_item
+    try:
+        index = prioritized_systems.index(system_path)
+    except ValueError:
+        index = len(prioritized_systems)
+    return index, system_path
+
 def main():
     mode = 'eval'
     config = {}
@@ -968,6 +982,13 @@ def main():
     else:
         log_path = None
 
+    # Get the prioritized auto map
+    if 'prioritized_systems' in config:
+        prioritized_systems = [
+            Path('data/system_template') / p for p in config['prioritized_systems']]
+    else:
+        prioritized_systems = []
+
     # Reused in different modes to get the ayto map
     def get_auto_map(scope: Dict[str, Any]) -> AutoMappingProvider:
         try:
@@ -998,7 +1019,11 @@ def main():
             scope = get_scope()
             report = Report()
             auto_map = get_auto_map(scope)
-            for system_path, group_path in walk_system_paths(system_patterns):
+            sorted_system_paths = sorted(
+                walk_system_paths(system_patterns),
+                key=lambda sp: system_paths_sort_key(sp, prioritized_systems),
+            )
+            for system_path, group_path in sorted_system_paths:
                 system = System(scope, system_path, group_path, auto_map)
                 rel_sys_path = system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()

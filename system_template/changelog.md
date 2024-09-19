@@ -1,4 +1,7 @@
 # Change log
+## 3.9.0
+Added option to specify the priritized systems in the filter settings in the `config.json` file using the `prioritized_systems` property.
+
 ## 3.8.1
 Updated the `regolith-json-template` library to version 1.3.1.
 

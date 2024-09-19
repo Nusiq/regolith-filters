@@ -1,4 +1,24 @@
 {
+	"BP/prioritized_systems.json": {
+		"sources": [
+			{
+				"path": "data/system_template/prioritized_systems/4_first/prioritized_systems.json",
+				"status": "Created."
+			},
+			{
+				"path": "data/system_template/prioritized_systems/3_second/prioritized_systems.json",
+				"status": "Merged."
+			},
+			{
+				"path": "data/system_template/prioritized_systems/1_third/prioritized_systems.json",
+				"status": "Merged."
+			},
+			{
+				"path": "data/system_template/prioritized_systems/2_fourth/prioritized_systems.json",
+				"status": "Merged."
+			}
+		]
+	},
 	"RP/textures/blocks/advanced_auto_map/aam_blue.png": {
 		"sources": [
 			{
