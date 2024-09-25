@@ -19,7 +19,7 @@
 			},
 			"system_template_esbuild": {
 				"runWith": "nodejs",
-				"script": "../build.js"
+				"script": "../build.mjs"
 			}
 		},
 		"profiles": {

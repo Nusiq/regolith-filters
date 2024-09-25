@@ -1,5 +1,7 @@
 // @ts-check
-const fs = require("fs");
+import { readFileSync } from "node:fs";
+import { build } from "esbuild";
+import { parse } from "jsonc-parser";
 
 const defaultSettings = {
 	minify: false,
@@ -72,8 +74,7 @@ if (!external.includes("@minecraft/server")) {
 // Load the scope from the scope file
 let scope = {};
 if (scope_path !== null) {
-	const jsoncParser = require("jsonc-parser");
-	scope = jsoncParser.parse(fs.readFileSync("data/" + scope_path, "utf8"));
+	scope = parse(readFileSync("data/" + scope_path, "utf8"));
 }
 
 // Evaluate the settings with the scope
@@ -81,17 +82,16 @@ entryPoint = evalString(entryPoint, scope);
 outfile = evalString(outfile, scope);
 
 // Build the project.
-require("esbuild")
-	.build({
-		external: external,
-		entryPoints: [entryPoint],
-		target: "es2020",
-		format: "esm",
-		bundle: true,
-		minify: minify,
-		outfile: outfile,
-	})
-	.catch((err) => {
-		console.error(err.message);
-		process.exit(1);
-	});
+
+build({
+	external: external,
+	entryPoints: [entryPoint],
+	target: "es2020",
+	format: "esm",
+	bundle: true,
+	minify: minify,
+	outfile: outfile,
+}).catch((err) => {
+	console.error(err.message);
+	process.exit(1);
+});

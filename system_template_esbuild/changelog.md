@@ -1,4 +1,7 @@
 # Change log
+## 2.0.3
+Internal change - updated the script from the CommonJS module to ES module.
+
 ## 2.0.2
 Undo the previous change. Minecraft doesn't seem to support ES2023 yet.
 
