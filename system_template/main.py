@@ -77,13 +77,89 @@ OnConflictPolicy = Literal[
     'append_end'
 ]
 
-class Source(TypedDict):
+class FileReprotSourceScope(TypedDict):
+    sources: list[str | None]
+    mod_time: float | None
+
+class FileReportSource(TypedDict):
     path: str
     status: str
+    scopes: FileReprotSourceScope | None
 
 class FileReport(TypedDict):
-    sources: list[Source]
+    sources: list[FileReportSource]
 
+class Scope:
+    def __init__(
+            self,
+            data: Dict[str, Any],
+            sources: list[str | None],
+            mod_time: float | None):
+        self.mod_time: float | None = mod_time
+        self.sources: list[str | None] = sources
+        self.data: Dict[str, Any] = data
+
+    def __or__(self, other: Scope) -> Scope:
+        return Scope(
+            data={**self.data, **other.data},
+            sources=self.sources + other.sources,
+            mod_time=self.max_mod_time(other))
+
+    def get_with_mod_time_for_reprot(self, *paths: Path) -> Scope:
+        '''
+        Gets a new scope (or returns the same one) with the modified max mod
+        time based on the provided file path.
+
+        If self.mod_time is None, returns the same scope object (the lack of
+        the mod_time means that we're not tracking the modification time).
+
+        If the mod_time is not None, the function will return a new scope with
+        the max mod time of the file and this scope.
+        '''
+        if self.mod_time is None:
+            max_path_mod_time = None
+            for path in paths:
+                if not path.exists():
+                    continue
+                curr_mod_time = path.stat().st_mtime
+                if (
+                        max_path_mod_time is None or
+                        curr_mod_time > max_path_mod_time):
+                    max_path_mod_time = curr_mod_time
+            return Scope(
+                data=self.data,
+                sources=self.sources,
+                mod_time=max_path_mod_time)
+        return self
+
+    def max_mod_time(self, other: Scope):
+        '''
+        Returns the later modification time of the two scopes.
+        '''
+        if self.mod_time is None:
+            return other.mod_time
+        if other.mod_time is None:
+            return self.mod_time
+        return max(self.mod_time, other.mod_time)
+
+    def as_file_report_source_scope(self) -> FileReprotSourceScope:
+        return FileReprotSourceScope(
+            sources=self.sources,
+            mod_time=self.mod_time)
+    
+    @staticmethod
+    def load_from_scope_file(path: Path, track_mod_time: bool):
+        '''
+        Loads the scope from the specified path. If track_mod_time is True, the
+        modification time of the file will be stored in the scope.
+        '''
+        data = load_jsonc(path).data
+        if not isinstance(data, dict):
+            raise SystemTemplateException([
+                'The scope file must be an object.',
+                f'Path: {path.as_posix()}'])
+        mod_time = path.stat().st_mtime if track_mod_time else None
+        return Scope(data, sources=[path.as_posix()], mod_time=mod_time)
 
 class Report:
     def __init__(self):
@@ -99,12 +175,17 @@ class Report:
     def append_source(
             self, target: Path,
             source: Path,
-            status: MergeStatus):
+            status: MergeStatus,
+            scope: Scope | None):
         target_posix = target.as_posix()
         self._init_report(target_posix)
-        self.file_reports[target_posix]['sources'].append(
-            Source(path=source.as_posix(), status=status.value)
+        file_report_source = FileReportSource(
+            path=source.as_posix(),
+            status=status.value,
+            scopes=(
+                None if scope is None else scope.as_file_report_source_scope())
         )
+        self.file_reports[target_posix]['sources'].append(file_report_source)
 
     def dump_report(self, path: Path):
         '''Dump the report to the specified path'''
@@ -128,6 +209,39 @@ class Report:
                 if report['path'] == source_posix:
                     return True
         return False
+
+    def update_mod_times(self):
+        for target, target_report in self.file_reports.items():
+            if not Path(target).exists():
+                # Subfunctions unpack the files + some plugins could delete
+                # the files.
+                # TODO - tracking unpacked subfunctions could be a good idea
+                continue
+            max_mod_time = None
+            for source in target_report['sources']:
+                if  source['status'] in [
+                        MergeStatus.MERGED.value,
+                        MergeStatus.APPENDED_END.value,
+                        MergeStatus.APPENDED_START.value
+                ]:
+                    if source['scopes'] is None:
+                        continue
+                    curr_mod_time = source['scopes']['mod_time']
+                    if max_mod_time is None:
+                        max_mod_time = curr_mod_time
+                    elif curr_mod_time is not None:
+                        max_mod_time = max(max_mod_time, curr_mod_time)
+                elif source['status'] in [
+                        MergeStatus.OVERWRITTEN.value,
+                        MergeStatus.CREATED.value
+                ]:
+                    if source['scopes'] is None:
+                        continue
+                    max_mod_time = source['scopes']['mod_time']
+                
+                # SKIPPED and SKIPPED_EXPORT_ONCE don't change the mod time
+            if max_mod_time is not None:
+                os.utime(target, (max_mod_time, max_mod_time))
 
 class SystemTemplateException(Exception):
     def __init__(self, errors: List[str] | None=None):
@@ -287,21 +401,21 @@ def walk_system_paths(systems: List[str]) -> Iterable[tuple[Path, Optional[Path]
 
 class System:
     def __init__(
-            self, scope: Dict[str, Any], system_path: Path, group_path: Optional[Path],
-            auto_map: AutoMappingProvider):
+            self, scope: Scope, system_path: Path, group_path: Optional[Path],
+            auto_map: AutoMappingProvider, track_mod_time: bool):
         plugins_path = system_path / '_plugins'
         if plugins_path.exists():
             for plugin_path in plugins_path.rglob("*.py"):
                 if plugin_path.is_dir():
                     continue
-                plugin_scope = load_plugin(plugin_path, system_path)
+                plugin_scope = load_plugin(
+                    plugin_path, system_path, track_mod_time)
                 scope = scope | plugin_scope
         scope_path = system_path / '_scope.json'
         if group_path is not None:
             try:
-                group_scope = load_jsonc(group_path / '_group_scope.json').data
-                if not isinstance(group_scope, dict):
-                    raise Exception("The _group_scope.json must be an object.")
+                group_scope = Scope.load_from_scope_file(
+                    group_path / '_group_scope.json', track_mod_time)
                 scope = scope | group_scope
             except Exception as e:
                 raise SystemTemplateException([
@@ -309,26 +423,32 @@ class System:
                     f"Path: {group_path.as_posix()}",
                     str(e)])
         try:
-            system_scope = load_jsonc(scope_path).data
-            if not isinstance(system_scope, dict):
-                raise Exception("The _scope.json must be an object.")
-            self.scope: Dict[str, Any] = scope | system_scope
+            system_scope = Scope.load_from_scope_file(
+                scope_path, track_mod_time)
+            self.scope: Scope = scope | system_scope
         except Exception as e:
             raise SystemTemplateException([
                 f"Failed to load the _scope.json file due to an error:",
                 f"Path: {scope_path.as_posix()}",
                 str(e)])
+        # In some cases, _map.py can provide additional scope data so its
+        # timestamp has to be tracked
+        map_file_path = system_path / '_map.py'
+        if track_mod_time:
+            system_scope = system_scope | Scope(
+                {}, [map_file_path.as_posix()], map_file_path.stat().st_mtime)
+
         self.system_path: Path = system_path
         self.group_path: Optional[Path] = group_path
         self.file_map: Any = self._init_file_map(
-            system_path / '_map.py')
+            map_file_path)
         self.auto_map: AutoMappingProvider = auto_map
 
     def _init_file_map(self, file_map_path: Path) -> Any:
         try:
             file_map_text = file_map_path.read_text(encoding='utf8')
             with WdSwitch(self.system_path):
-                return eval(file_map_text, copy(self.scope))
+                return eval(file_map_text, copy(self.scope.data))
         except Exception as e:
             raise SystemTemplateException([
                 f"Failed to evaluate {file_map_path.as_posix()} "
@@ -410,7 +530,7 @@ class SystemItem:
 
         self.on_conflict: OnConflictPolicy = self._init_on_conflict(data)
         self.json_template: bool = data.get('json_template', False)
-        self.scope = self.parent.scope | data.get('scope', {})
+        self.scope = self.parent.scope | Scope(data.get('scope', {}), [], None)
         self.subfunctions: bool = data.get(
             # default for .mcfunction is True but for .lang is False
             'subfunctions', self.target_file_type == '.mcfunction')
@@ -627,7 +747,8 @@ class SystemItem:
                 report.is_known_source_target_pair(source_path, self.target)):
             report.append_source(
                 self.target, source_path,
-                MergeStatus.SKIPPED_EXPORT_ONCE)
+                MergeStatus.SKIPPED_EXPORT_ONCE,
+                None)
             return
 
         # READ TARGET DATA AND HANDLE CONFLICTS
@@ -645,17 +766,21 @@ class SystemItem:
             elif self.on_conflict == 'overwrite':
                 print(f"Overwriting {self.target.as_posix()}")
                 report.append_source(
-                    self.target, source_path, MergeStatus.OVERWRITTEN)
+                    self.target, source_path, MergeStatus.OVERWRITTEN,
+                    self.scope.get_with_mod_time_for_reprot(source_path))
                 self.target.unlink()
             elif self.on_conflict == 'skip':
                 print(f"Skipping {self.target.as_posix()}")
                 report.append_source(
-                    self.target, source_path, MergeStatus.SKIPPED)
+                    self.target, source_path, MergeStatus.SKIPPED,
+                    None)
                 return
             elif self.on_conflict == 'merge':
                 try:
                     report.append_source(
-                        self.target, source_path,  MergeStatus.MERGED)
+                        self.target, source_path,  MergeStatus.MERGED,
+                        self.scope.get_with_mod_time_for_reprot(
+                            source_path, self.target))
                     target_data = load_jsonc(self.target).data
                 except Exception as e:
                     raise SystemTemplateException([
@@ -672,7 +797,9 @@ class SystemItem:
                             MergeStatus.APPENDED_END
                             if self.on_conflict == 'append_end'
                             else MergeStatus.APPENDED_START
-                        )
+                        ),
+                        self.scope.get_with_mod_time_for_reprot(
+                            source_path, self.target)
                     )
                     with self.target.open('r', encoding='utf8') as f:
                         target_data = f.read()
@@ -683,7 +810,9 @@ class SystemItem:
                         f"- Error: {str(e)}"])
                 self.target.unlink()
         else:
-            report.append_source(self.target, source_path, MergeStatus.CREATED)
+            report.append_source(
+                self.target, source_path, MergeStatus.CREATED,
+                self.scope.get_with_mod_time_for_reprot(source_path))
         # INSERT SOURCE/GENERATED DATA INTO TARGET
         try:
             self.target.parent.mkdir(parents=True, exist_ok=True)
@@ -701,7 +830,7 @@ class SystemItem:
                 if self.source_file_type == '.py':
                     source_text = source_path.read_text(encoding='utf8')
                     with WdSwitch(self.parent.system_path):
-                        file_json = eval(source_text, self.scope)
+                        file_json = eval(source_text, self.scope.data)
                 elif self.source_file_type in ('.material', '.json'):
                     if needs_parsing:
                         file_json = load_jsonc(source_path).data
@@ -710,7 +839,7 @@ class SystemItem:
                                 file_json, {
                                     "K": JsonTemplateK,
                                     "JoinStr": JsonTemplateJoinStr,
-                                } | self.scope)
+                                } | self.scope.data)
                     else:
                         file_text = source_path.read_text(encoding='utf8')
                 file_json = cast(Dict[str, Any], file_json)  # assertion for mypy
@@ -751,7 +880,7 @@ class SystemItem:
                         code = CodeTree(abs_target)
                         with WdSwitch(self.parent.system_path):
                             code.root.eval_and_dump(
-                                self.scope, abs_target, abs_target)
+                                self.scope.data, abs_target, abs_target)
         except Exception as e:
             raise SystemTemplateException([
                 f'Failed to evaluate file.',
@@ -887,16 +1016,20 @@ def parse_args() -> Tuple[Dict[str, Any], Literal['pack', 'unpack']]:
     return config, args.command
 
 
-def load_plugin(plugin_path: Path, wd_path: Path) -> Dict[str, Any]:
+def load_plugin(plugin_path: Path, wd_path: Path, track_mod_time: bool) -> Scope:
     '''
     Loads a plugin from give file path and returns its scope.
     '''
-    plugin_scope: Dict[str, Any] = {}
+    if track_mod_time:
+        plugin_mod_time = plugin_path.stat().st_mtime
+    else:
+        plugin_mod_time = None
+    plugin_scope: Scope = Scope({}, [plugin_path.as_posix()], plugin_mod_time)
     try:
         plugin_text = plugin_path.read_text()
         with WdSwitch(wd_path):
-            exec(plugin_text, plugin_scope)
-            del plugin_scope['__builtins__']
+            exec(plugin_text, plugin_scope.data)
+            del plugin_scope.data['__builtins__']
     except Exception as e:
         raise SystemTemplateException([
             f'Failed to load global plugin.',
@@ -907,7 +1040,7 @@ def load_plugin(plugin_path: Path, wd_path: Path) -> Dict[str, Any]:
     for reserved_variable in [
             'K', 'JoinStr', 'true', 'false', 'AUTO', 'AUTO_SUBFOLDER',
             'AUTO_FLAT_SUBFOLDER', 'AUTO_FLAT']:
-        if reserved_variable in plugin_scope:
+        if reserved_variable in plugin_scope.data:
             raise SystemTemplateException([
                 'Failed to load plugin.',
                 f'Path: {plugin_path.as_posix()}',
@@ -948,28 +1081,34 @@ def main():
             except Exception:
                 raise SystemTemplateException([f'Failed load the config data'])
 
+    track_mod_time = True  # TODO: Read from config
+
     # Add scope
-    def get_scope() -> Dict[str, Any]:
-        scope = {
-            'true': True, 'false': False,
-            "AUTO": SpecialKeys.AUTO,
-            "AUTO_SUBFOLDER": SpecialKeys.AUTO_SUBFOLDER,
-            "AUTO_FLAT_SUBFOLDER": SpecialKeys.AUTO_FLAT_SUBFOLDER,
-            "AUTO_FLAT": SpecialKeys.AUTO_FLAT}
+    def get_scope() -> Scope:
+        # Default scope
+        scope = Scope(
+            data={
+                'true': True, 'false': False,
+                "AUTO": SpecialKeys.AUTO,
+                "AUTO_SUBFOLDER": SpecialKeys.AUTO_SUBFOLDER,
+                "AUTO_FLAT_SUBFOLDER": SpecialKeys.AUTO_FLAT_SUBFOLDER,
+                "AUTO_FLAT": SpecialKeys.AUTO_FLAT},
+            sources=[],
+            mod_time=None,
+        )
+        # Load global plugins scopes
         plugins_path = DATA_PATH / 'system_template/_plugins'
         for plugin_path in plugins_path.rglob('*.py'):
             if plugin_path.is_dir():
                 continue
             plugin_scope = load_plugin(
-                plugin_path, DATA_PATH / 'system_template')
+                plugin_path, DATA_PATH / 'system_template', track_mod_time)
             scope = scope | plugin_scope
+        # Load the global scope
         scope_path = DATA_PATH / config.get(
             'scope_path', 'system_template/scope.json')
-        local_scope  = load_jsonc(scope_path).data
-        if not isinstance(local_scope, dict):
-            raise SystemTemplateException([
-                "The scope file must be an object."])
-        scope = scope | local_scope
+        global_scope = Scope.load_from_scope_file(scope_path, track_mod_time)
+        scope = scope | global_scope
         return scope
     # Try to load the auto map
     system_patterns = config.get('systems', ['**/*'])
@@ -990,13 +1129,22 @@ def main():
         prioritized_systems = []
 
     # Reused in different modes to get the ayto map
-    def get_auto_map(scope: Dict[str, Any]) -> AutoMappingProvider:
+    def get_auto_map(scope: Scope) -> tuple[AutoMappingProvider, Scope]:
         try:
             auto_map_path = SYSTEM_TEMPLATE_DATA_PATH / "auto_map.json"
+            if track_mod_time:
+                auto_map_mod_time = auto_map_path.stat().st_mtime
+            else:
+                auto_map_mod_time = None
             auto_map_data = load_jsonc(auto_map_path).data
             if not isinstance(auto_map_data, dict):
                 raise SystemTemplateException([
                     "The auto_map.json must be an object."])
+            # Auto map file isn't actually a part of scope, but it affects the
+            # evaluation process, so we have to include its timestamp, in case
+            # the tracking is enabled.
+            scope = scope | Scope(
+                {}, [auto_map_path.as_posix()], auto_map_mod_time)
             auto_map = AutoMappingProvider(
                 JSONWalker(
                     eval_json(
@@ -1004,13 +1152,13 @@ def main():
                         {
                             "K": JsonTemplateK,
                             "JoinStr": JsonTemplateJoinStr,
-                        } | scope
+                        } | scope.data
                     )
                 )
             )
         except FileNotFoundError:
             auto_map = AutoMappingProvider(JSONWalker({}))
-        return auto_map
+        return auto_map, scope
     # Prepare the undo stack (for pack, unpack and undo)
     undo_path = SYSTEM_TEMPLATE_DATA_PATH / '.pack_undo.json'
     op_stack: List[Tuple[str, str]] = []
@@ -1018,25 +1166,29 @@ def main():
         if mode == 'eval':
             scope = get_scope()
             report = Report()
-            auto_map = get_auto_map(scope)
+            auto_map, scope = get_auto_map(scope)
             sorted_system_paths = sorted(
                 walk_system_paths(system_patterns),
                 key=lambda sp: system_paths_sort_key(sp, prioritized_systems),
             )
             for system_path, group_path in sorted_system_paths:
-                system = System(scope, system_path, group_path, auto_map)
+                system = System(
+                    scope, system_path, group_path, auto_map, track_mod_time)
                 rel_sys_path = system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
                 print(f"Generating system: {rel_sys_path}")
                 for system_item in system.walk_system_items():
                     system_item.eval(report)
+            if track_mod_time:
+                report.update_mod_times()
             if log_path is not None:
                 report.dump_report(log_path)
         elif mode == 'pack':
             scope = get_scope()
-            auto_map = get_auto_map(scope)
+            auto_map, scope = get_auto_map(scope)
             for system_path, group_path in walk_system_paths(system_patterns):
-                system = System(scope, system_path, group_path, auto_map)
+                system = System(
+                    scope, system_path, group_path, auto_map, track_mod_time)
                 rel_sys_path = system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
                 print(f"Packing system: {rel_sys_path}")
@@ -1047,9 +1199,10 @@ def main():
                 json.dump(op_stack, f, indent='\t')
         elif mode == 'unpack':
             scope = get_scope()
-            auto_map = get_auto_map(scope)
+            auto_map, scope = get_auto_map(scope)
             for system_path, group_path in walk_system_paths(system_patterns):
-                system = System(scope, system_path, group_path, auto_map)
+                system = System(
+                    scope, system_path, group_path, auto_map, track_mod_time)
                 rel_sys_path = system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
                 print(f"Unpacking system: {rel_sys_path}")
