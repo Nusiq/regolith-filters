@@ -490,7 +490,14 @@ class SystemItem:
                     stem=target_stem
                 )
             case _:
-                target = Path(target_dir)
+                # If "target" property is a string and ends with a slash, then
+                # we treat it as a path to the directory where the file should
+                # be exported and copy its name. Otherwise, we treat it as a
+                # path to the file.
+                if target_stem is None and target_dir.endswith('/'):
+                    target = Path(target_dir) / self.relative_source_path.name
+                else:
+                    target = Path(target_dir)
 
         target_str = target.as_posix()
         if not (

@@ -187,6 +187,30 @@
 			}
 		]
 	},
+	"BP/dir_export/resource_a.json": {
+		"sources": [
+			{
+				"path": "data/system_template/dir_export/resources/resource_a.json",
+				"status": "Created."
+			}
+		]
+	},
+	"BP/dir_export/resource_b.json": {
+		"sources": [
+			{
+				"path": "data/system_template/dir_export/resources/resource_b.json",
+				"status": "Created."
+			}
+		]
+	},
+	"BP/dir_export/resource_c.json": {
+		"sources": [
+			{
+				"path": "data/system_template/dir_export/resources/resource_c.json",
+				"status": "Created."
+			}
+		]
+	},
 	"BP/entities/baby_ellipsis.behavior.json": {
 		"sources": [
 			{
