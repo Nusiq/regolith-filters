@@ -395,6 +395,42 @@
 			}
 		]
 	},
+	"BP/replacements/replace_json.json": {
+		"sources": [
+			{
+				"path": "data/system_template/replacements/replace_json.json",
+				"status": "Created."
+			}
+		]
+	},
+	"BP/replacements/replace_py.json": {
+		"sources": [
+			{
+				"path": "data/system_template/replacements/replace_py.py",
+				"status": "Created."
+			}
+		]
+	},
+	"BP/replacements/replace_mcfunction.mcfunction": {
+		"sources": [
+			{
+				"path": "data/system_template/replacements/replace_mcfunction.mcfunction",
+				"status": "Created."
+			}
+		]
+	},
+	"BP/replacements/replace_txt.txt": {
+		"sources": [
+			{
+				"path": "data/system_template/replacements/replace_txt.txt",
+				"status": "Created."
+			},
+			{
+				"path": "data/system_template/replacements/replace_txt.txt",
+				"status": "Appended content to the end."
+			}
+		]
+	},
 	"BP/functions/unpack.mcfunction": {
 		"sources": [
 			{
