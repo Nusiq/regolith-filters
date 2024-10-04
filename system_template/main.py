@@ -657,6 +657,12 @@ class SystemItem:
                 if self.on_conflict == 'stop':
                     raise SystemTemplateException([
                         f"Target already exists: {self.target.as_posix()}"])
+                elif self.on_conflict == 'skip':
+                    print(f"Skipping {self.target.as_posix()}")
+                    report.append_source(
+                        self.target, source_path,
+                        merge_status or MergeStatus.SKIPPED)
+                    return
                 # Assert that target isn't an existing directory
                 if not self.target.is_file():
                     raise SystemTemplateException([
@@ -668,8 +674,7 @@ class SystemItem:
                 merge_status = MergeStatus.CREATED
 
             # Evaluate based on the on_conflict policy
-
-            if self.on_conflict == 'stop':
+            if self.on_conflict == 'stop':  # Target doesn't exist
                 source_path = cast(
                     TextFilePath | BinaryFilePath | JsonFilePath, source_path)
                 self._eval_create(source_path)
@@ -685,11 +690,13 @@ class SystemItem:
                 report.append_source(
                     self.target, source_path,
                     merge_status or MergeStatus.OVERWRITTEN)
-            elif self.on_conflict == 'skip':
-                print(f"Skipping {self.target.as_posix()}")
+            elif self.on_conflict == 'skip':  # Target doesn't exist
+                source_path = cast(
+                    TextFilePath | BinaryFilePath | JsonFilePath, source_path)
+                self._eval_create(source_path)
                 report.append_source(
                     self.target, source_path,
-                    merge_status or MergeStatus.SKIPPED)
+                    MergeStatus.CREATED)
                 return
             elif self.on_conflict == 'merge':
                 source_path = cast(JsonFilePath, source_path)

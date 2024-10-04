@@ -1,4 +1,11 @@
 # Change log
+## 3.10.0
+### Directory export
+The paths in `target` property in `_map.py` that end with a forward slash (`/`) are now interpreted as the directory paths. Using them, means that the file source file, should be exported to the directory specified in the `target` property. The file name is preserved. This is useful when you want to export multiple files to the same directory using the glob patterns, without using the AUTO mapping.
+
+### The `replacements` property
+Added `replacements` the property to the items in the `_map.py` list. The `replacements` is a dictionary which maps strings that should be replaced (keys) to their new values (values). Using `replacements` combined with `json.dumps()` can be useful for passing the data from scope into JS/TypeScript files. The `json` module has been added to the `_default_plugin.py` for this purpose.
+
 ## 3.9.0
 Added option to specify the priritized systems in the filter settings in the `config.json` file using the `prioritized_systems` property.
 
