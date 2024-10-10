@@ -437,6 +437,20 @@ class SystemItem:
                 "export policies that try to merge the files: "
                 "'append_start', 'append_end' and 'merge'.\n"
                 f"Item: {self.relative_source_path.as_posix()}"])
+        if (
+                self.json_template
+                and self.source_file_type not in ('.json', '.material')):
+            raise SystemTemplateException([
+                "The 'json_template' property can be used only with the "
+                "JSON-like files.\n"
+                f"Item: {self.relative_source_path.as_posix()}"])
+        if (
+                self.subfunctions
+                and self.source_file_type not in ('.mcfunction', '.lang')):
+            raise SystemTemplateException([
+                "The 'subfunctions' property can be used only with the "
+                "MCFUNCTION-like files.\n"
+                f"Item: {self.relative_source_path.as_posix()}"])
 
     def _init_target(self, data: dict[str, Any]) -> Path:
         '''

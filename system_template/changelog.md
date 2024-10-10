@@ -1,4 +1,7 @@
 # Change log
+## 3.10.1
+Added test for correct usage of json_template and subfunction properties in _map.py. Using them incorrectly will now raise an error, instead of silently skipping and exporting the files incorrectly.
+
 ## 3.10.0
 ### Directory export
 The paths in `target` property in `_map.py` that end with a forward slash (`/`) are now interpreted as the directory paths. Using them, means that the file source file, should be exported to the directory specified in the `target` property. The file name is preserved. This is useful when you want to export multiple files to the same directory using the glob patterns, without using the AUTO mapping.
