@@ -827,7 +827,13 @@ class SystemItem:
         '''
         Creates the target file by copying the source file.
         '''
-        if self.json_template or self.source_file_type == '.py':
+        if (
+                self.json_template
+                or (
+                    self.source_file_type == '.py'
+                    and self.target_file_type == '.json'
+                )
+        ):
             self._eval_merge_json(cast(JsonFilePath, source_path))
         elif self.subfunctions:
             self._eval_append(cast(TextFilePath, source_path))
