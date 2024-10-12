@@ -1,4 +1,7 @@
 # Change log
+## 3.10.2
+Fixed exporting .py files to .py targets. System template doesn't try to evaluate these files anymore, just like it used to be before 3.10.0.
+
 ## 3.10.1
 Added test for correct usage of json_template and subfunction properties in _map.py. Using them incorrectly will now raise an error, instead of silently skipping and exporting the files incorrectly.
 
