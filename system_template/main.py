@@ -1089,11 +1089,12 @@ def main():
             scope = scope | plugin_scope
         scope_path = DATA_PATH / config.get(
             'scope_path', 'system_template/scope.json')
+        extra_scope = config.get('scope', {})
         local_scope  = load_jsonc(scope_path).data
         if not isinstance(local_scope, dict):
             raise SystemTemplateException([
                 "The scope file must be an object."])
-        scope = scope | local_scope
+        scope = scope | local_scope | extra_scope
         return scope
     # Try to load the auto map
     system_patterns = config.get('systems', ['**/*'])
