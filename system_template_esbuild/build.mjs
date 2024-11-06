@@ -9,6 +9,7 @@ const defaultSettings = {
 	outfile: "BP/scripts/main.js",
 	external: ["@minecraft/server"],
 	scope_path: null,
+	sourcemap: false,
 };
 
 /**
@@ -42,7 +43,7 @@ if (args !== undefined) {
 }
 
 // Extract the settings and check the types
-let { minify, entryPoint, outfile, external, scope_path } = settings;
+let { minify, entryPoint, outfile, external, scope_path, sourcemap } = settings;
 
 if (typeof minify !== "boolean") {
 	throw new Error("The 'minify' setting must be a boolean");
@@ -64,6 +65,9 @@ if (!Array.isArray(external)) {
 }
 if (scope_path !== null && typeof scope_path !== "string") {
 	throw new Error("The 'scope_path' setting must be a string or null");
+}
+if (typeof sourcemap !== "boolean") {
+	throw new Error("The 'sourcemap' setting must be a boolean");
 }
 
 // Append @minecraft/server to the external array if it's not already there
@@ -91,6 +95,7 @@ build({
 	bundle: true,
 	minify: minify,
 	outfile: outfile,
+	sourcemap: sourcemap,
 }).catch((err) => {
 	console.error(err.message);
 	process.exit(1);
