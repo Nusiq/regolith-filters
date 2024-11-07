@@ -163,6 +163,14 @@
 			}
 		]
 	},
+	"BP/config_scope_test.json": {
+		"sources": [
+			{
+				"path": "data/system_template/config_scope/config_scope_test.json",
+				"status": "Created."
+			}
+		]
+	},
 	"BP/items/item.templ": {
 		"sources": [
 			{

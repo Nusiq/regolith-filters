@@ -1,0 +1,5 @@
+{
+	// Tests using scope defined in the config.json file of the Regolith project
+	"config_scope_test_value": "`config_scope_test_value`",
+	"config_scope_overwritten_value": "`config_scope_overwritten_value`"
+}
