@@ -1,0 +1,4 @@
+{
+	"config_scope_test_value": 42,
+	"config_scope_overwritten_value": 123
+}

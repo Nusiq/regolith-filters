@@ -36,7 +36,11 @@
 							"prioritized_systems": [
 								"prioritized_systems/4_first",
 								"prioritized_systems/3_second"
-							]
+							],
+							"scope": {
+								"config_scope_test_value": 42,
+								"config_scope_overwritten_value": 42
+							}
 						}
 					},
 					{
