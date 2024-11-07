@@ -1,4 +1,7 @@
 # Change log
+## 3.11.0
+Added option to define the scope directly in the Regolith's `config.json` file, in the `filters` list of the profile. The values defined in the `config.json` file scope override the values defined in the scope provided through the file specified in the `scope_path` property.
+
 ## 3.10.2
 Fixed exporting .py files to .py targets. System template doesn't try to evaluate these files anymore, just like it used to be before 3.10.0.
 
