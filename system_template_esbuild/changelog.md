@@ -1,4 +1,7 @@
 # Change log
+## 2.1.0
+Added the `sourcemap` option (boolean) for the filter, that maps directly to the `sourcemap` option in the esbuild configuration.
+
 ## 2.0.3
 Internal change - updated the script from the CommonJS module to ES module.
 
