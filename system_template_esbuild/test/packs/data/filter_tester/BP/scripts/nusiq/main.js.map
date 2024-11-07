@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../../data/system_template_esbuild/subscripts/script_example_1.ts", "../../../data/system_template_esbuild/subscripts/script_example_2.ts"],
+  "sourcesContent": ["import { system, world } from \"@minecraft/server\";\r\n\r\nworld.sendMessage(\"Hello from script_example_1\");\r\n", "import { system, world } from \"@minecraft/server\";\r\n\r\nworld.sendMessage(\"Hello from script_example_2\");\r\n"],
+  "mappings": ";AAAA,SAAiB,aAAa;AAE9B,MAAM,YAAY,6BAA6B;;;ACF/C,SAAiB,SAAAA,cAAa;AAE9BA,OAAM,YAAY,6BAA6B;",
+  "names": ["world"]
+}

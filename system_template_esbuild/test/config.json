@@ -44,7 +44,8 @@
 							"minify": false,
 							// "entryPoint": "data/system_template_esbuild/main.ts",
 							// "external": ["@minecraft/server"],
-							"outfile": "`BP/scripts/{namespace}/main.js`"
+							"outfile": "`BP/scripts/{namespace}/main.js`",
+							"sourcemap": true
 						}
 					},
 					{
