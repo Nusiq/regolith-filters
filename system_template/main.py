@@ -696,8 +696,9 @@ class SystemItem:
                     self.target, source_path,
                     MergeStatus.CREATED)
             elif self.on_conflict == 'overwrite':
-                print(f"Overwriting {self.target.as_posix()}")
-                self.target.unlink()
+                if self.target.exists():
+                    print(f"Overwriting {self.target.as_posix()}")
+                    self.target.unlink()
                 source_path = cast(
                     TextFilePath | BinaryFilePath | JsonFilePath, source_path)
                 self._eval_create(source_path)

@@ -1,4 +1,7 @@
 # Change log
+## 3.11.1
+Fixed the crashes from the `overwrite` `on_conflict` policy.
+
 ## 3.11.0
 Added option to define the scope directly in the Regolith's `config.json` file, in the `filters` list of the profile. The values defined in the `config.json` file scope override the values defined in the scope provided through the file specified in the `scope_path` property.
 

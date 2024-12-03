@@ -379,6 +379,22 @@
 			}
 		]
 	},
+	"BP/entities/on_conflict_overwrite.behavior.json": {
+		"sources": [
+			{
+				"path": "data/system_template/on_conflict_overwrite/on_conflict_overwrite.behavior.json",
+				"status": "Created."
+			},
+			{
+				"path": "data/system_template/on_conflict_overwrite/on_conflict_overwrite.behavior.json",
+				"status": "Overwritten."
+			},
+			{
+				"path": "data/system_template/on_conflict_overwrite/on_conflict_overwrite.behavior.json",
+				"status": "Overwritten."
+			}
+		]
+	},
 	"RP/entity/aaa.entity.json": {
 		"sources": [
 			{
