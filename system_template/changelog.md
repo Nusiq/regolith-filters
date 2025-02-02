@@ -1,4 +1,13 @@
 # Change log
+## 3.11.2
+Updated the subfunctions module to be at least 1.2.3. It fixes a bug where
+subfunctions could overwrite files using `definefunction`, `function`,
+`schedule` and `functiontree`.
+
+The bugfix in the `regolith-subfunctions` module will also affect new
+installations of the filter, even if the version of the filter is not updated
+due to the dependency versioning (previously ~=1.2).
+
 ## 3.11.1
 Fixed the crashes from the `overwrite` `on_conflict` policy.
 
