@@ -18,6 +18,9 @@ import argparse
 from typing import TypedDict, Literal, NewType
 import io
 import os
+import uuid
+import string
+import re
 
 # Overwrite the functions path of the regolith_subfunctions to be an absolute
 # path. This shoudln't break anything, but it will allow us to set pass
@@ -86,6 +89,24 @@ OnConflictPolicy = Literal[
     'append_start',
     'append_end'
 ]
+
+binary_types = set([
+    # Sounds
+    ".fsb",
+    ".mp4",
+    ".ogg",
+    ".wav",
+    # Textures
+    ".tga",
+    ".jpeg",
+    ".jpg",
+    ".png",
+    # Structures
+    ".mcstructure",
+    # Other
+    ".blend",
+    ".bbmodel",
+])
 
 class Source(TypedDict):
     path: str
@@ -298,7 +319,7 @@ def walk_system_paths(systems: List[str]) -> Iterable[tuple[Path, Optional[Path]
 class System:
     def __init__(
             self, scope: Dict[str, Any], system_path: Path, group_path: Optional[Path],
-            auto_map: AutoMappingProvider):
+            auto_map: AutoMappingProvider, namespace_settings: NamespaceSettings | None):
         plugins_path = system_path / '_plugins'
         if plugins_path.exists():
             for plugin_path in plugins_path.rglob("*.py"):
@@ -333,6 +354,7 @@ class System:
         self.file_map: Any = self._init_file_map(
             system_path / '_map.py')
         self.auto_map: AutoMappingProvider = auto_map
+        self.namespace_settings = namespace_settings
 
     def _init_file_map(self, file_map_path: Path) -> Any:
         try:
@@ -760,7 +782,7 @@ class SystemItem:
         else:
             target_data = {}
         # Load the source with the replacements
-        source_text = source_path.read_text(encoding='utf8')
+        source_text = self._load_file_with_replacements(source_path)
         # Load the source as JSON
         source_json: Any = None
         # Load the file as JSON if necessary
@@ -783,7 +805,12 @@ class SystemItem:
         # Save the file
         self.target.parent.mkdir(parents=True, exist_ok=True)
         with self.target.open('w') as f:
-            json.dump(source_json, f, cls=CompactEncoder)
+            if self.parent.namespace_settings is not None:
+                text = self.parent.namespace_settings.replace_namespaces(
+                    json.dumps(source_json, cls=CompactEncoder))
+                f.write(text)
+            else:
+                json.dump(source_json, f, cls=CompactEncoder)
 
     def _eval_append(
             self, source_path: TextFilePath, on_start: bool=True) -> None:
@@ -811,16 +838,23 @@ class SystemItem:
 
         # Save the file
         self.target.parent.mkdir(parents=True, exist_ok=True)
-        self.target.write_text(source_text, encoding='utf8')
-        
+
         # Evaluate subfunctions if necessary
         subfunction_types = ['.mcfunction', '.lang']
         if self.target_file_type in subfunction_types and self.subfunctions:
+            self.target.write_text(source_text, encoding='utf8')
             abs_target = self.target.absolute()
             code = CodeTree(abs_target)
             with WdSwitch(self.parent.system_path):
+                # Subfunctiosn apply the namespace_settings.replace_namespaces
+                # internally, so we don't need to do it here.
                 code.root.eval_and_dump(
                     self.scope, abs_target, abs_target)
+        else:
+            if self.parent.namespace_settings is not None:
+                source_text = self.parent.namespace_settings.replace_namespaces(
+                    source_text)
+            self.target.write_text(source_text, encoding='utf8')
 
     def _eval_create(
             self,
@@ -842,12 +876,30 @@ class SystemItem:
             source_path = cast(TextFilePath, source_path)
             source_text = self._load_file_with_replacements(source_path)
             self.target.parent.mkdir(parents=True, exist_ok=True)
+            if self.parent.namespace_settings is not None:
+                source_text = self.parent.namespace_settings.replace_namespaces(
+                    source_text)
             self.target.write_text(source_text, encoding='utf8')
         else:
             self.target.parent.mkdir(parents=True, exist_ok=True)
+            if (
+                    self.target.suffix not in binary_types
+                    and self.parent.namespace_settings is not None):
+                # Potentially a text file, maybe replace namespace
+                try:
+                        source_text = self._load_file_with_replacements(
+                            source_path)  # type: ignore
+                        source_text = self.parent.namespace_settings.replace_namespaces(
+                            source_text)
+                        self.target.write_text(source_text, encoding='utf8')
+                        return  # It was a text file
+                except UnicodeDecodeError:
+                    pass
+            # Binary file
             shutil.copy(source_path, self.target)
 
-    def _load_file_with_replacements(self, source_path: TextFilePath) -> str:
+    def _load_file_with_replacements(
+            self, source_path: TextFilePath | JsonFilePath) -> str:
         '''
         Applies provided replacements to the source text.
         '''
@@ -1057,6 +1109,98 @@ def system_paths_sort_key(
         index = len(prioritized_systems)
     return index, system_path
 
+class NamespaceSettings:
+    '''
+    Implements the text replacements for the namespacing feature. There are two
+    ways of namespacing, with or without keeping the "hook" part of the
+    namespace. The namespace replacement are triggered by following patterns:
+    f"{hook}/", f"{hook}_", f"{hook}:" and f"{hook}".
+
+    If keep_hook=True, then the hook is kept in the namespace, otherwise it's
+    completely replaced with the target. In the first case, the new namespaces
+    are build using following rules:
+    Let's assume that hook="nusiq" and target="xyz".
+    - "nusiq_" -> "nusiq_xyz_"
+    - "nusiq:" -> "nusiq_xyz:"
+    - "nusiq." -> "nusiq_xyz."
+    - "nusiq/" -> "nusiq/xyz/" -- note that unlike other cases this one uses
+      '/' instead of '_'
+
+    If keep_hook=False, then it's basically a simple search and replace.
+    '''
+    _allowed_characters = set(string.ascii_letters + string.digits + '_')
+
+    def __init__(self, namespace_config: dict[Any, Any]):
+        if not isinstance(namespace_config, dict):  # type: ignore
+            raise SystemTemplateException([
+                "The 'namespace' property must be an object."])
+        if 'hook' not in namespace_config:
+            raise SystemTemplateException([
+                "The 'namespace' object must have a 'hook' property."])
+        if 'target' not in namespace_config:
+            raise SystemTemplateException([
+                "The 'namespace' object must have a 'target' property."])
+        namespace_hook = namespace_config['hook']
+        namespace_target = namespace_config['target']
+        if not isinstance(namespace_hook, str):
+            raise SystemTemplateException([
+                "The 'hook' property of the namespace must be a string."])
+        if not isinstance(namespace_target, str):
+            raise SystemTemplateException([
+                "The 'target' property of the namespace must be a string."])
+        keep_hook = namespace_config.get('keep_hook', False)
+        if not isinstance(keep_hook, bool):
+            raise SystemTemplateException([
+                "The 'keep_hook' property of the namespace must be a "
+                "boolean."])
+        
+        illegal_characters = set(namespace_hook) - self._allowed_characters
+        if len(illegal_characters) != 0:
+            raise SystemTemplateException([
+                "The 'hook' property of the namespace contains illegal "
+                "characters. Only letters, digits and underscores are allowed.",
+                f"Illegal characters: {', '.join(illegal_characters)}"])
+        illegal_characters = set(namespace_target) - self._allowed_characters
+        if len(illegal_characters) != 0:
+            raise SystemTemplateException([
+                "The 'target' property of the namespace contains illegal "
+                "characters. Only letters, digits and underscores are allowed.",
+                f"Illegal characters: {', '.join(illegal_characters)}"])
+
+        self.hook: str = namespace_hook
+        self.target: str = namespace_target
+        self.keep_hook: bool = keep_hook
+
+        # Namespaces can be like: "nusiq/", "nusiq_", "nusiq:", "nusiq."
+        # The '/' is a special case because if keep_hook=True, then the
+        # hook and target are separated with '/', otherwise the're
+        # separated by '_'.
+        self.pattern = re.compile(rf'({self.hook})([_:\./])')
+        if self.keep_hook:
+            # Example: hook='nusiq'; target='xyz'
+            # 1) 'nusiq/' -> 'nusiq/xyz/' - Note that this one uses '/' not '_'
+            # 2) 'nusiq_' -> 'nusiq_xyz_'
+            # 3) 'nusiq:' -> 'nusiq_xyz:'
+            # 4) 'nusiq.' -> 'nusiq_xyz.'
+            def f(match: re.Match[str]) -> str:
+                separator: str = match.group(2)
+                return (
+                    f'{self.hook}{"/" if separator == "/" else "_"}'
+                    f'{self.target}{separator}'
+                )
+            self.replace = f
+        else:
+            # Example: hook='nusiq'; target='xyz'
+            # 1) 'nusiq/' -> 'xyz/'
+            # 2) 'nusiq_' -> 'xyz_'
+            # 3) 'nusiq:' -> 'xyz:'
+            # 4) 'nusiq.' -> 'xyz.'
+            self.replace = rf'{self.target}\2'
+
+    def replace_namespaces(self, content: str) -> str:
+        return self.pattern.sub(self.replace, content)
+
+
 def main():
     mode = 'eval'
     config = {}
@@ -1115,7 +1259,31 @@ def main():
     else:
         prioritized_systems = []
 
-    # Reused in different modes to get the ayto map
+    # Get namespace settings
+    namespace_settings: NamespaceSettings | None = None
+    if 'namespace' in config:
+        # Try to create the namespace settings object
+        namespace_settings = NamespaceSettings(config['namespace'])
+        tmp_name = f'#{uuid.uuid4().hex}#'
+        if namespace_settings.keep_hook:
+            namespaced_function_prefix = (
+                f'{namespace_settings.hook}/{namespace_settings.target}/')
+        else:
+            namespaced_function_prefix = f'{namespace_settings.target}/'
+        regolith_subfunctions.set_function_name_transform(
+            # Replace the namespaced functions namespaces with the temporary
+            # name.
+            lambda name: name.replace(namespaced_function_prefix, tmp_name)
+        )
+        def func(content: str) -> str:
+            # Replace the temporary name back to the original namespace and
+            # then apply the namespace_settings replacement.
+            content = namespace_settings.replace_namespaces(content)
+            content = content.replace(tmp_name, namespaced_function_prefix)
+            return content
+        regolith_subfunctions.set_file_content_transform(func)
+
+    # Reused in different modes to get the auto map
     def get_auto_map(scope: Dict[str, Any]) -> AutoMappingProvider:
         try:
             auto_map_path = SYSTEM_TEMPLATE_DATA_PATH / "auto_map.json"
@@ -1123,6 +1291,13 @@ def main():
             if not isinstance(auto_map_data, dict):
                 raise SystemTemplateException([
                     "The auto_map.json must be an object."])
+            namespace_dict: dict[str, Any] = {} if namespace_settings is None else {
+                "__namespace__": {
+                    "hook": namespace_settings.hook,
+                    "target": namespace_settings.target,
+                    "keep_hook": namespace_settings.keep_hook
+                }
+            }
             auto_map = AutoMappingProvider(
                 JSONWalker(
                     eval_json(
@@ -1130,7 +1305,7 @@ def main():
                         {
                             "K": JsonTemplateK,
                             "JoinStr": JsonTemplateJoinStr,
-                        } | scope
+                        } | scope | namespace_dict # type: ignore
                     )
                 )
             )
@@ -1150,7 +1325,7 @@ def main():
                 key=lambda sp: system_paths_sort_key(sp, prioritized_systems),
             )
             for system_path, group_path in sorted_system_paths:
-                system = System(scope, system_path, group_path, auto_map)
+                system = System(scope, system_path, group_path, auto_map, namespace_settings)
                 rel_sys_path = system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
                 print(f"Generating system: {rel_sys_path}")
@@ -1162,7 +1337,7 @@ def main():
             scope = get_scope()
             auto_map = get_auto_map(scope)
             for system_path, group_path in walk_system_paths(system_patterns):
-                system = System(scope, system_path, group_path, auto_map)
+                system = System(scope, system_path, group_path, auto_map, namespace_settings)
                 rel_sys_path = system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
                 print(f"Packing system: {rel_sys_path}")
@@ -1175,7 +1350,7 @@ def main():
             scope = get_scope()
             auto_map = get_auto_map(scope)
             for system_path, group_path in walk_system_paths(system_patterns):
-                system = System(scope, system_path, group_path, auto_map)
+                system = System(scope, system_path, group_path, auto_map, namespace_settings)
                 rel_sys_path = system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
                 print(f"Unpacking system: {rel_sys_path}")

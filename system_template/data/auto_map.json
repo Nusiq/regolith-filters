@@ -15,6 +15,7 @@
 	},
 	".mcfunction": "BP/functions",
 	".bp_item.json": "BP/items",
+	".item.json": "BP/items",
 	".loot.json": "BP/loot_tables",
 	".recipe.json": "BP/recipes",
 	".spawn_rule.json": "BP/spawn_rules",
@@ -137,6 +138,7 @@
 	"_item.png": "RP/textures/items",
 	"_entity.png": "RP/textures/entity",
 	"_particle.png": "RP/textures/particle",
+	"_ui.png": "`f'RP/textures/{path_namespace}/ui'`",
 	".attachable.tga": {
 		"target": "RP/textures/attachables",
 		"replace_extension": ".tga"
@@ -175,6 +177,10 @@
 	},
 	".particle.png": {
 		"target": "RP/textures/particle",
+		"replace_extension": ".png"
+	},
+	".ui.png": {
+		"target": "`f'RP/textures/ui'`",
 		"replace_extension": ".png"
 	},
 	".js": "data/system_template_esbuild",

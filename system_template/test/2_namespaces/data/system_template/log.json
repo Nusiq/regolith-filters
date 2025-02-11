@@ -1,0 +1,34 @@
+{
+	"BP/entities/namespaced_entity.behavior.json": {
+		"sources": [
+			{
+				"path": "data/system_template/namespace/namespaced_entity.behavior.json",
+				"status": "Created."
+			}
+		]
+	},
+	"BP/entities/namespaced_entity_with_scope.behavior.json": {
+		"sources": [
+			{
+				"path": "data/system_template/namespace/namespaced_entity_with_scope.behavior.json",
+				"status": "Created."
+			}
+		]
+	},
+	"BP/functions/nusiq/xyz/namespaced_function.mcfunction": {
+		"sources": [
+			{
+				"path": "data/system_template/namespace/namespaced_function.mcfunction",
+				"status": "Created."
+			}
+		]
+	},
+	"RP/textures/nusiq/xyz/entity/namespaced_image.png": {
+		"sources": [
+			{
+				"path": "data/system_template/namespace/namespaced_image.entity.png",
+				"status": "Created."
+			}
+		]
+	}
+}

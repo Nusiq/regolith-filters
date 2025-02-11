@@ -371,14 +371,6 @@
 			}
 		]
 	},
-	"BP/entities/nusiq/namespaced_entity.behavior.json": {
-		"sources": [
-			{
-				"path": "data/system_template/namespaced_auto_map/namespaced_entity.namespaced.behavior.json",
-				"status": "Created."
-			}
-		]
-	},
 	"BP/entities/on_conflict_overwrite.behavior.json": {
 		"sources": [
 			{

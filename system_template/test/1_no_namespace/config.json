@@ -14,7 +14,7 @@
 			},
 			"system_template": {
 				"runWith": "python",
-				"script": "../main.py"
+				"script": "../../main.py"
 			},
 			"check_data_export": {
 				"runWith": "python",

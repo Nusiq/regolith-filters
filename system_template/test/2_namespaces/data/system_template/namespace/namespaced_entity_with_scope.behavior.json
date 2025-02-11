@@ -2,11 +2,16 @@
 	"format_version": "1.16.0",
 	"minecraft:entity": {
 		"description": {
-			"identifier": "nusiq:namespaced_entity",
+			"identifier": "nusiq:namespaced_entity_with_scope",
 			"is_spawnable": true,
 			"is_summonable": true,
 			"is_experimental": false
 		},
-		"components": {}
+		"components": {
+			"minecraft:health": {
+				"value": "`health`",
+				"max": "`health`"
+			}
+		}
 	}
 }
