@@ -1,0 +1,2 @@
+execute if score @s scrB matches 0..1 run function nusiq/xyz/namespaced_function/func_b/functree_a_2_2/functree_b_0_1
+execute if score @s scrB matches 2..3 run function nusiq/xyz/namespaced_function/func_b/functree_a_2_2/functree_b_2_3
