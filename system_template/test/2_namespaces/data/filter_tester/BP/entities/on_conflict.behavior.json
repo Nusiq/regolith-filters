@@ -1,0 +1,24 @@
+{
+	"format_version": "1.16.0",
+	"minecraft:entity": {
+		"description": {
+			"identifier": "nusiq_xyz:on_conflict",
+			"is_spawnable": true,
+			"is_summonable": true,
+			"is_experimental": false
+		},
+		"components": {},
+		"events": {
+			"nusiq_xyz:my_event_0": {},
+			"nusiq_xyz:my_event_1": {},
+			"nusiq_xyz:my_event_2": {},
+			"nusiq_xyz:my_event_3": {},
+			"nusiq_xyz:my_event_4": {},
+			"nusiq_xyz:my_event_5": {},
+			"nusiq_xyz:my_event_6": {},
+			"nusiq_xyz:my_event_7": {},
+			"nusiq_xyz:my_event_8": {},
+			"nusiq_xyz:my_event_9": {}
+		}
+	}
+}

@@ -30,5 +30,137 @@
 				"status": "Created."
 			}
 		]
+	},
+	"BP/on_conflict.txt": {
+		"sources": [
+			{
+				"path": "data/system_template/on_conflict/on_conflict.txt",
+				"status": "Created."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.txt",
+				"status": "Inserted content at the start."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.txt",
+				"status": "Inserted content at the start."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.txt",
+				"status": "Inserted content at the start."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.txt",
+				"status": "Inserted content at the start."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.txt",
+				"status": "Inserted content at the start."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.txt",
+				"status": "Inserted content at the start."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.txt",
+				"status": "Inserted content at the start."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.txt",
+				"status": "Inserted content at the start."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.txt",
+				"status": "Inserted content at the start."
+			}
+		]
+	},
+	"BP/functions/nusiq/xyz/on_conflict.mcfunction": {
+		"sources": [
+			{
+				"path": "data/system_template/on_conflict/on_conflict.mcfunction",
+				"status": "Created."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.mcfunction",
+				"status": "Appended content to the end."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.mcfunction",
+				"status": "Appended content to the end."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.mcfunction",
+				"status": "Appended content to the end."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.mcfunction",
+				"status": "Appended content to the end."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.mcfunction",
+				"status": "Appended content to the end."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.mcfunction",
+				"status": "Appended content to the end."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.mcfunction",
+				"status": "Appended content to the end."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.mcfunction",
+				"status": "Appended content to the end."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.mcfunction",
+				"status": "Appended content to the end."
+			}
+		]
+	},
+	"BP/entities/on_conflict.behavior.json": {
+		"sources": [
+			{
+				"path": "data/system_template/on_conflict/on_conflict.behavior.json",
+				"status": "Created."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.behavior.json",
+				"status": "Merged."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.behavior.json",
+				"status": "Merged."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.behavior.json",
+				"status": "Merged."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.behavior.json",
+				"status": "Merged."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.behavior.json",
+				"status": "Merged."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.behavior.json",
+				"status": "Merged."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.behavior.json",
+				"status": "Merged."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.behavior.json",
+				"status": "Merged."
+			},
+			{
+				"path": "data/system_template/on_conflict/on_conflict.behavior.json",
+				"status": "Merged."
+			}
+		]
 	}
 }

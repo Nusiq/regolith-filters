@@ -18,7 +18,6 @@ import argparse
 from typing import TypedDict, Literal, NewType
 import io
 import os
-import uuid
 import string
 import re
 
@@ -805,12 +804,7 @@ class SystemItem:
         # Save the file
         self.target.parent.mkdir(parents=True, exist_ok=True)
         with self.target.open('w') as f:
-            if self.parent.namespace_settings is not None:
-                text = self.parent.namespace_settings.replace_namespaces(
-                    json.dumps(source_json, cls=CompactEncoder))
-                f.write(text)
-            else:
-                json.dump(source_json, f, cls=CompactEncoder)
+            json.dump(source_json, f, cls=CompactEncoder)
 
     def _eval_append(
             self, source_path: TextFilePath, on_start: bool=True) -> None:
@@ -838,23 +832,16 @@ class SystemItem:
 
         # Save the file
         self.target.parent.mkdir(parents=True, exist_ok=True)
-
+        self.target.write_text(source_text, encoding='utf8')
+        
         # Evaluate subfunctions if necessary
         subfunction_types = ['.mcfunction', '.lang']
         if self.target_file_type in subfunction_types and self.subfunctions:
-            self.target.write_text(source_text, encoding='utf8')
             abs_target = self.target.absolute()
             code = CodeTree(abs_target)
             with WdSwitch(self.parent.system_path):
-                # Subfunctiosn apply the namespace_settings.replace_namespaces
-                # internally, so we don't need to do it here.
                 code.root.eval_and_dump(
                     self.scope, abs_target, abs_target)
-        else:
-            if self.parent.namespace_settings is not None:
-                source_text = self.parent.namespace_settings.replace_namespaces(
-                    source_text)
-            self.target.write_text(source_text, encoding='utf8')
 
     def _eval_create(
             self,
@@ -876,26 +863,22 @@ class SystemItem:
             source_path = cast(TextFilePath, source_path)
             source_text = self._load_file_with_replacements(source_path)
             self.target.parent.mkdir(parents=True, exist_ok=True)
-            if self.parent.namespace_settings is not None:
-                source_text = self.parent.namespace_settings.replace_namespaces(
-                    source_text)
             self.target.write_text(source_text, encoding='utf8')
         else:
             self.target.parent.mkdir(parents=True, exist_ok=True)
             if (
-                    self.target.suffix not in binary_types
-                    and self.parent.namespace_settings is not None):
-                # Potentially a text file, maybe replace namespace
+                self.target_file_type not in binary_types
+                and self.parent.namespace_settings is not None
+            ):
+                # Potentially a text file, maybe apply replacements
                 try:
-                        source_text = self._load_file_with_replacements(
+                    source_text = self._load_file_with_replacements(
                             source_path)  # type: ignore
-                        source_text = self.parent.namespace_settings.replace_namespaces(
-                            source_text)
-                        self.target.write_text(source_text, encoding='utf8')
-                        return  # It was a text file
-                except UnicodeDecodeError:
+                    self.target.write_text(source_text, encoding='utf8')
+                    return  # It was a text file
+                except SystemTemplateException:  # We don't care not a text file
                     pass
-            # Binary file
+            # Binary file, just copy it
             shutil.copy(source_path, self.target)
 
     def _load_file_with_replacements(
@@ -912,6 +895,9 @@ class SystemItem:
         if self.replacements is not None:
             for key, value in self.replacements.items():
                 source_text = source_text.replace(key, value)
+        if self.parent.namespace_settings is not None:
+            source_text = self.parent.namespace_settings.replace_namespaces(
+                source_text)
         return source_text
 
     def _get_source_path(self) -> Path:
@@ -1264,24 +1250,6 @@ def main():
     if 'namespace' in config:
         # Try to create the namespace settings object
         namespace_settings = NamespaceSettings(config['namespace'])
-        tmp_name = f'#{uuid.uuid4().hex}#'
-        if namespace_settings.keep_hook:
-            namespaced_function_prefix = (
-                f'{namespace_settings.hook}/{namespace_settings.target}/')
-        else:
-            namespaced_function_prefix = f'{namespace_settings.target}/'
-        regolith_subfunctions.set_function_name_transform(
-            # Replace the namespaced functions namespaces with the temporary
-            # name.
-            lambda name: name.replace(namespaced_function_prefix, tmp_name)
-        )
-        def func(content: str) -> str:
-            # Replace the temporary name back to the original namespace and
-            # then apply the namespace_settings replacement.
-            content = namespace_settings.replace_namespaces(content)
-            content = content.replace(tmp_name, namespaced_function_prefix)
-            return content
-        regolith_subfunctions.set_file_content_transform(func)
 
     # Reused in different modes to get the auto map
     def get_auto_map(scope: Dict[str, Any]) -> AutoMappingProvider:
