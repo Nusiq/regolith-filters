@@ -1,4 +1,7 @@
 # Changelog
+## 2.3.2
+More strict `requirements.txt` file. No changes in the code.
+
 ## 2.3.1
 Updated the `regolith-json-template` library to version 1.3.1.
 

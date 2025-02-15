@@ -1,4 +1,7 @@
 # Changelog
+## 2.1.2
+More strict `requirements.txt` file. No changes in the code.
+
 ## 2.1.1
 Updated the subfunctions module to be at least 1.2.3. It fixes a bug where
 subfunctions could overwrite files using `definefunction`, `function`,

@@ -138,7 +138,7 @@
 	"_item.png": "RP/textures/items",
 	"_entity.png": "RP/textures/entity",
 	"_particle.png": "RP/textures/particle",
-	"_ui.png": "`f'RP/textures/{path_namespace}/ui'`",
+	"_ui.png": "RP/textures/ui",
 	".attachable.tga": {
 		"target": "RP/textures/attachables",
 		"replace_extension": ".tga"
