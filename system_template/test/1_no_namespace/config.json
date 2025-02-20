@@ -37,6 +37,11 @@
 								"prioritized_systems/4_first",
 								"prioritized_systems/3_second"
 							],
+							"replacements": {
+								"@global_replacement_1": "replaced_global_1",
+								"@global_replacement_2": "replaced_global_2",
+								"@global_replacement_3": "replaced_global_3"
+							},
 							"scope": {
 								"config_scope_test_value": 42,
 								"config_scope_overwritten_value": 42

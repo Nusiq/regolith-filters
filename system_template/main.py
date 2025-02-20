@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from typing import (
-    Dict, List, Iterable, Literal, Tuple, Any, Optional, cast, TypeGuard)
+    Dict, List, Iterable, Literal, Tuple, Any, Optional, cast, TypeGuard,
+    TypeVar, Type)
 import json
 import merge
 import sys
@@ -36,6 +37,23 @@ JsonFilePath = NewType('JsonFilePath', Path)
 
 '''Used to mark paths to text that can be read with read_text as utf8'''
 TextFilePath = NewType('TextFilePath', Path)
+
+K = TypeVar('K')
+V = TypeVar('V')
+
+def is_uniform_types_dict(
+        value: Any,
+        k_type: Type[K], v_type: Type[V]) -> TypeGuard[Dict[K, V]]:
+    '''
+    Returns True if the value is a dictionary with keys of type k_type and
+    values of type v_type. Returns False otherwise.
+    '''
+    if not isinstance(value, dict):
+        return False
+    for key, val in value.items():  # type: ignore
+        if not isinstance(key, k_type) or not isinstance(val, v_type):
+            return False
+    return True
 
 class WdSwitch:
     '''
@@ -318,7 +336,8 @@ def walk_system_paths(systems: List[str]) -> Iterable[tuple[Path, Optional[Path]
 class System:
     def __init__(
             self, scope: Dict[str, Any], system_path: Path, group_path: Optional[Path],
-            auto_map: AutoMappingProvider, namespace_settings: NamespaceSettings | None):
+            auto_map: AutoMappingProvider, namespace_settings: NamespaceSettings | None,
+            global_replacements: dict[str, str] | None):
         plugins_path = system_path / '_plugins'
         if plugins_path.exists():
             for plugin_path in plugins_path.rglob("*.py"):
@@ -354,6 +373,7 @@ class System:
             system_path / '_map.py')
         self.auto_map: AutoMappingProvider = auto_map
         self.namespace_settings = namespace_settings
+        self.global_replacements = global_replacements
 
     def _init_file_map(self, file_map_path: Path) -> Any:
         try:
@@ -655,19 +675,14 @@ class SystemItem:
         reading it from the data or by inserting the default value. Validates
         the types of the replacements.
         '''
-        replacements: dict[Any, Any] | None = data.get('replacements', None)
+        replacements: dict[str, str] | None = data.get('replacements', None)
         if replacements is not None:
-            if not isinstance(replacements, dict):
+            if not is_uniform_types_dict(replacements, str, str):
                 raise SystemTemplateException([
-                    "The 'replacements' property must be an object.",
+                    "The 'replacements' property must be an object with "
+                    "string keys and string values.",
                     f"Item: {self.relative_source_path.as_posix()}"])
-            for key, value in replacements.items():  # type: ignore
-                if not isinstance(key, str) or not isinstance(value, str):
-                    raise SystemTemplateException([
-                        "The 'replacements' property must be an object with "
-                        "string keys and string values.",
-                        f"Item: {self.relative_source_path.as_posix()}"])
-        return replacements  # type: ignore
+        return replacements
 
     def eval(self, report: Report) -> None:
         '''
@@ -849,6 +864,7 @@ class SystemItem:
         '''
         Creates the target file by copying the source file.
         '''
+        print(source_path.as_posix())
         if (
                 self.json_template
                 or (
@@ -868,7 +884,10 @@ class SystemItem:
             self.target.parent.mkdir(parents=True, exist_ok=True)
             if (
                 self.target_file_type not in binary_types
-                and self.parent.namespace_settings is not None
+                and (
+                    self.parent.namespace_settings is not None
+                    or self.parent.global_replacements is not None
+                )
             ):
                 # Potentially a text file, maybe apply replacements
                 try:
@@ -892,8 +911,16 @@ class SystemItem:
             raise SystemTemplateException([
                 "Failed to read source file for text replacements. ",
                 f"Is this a text file?: {source_path.as_posix()}"])
-        if self.replacements is not None:
-            for key, value in self.replacements.items():
+        # Combine replacements with global replacements if they exist
+        replacements = self.replacements
+        if self.parent.global_replacements is not None:
+            if replacements is None:
+                replacements = self.parent.global_replacements
+            else:
+                # Local replacements have priority
+                replacements = self.parent.global_replacements | replacements
+        if replacements is not None:
+            for key, value in replacements.items():
                 source_text = source_text.replace(key, value)
         if self.parent.namespace_settings is not None:
             source_text = self.parent.namespace_settings.replace_namespaces(
@@ -1187,6 +1214,63 @@ class NamespaceSettings:
         return self.pattern.sub(self.replace, content)
 
 
+# Reused in different modes to get the auto map
+def get_auto_map(
+        scope: Dict[str, Any],
+        namespace_settings: NamespaceSettings | None) -> AutoMappingProvider:
+    try:
+        auto_map_path = SYSTEM_TEMPLATE_DATA_PATH / "auto_map.json"
+        auto_map_data = load_jsonc(auto_map_path).data
+        if not isinstance(auto_map_data, dict):
+            raise SystemTemplateException([
+                "The auto_map.json must be an object."])
+        namespace_dict: dict[str, Any] = {} if namespace_settings is None else {
+            "__namespace__": {
+                "hook": namespace_settings.hook,
+                "target": namespace_settings.target,
+                "keep_hook": namespace_settings.keep_hook
+            }
+        }
+        auto_map = AutoMappingProvider(
+            JSONWalker(
+                eval_json(
+                    auto_map_data,
+                    {
+                        "K": JsonTemplateK,
+                        "JoinStr": JsonTemplateJoinStr,
+                    } | scope | namespace_dict # type: ignore
+                )
+            )
+        )
+    except FileNotFoundError:
+        auto_map = AutoMappingProvider(JSONWalker({}))
+    return auto_map
+
+# Resued in main to get scope from the config
+def get_scope(config: dict[str, Any]) -> Dict[str, Any]:
+    scope: dict[str, Any] = {
+        'true': True, 'false': False,
+        "AUTO": SpecialKeys.AUTO,
+        "AUTO_SUBFOLDER": SpecialKeys.AUTO_SUBFOLDER,
+        "AUTO_FLAT_SUBFOLDER": SpecialKeys.AUTO_FLAT_SUBFOLDER,
+        "AUTO_FLAT": SpecialKeys.AUTO_FLAT}
+    plugins_path = DATA_PATH / 'system_template/_plugins'
+    for plugin_path in plugins_path.rglob('*.py'):
+        if plugin_path.is_dir():
+            continue
+        plugin_scope = load_plugin(
+            plugin_path, DATA_PATH / 'system_template')
+        scope = scope | plugin_scope
+    scope_path = DATA_PATH / config.get(
+        'scope_path', 'system_template/scope.json')
+    extra_scope = config.get('scope', {})
+    local_scope  = load_jsonc(scope_path).data
+    if not isinstance(local_scope, dict):
+        raise SystemTemplateException([
+            "The scope file must be an object."])
+    scope = scope | local_scope | extra_scope
+    return scope
+
 def main():
     mode = 'eval'
     config = {}
@@ -1203,30 +1287,6 @@ def main():
             except Exception:
                 raise SystemTemplateException([f'Failed load the config data'])
 
-    # Add scope
-    def get_scope() -> Dict[str, Any]:
-        scope = {
-            'true': True, 'false': False,
-            "AUTO": SpecialKeys.AUTO,
-            "AUTO_SUBFOLDER": SpecialKeys.AUTO_SUBFOLDER,
-            "AUTO_FLAT_SUBFOLDER": SpecialKeys.AUTO_FLAT_SUBFOLDER,
-            "AUTO_FLAT": SpecialKeys.AUTO_FLAT}
-        plugins_path = DATA_PATH / 'system_template/_plugins'
-        for plugin_path in plugins_path.rglob('*.py'):
-            if plugin_path.is_dir():
-                continue
-            plugin_scope = load_plugin(
-                plugin_path, DATA_PATH / 'system_template')
-            scope = scope | plugin_scope
-        scope_path = DATA_PATH / config.get(
-            'scope_path', 'system_template/scope.json')
-        extra_scope = config.get('scope', {})
-        local_scope  = load_jsonc(scope_path).data
-        if not isinstance(local_scope, dict):
-            raise SystemTemplateException([
-                "The scope file must be an object."])
-        scope = scope | local_scope | extra_scope
-        return scope
     # Try to load the auto map
     system_patterns = config.get('systems', ['**/*'])
 
@@ -1251,49 +1311,30 @@ def main():
         # Try to create the namespace settings object
         namespace_settings = NamespaceSettings(config['namespace'])
 
-    # Reused in different modes to get the auto map
-    def get_auto_map(scope: Dict[str, Any]) -> AutoMappingProvider:
-        try:
-            auto_map_path = SYSTEM_TEMPLATE_DATA_PATH / "auto_map.json"
-            auto_map_data = load_jsonc(auto_map_path).data
-            if not isinstance(auto_map_data, dict):
-                raise SystemTemplateException([
-                    "The auto_map.json must be an object."])
-            namespace_dict: dict[str, Any] = {} if namespace_settings is None else {
-                "__namespace__": {
-                    "hook": namespace_settings.hook,
-                    "target": namespace_settings.target,
-                    "keep_hook": namespace_settings.keep_hook
-                }
-            }
-            auto_map = AutoMappingProvider(
-                JSONWalker(
-                    eval_json(
-                        auto_map_data,
-                        {
-                            "K": JsonTemplateK,
-                            "JoinStr": JsonTemplateJoinStr,
-                        } | scope | namespace_dict # type: ignore
-                    )
-                )
-            )
-        except FileNotFoundError:
-            auto_map = AutoMappingProvider(JSONWalker({}))
-        return auto_map
+    global_replacements: dict[Any, Any] | None = config.get(
+        'replacements', None)
+    if global_replacements is not None:
+        if not is_uniform_types_dict(global_replacements, str, str):
+            raise SystemTemplateException([
+                "The 'replacements' property must be an object with string "
+                "keys and string values or omitted."])
+
     # Prepare the undo stack (for pack, unpack and undo)
     undo_path = SYSTEM_TEMPLATE_DATA_PATH / '.pack_undo.json'
     op_stack: List[Tuple[str, str]] = []
     try:
         if mode == 'eval':
-            scope = get_scope()
+            scope = get_scope(config)
             report = Report()
-            auto_map = get_auto_map(scope)
+            auto_map = get_auto_map(scope, namespace_settings)
             sorted_system_paths = sorted(
                 walk_system_paths(system_patterns),
                 key=lambda sp: system_paths_sort_key(sp, prioritized_systems),
             )
             for system_path, group_path in sorted_system_paths:
-                system = System(scope, system_path, group_path, auto_map, namespace_settings)
+                system = System(
+                    scope, system_path, group_path, auto_map, namespace_settings,
+                    global_replacements)
                 rel_sys_path = system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
                 print(f"Generating system: {rel_sys_path}")
@@ -1302,10 +1343,12 @@ def main():
             if log_path is not None:
                 report.dump_report(log_path)
         elif mode == 'pack':
-            scope = get_scope()
-            auto_map = get_auto_map(scope)
+            scope = get_scope(config)
+            auto_map = get_auto_map(scope, namespace_settings)
             for system_path, group_path in walk_system_paths(system_patterns):
-                system = System(scope, system_path, group_path, auto_map, namespace_settings)
+                system = System(
+                    scope, system_path, group_path, auto_map, namespace_settings,
+                    global_replacements)
                 rel_sys_path = system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
                 print(f"Packing system: {rel_sys_path}")
@@ -1315,10 +1358,12 @@ def main():
             with open(undo_path, 'w', encoding='utf8') as f:
                 json.dump(op_stack, f, indent='\t')
         elif mode == 'unpack':
-            scope = get_scope()
-            auto_map = get_auto_map(scope)
+            scope = get_scope(config)
+            auto_map = get_auto_map(scope, namespace_settings)
             for system_path, group_path in walk_system_paths(system_patterns):
-                system = System(scope, system_path, group_path, auto_map, namespace_settings)
+                system = System(
+                    scope, system_path, group_path, auto_map, namespace_settings,
+                    global_replacements)
                 rel_sys_path = system_path.relative_to(
                     SYSTEM_TEMPLATE_DATA_PATH).as_posix()
                 print(f"Unpacking system: {rel_sys_path}")
