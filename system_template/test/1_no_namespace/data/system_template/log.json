@@ -534,5 +534,21 @@
 				"status": "Skipped (export once enabled)."
 			}
 		]
+	},
+	"BP/entities/test_global_replacements.behavior.json": {
+		"sources": [
+			{
+				"path": "data/system_template/test_global_replacements/test_global_replacements.behavior.json",
+				"status": "Created."
+			}
+		]
+	},
+	"BP/functions/test_global_replacements.mcfunction": {
+		"sources": [
+			{
+				"path": "data/system_template/test_global_replacements/test_global_replacements.mcfunction",
+				"status": "Created."
+			}
+		]
 	}
 }
