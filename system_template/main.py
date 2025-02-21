@@ -1141,7 +1141,7 @@ class NamespaceSettings:
 
     If keep_hook=False, then it's basically a simple search and replace.
     '''
-    _allowed_characters = set(string.ascii_letters + string.digits + '_')
+    _allowed_characters = set(string.ascii_letters + string.digits + '_@')
 
     def __init__(self, namespace_config: dict[Any, Any]):
         if not isinstance(namespace_config, dict):  # type: ignore
