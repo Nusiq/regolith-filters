@@ -1,0 +1,7 @@
+import json
+
+__output__ = json.dumps({
+    "info": "This file was generated using a Python script feature.",
+    "variable_from_scope_direct": variable_from_scope,  # type: ignore
+    "variable_from_scope_json_template": "`variable_from_scope`"
+})

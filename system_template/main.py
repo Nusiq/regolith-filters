@@ -468,6 +468,7 @@ class SystemItem:
         self.export_once: bool = data.get('export_once', False)
         self.replacements: dict[str, str] | None =  self._init_replacements(
             data)
+        self.python_script: bool = data.get("python_script", False)
         if (
                 self.on_conflict not in [
                     'merge', 'append_start', 'append_end'
@@ -715,6 +716,28 @@ class SystemItem:
                     "Failed to create the target file because there a folder "
                     "at the same path already exists: "
                     f"{self.target.as_posix()}"])
+            # Evaluate python script
+            input_text: str | None = None
+            if self.python_script:
+                exec_text = source_path.read_text(encoding='utf8')
+                exec_scope = {
+                    "__target__": self.target.absolute()
+                } | copy(self.scope)
+                with WdSwitch(self.parent.system_path):
+                    exec(exec_text, exec_scope)
+                    script_output = exec_scope.get('__output__', None)
+                    if script_output is not None:
+                        if not isinstance(script_output, str):
+                            raise SystemTemplateException([
+                                "The __output__ variable in the python script "
+                                "must either be a string or not assigned at "
+                                "all."])
+                        input_text = script_output
+                    else:
+                        print(
+                            f"Evaluated python script, without output "
+                            f"(skipping): {source_path.as_posix()}")
+                        return
 
             # Evaluate based on the on_conflict policy
             if self.on_conflict == 'stop':
@@ -725,7 +748,7 @@ class SystemItem:
 
                 source_path = cast(
                     TextFilePath | BinaryFilePath | JsonFilePath, source_path)
-                self._eval_create(source_path)
+                self._eval_create(source_path, input_text)
                 report.append_source(
                     self.target, source_path,
                     MergeStatus.CREATED)
@@ -736,7 +759,7 @@ class SystemItem:
                     self.target.unlink()
                 source_path = cast(
                     TextFilePath | BinaryFilePath | JsonFilePath, source_path)
-                self._eval_create(source_path)
+                self._eval_create(source_path, input_text)
                 report.append_source(
                     self.target, source_path,
                     merge_status or MergeStatus.OVERWRITTEN)
@@ -750,7 +773,7 @@ class SystemItem:
                 _assert_target_not_folder()
                 source_path = cast(
                     TextFilePath | BinaryFilePath | JsonFilePath, source_path)
-                self._eval_create(source_path)
+                self._eval_create(source_path, input_text)
                 report.append_source(
                     self.target, source_path,
                     MergeStatus.CREATED)
@@ -758,7 +781,7 @@ class SystemItem:
             elif self.on_conflict == 'merge':
                 _assert_target_not_folder()
                 source_path = cast(JsonFilePath, source_path)
-                self._eval_merge_json(source_path)
+                self._eval_merge_json(source_path, input_text)
                 report.append_source(
                     self.target, source_path,
                     merge_status or MergeStatus.MERGED)
@@ -766,7 +789,7 @@ class SystemItem:
                 _assert_target_not_folder()
                 source_path = cast(TextFilePath, source_path)
                 self._eval_append(
-                    source_path,
+                    source_path, input_text,
                     on_start=self.on_conflict == 'append_start')
                 report.append_source(
                     self.target, source_path,
@@ -790,7 +813,8 @@ class SystemItem:
                 f'Target: {self.target.as_posix()}',
                 f'Error: {e}'])
 
-    def _eval_merge_json(self, source_path: JsonFilePath) -> None:
+    def _eval_merge_json(
+            self, source_path: JsonFilePath, input_text: str | None) -> None:
         # Load the target and unlink it if it exists
         if self.target.exists():
             try:
@@ -804,7 +828,7 @@ class SystemItem:
         else:
             target_data = {}
         # Load the source with the replacements
-        source_text = self._load_file_with_replacements(source_path)
+        source_text = self._load_file_with_replacements(source_path, input_text)
         # Load the source as JSON
         source_json: Any = None
         # Load the file as JSON if necessary
@@ -815,11 +839,12 @@ class SystemItem:
             if self.json_template or self.on_conflict == 'merge':
                 source_json = json.loads(source_text, cls=JSONCDecoder)
                 if self.json_template:
-                    source_json = eval_json(
-                        source_json, {
-                            "K": JsonTemplateK,
-                            "JoinStr": JsonTemplateJoinStr,
-                        } | self.scope)
+                    with WdSwitch(self.parent.system_path):
+                        source_json = eval_json(
+                            source_json, {
+                                "K": JsonTemplateK,
+                                "JoinStr": JsonTemplateJoinStr,
+                            } | self.scope)
         # Merge
         source_json = merge.deep_merge_objects(
             target_data, source_json,
@@ -830,7 +855,8 @@ class SystemItem:
             json.dump(source_json, f, cls=CompactEncoder)
 
     def _eval_append(
-            self, source_path: TextFilePath, on_start: bool=True) -> None:
+            self, source_path: TextFilePath, input_text: str | None,
+            on_start: bool=True) -> None:
         # Load the target and unlink it if it exists
         target_text: str | None = None
         if self.target.exists():
@@ -844,7 +870,8 @@ class SystemItem:
             self.target.unlink()
 
         # Load the source with the replacements
-        source_text = self._load_file_with_replacements(source_path)
+        source_text = self._load_file_with_replacements(
+            source_path, input_text)
 
         # Handle appending on start/end
         if target_text is not None:
@@ -868,7 +895,8 @@ class SystemItem:
 
     def _eval_create(
             self,
-            source_path: TextFilePath | BinaryFilePath | JsonFilePath) -> None:
+            source_path: TextFilePath | BinaryFilePath | JsonFilePath,
+            input_text: str | None) -> None:
         '''
         Creates the target file by copying the source file.
         '''
@@ -879,12 +907,12 @@ class SystemItem:
                     and self.target_file_type == '.json'
                 )
         ):
-            self._eval_merge_json(cast(JsonFilePath, source_path))
+            self._eval_merge_json(cast(JsonFilePath, source_path), input_text)
         elif self.subfunctions:
-            self._eval_append(cast(TextFilePath, source_path))
+            self._eval_append(cast(TextFilePath, source_path), input_text)
         elif self.replacements is not None:
             source_path = cast(TextFilePath, source_path)
-            source_text = self._load_file_with_replacements(source_path)
+            source_text = self._load_file_with_replacements(source_path, input_text)
             self.target.parent.mkdir(parents=True, exist_ok=True)
             self.target.write_text(source_text, encoding='utf8')
         else:
@@ -894,12 +922,13 @@ class SystemItem:
                 and (
                     self.parent.namespace_settings is not None
                     or self.parent.global_replacements is not None
+                    or input_text is not None
                 )
             ):
                 # Potentially a text file, maybe apply replacements
                 try:
                     source_text = self._load_file_with_replacements(
-                            source_path)  # type: ignore
+                            source_path, input_text)  # type: ignore
                     self.target.write_text(source_text, encoding='utf8')
                     return  # It was a text file
                 except SystemTemplateException:  # We don't care not a text file
@@ -908,16 +937,20 @@ class SystemItem:
             shutil.copy(source_path, self.target)
 
     def _load_file_with_replacements(
-            self, source_path: TextFilePath | JsonFilePath) -> str:
+            self, source_path: TextFilePath | JsonFilePath,
+            input_text: str | None) -> str:
         '''
         Applies provided replacements to the source text.
         '''
-        try:
-            source_text = source_path.read_text(encoding='utf8')
-        except Exception:
-            raise SystemTemplateException([
-                "Failed to read source file for text replacements. ",
-                f"Is this a text file?: {source_path.as_posix()}"])
+        if input_text is None:
+            try:
+                source_text = source_path.read_text(encoding='utf8')
+            except Exception:
+                raise SystemTemplateException([
+                    "Failed to read source file for text replacements. ",
+                    f"Is this a text file?: {source_path.as_posix()}"])
+        else:
+            source_text = input_text
         # Combine replacements with global replacements if they exist
         replacements = self.replacements
         if self.parent.global_replacements is not None:

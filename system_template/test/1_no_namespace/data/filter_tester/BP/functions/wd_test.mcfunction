@@ -1,0 +1,1 @@
+say is_same_wd_as_mappy = True
