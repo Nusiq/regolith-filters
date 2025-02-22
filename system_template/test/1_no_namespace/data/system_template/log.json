@@ -411,6 +411,22 @@
 			}
 		]
 	},
+	"BP/entities/python_script.behavior.json": {
+		"sources": [
+			{
+				"path": "data/system_template/python_script/python_script.behavior.json",
+				"status": "Created."
+			}
+		]
+	},
+	"BP/functions/python_script.mcfunction": {
+		"sources": [
+			{
+				"path": "data/system_template/python_script/python_script.mcfunction",
+				"status": "Created."
+			}
+		]
+	},
 	"BP/replacements/replace_json.json": {
 		"sources": [
 			{
@@ -547,6 +563,30 @@
 		"sources": [
 			{
 				"path": "data/system_template/test_global_replacements/test_global_replacements.mcfunction",
+				"status": "Created."
+			}
+		]
+	},
+	"BP/entities/wd_test_json.behavior.json": {
+		"sources": [
+			{
+				"path": "data/system_template/wd_test/subpath/wd_test_json.behavior.json",
+				"status": "Created."
+			}
+		]
+	},
+	"BP/entities/wd_test_py.behavior.json": {
+		"sources": [
+			{
+				"path": "data/system_template/wd_test/subpath/wd_test_py.behavior.py",
+				"status": "Created."
+			}
+		]
+	},
+	"BP/functions/wd_test.mcfunction": {
+		"sources": [
+			{
+				"path": "data/system_template/wd_test/subpath/wd_test.mcfunction",
 				"status": "Created."
 			}
 		]

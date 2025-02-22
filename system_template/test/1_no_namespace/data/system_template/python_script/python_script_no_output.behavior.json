@@ -1,0 +1,18 @@
+# This file doesn't create the __ouptput__ variable, so it doesn't directly
+# generate files through system_template. Instead, it's uses __target__ to
+# create files on its own.
+import json
+from pathlib import Path
+from typing import cast
+
+target_dir: Path = cast(Path, __target__.parent)  # type: ignore
+
+for i in range(2):
+    output = {
+        "info": "Created by python_script_no_output.behavior.json using Python script feature."
+    }
+
+    with open(
+            target_dir / f"python_script_no_output_{i}.behavior.json",
+            'w', encoding='utf8') as f:
+        f.write(json.dumps(output, indent="\t"))

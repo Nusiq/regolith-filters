@@ -468,6 +468,7 @@ class SystemItem:
         self.export_once: bool = data.get('export_once', False)
         self.replacements: dict[str, str] | None =  self._init_replacements(
             data)
+        self.python_script: bool = data.get("python_script", False)
         if (
                 self.on_conflict not in [
                     'merge', 'append_start', 'append_end'
@@ -702,63 +703,93 @@ class SystemItem:
 
         # READ TARGET DATA AND HANDLE CONFLICTS
         try:
-            merge_status: MergeStatus | None = None
-            if self.target.exists():
-                if self.on_conflict == 'stop':
-                    raise SystemTemplateException([
-                        f"Target already exists: {self.target.as_posix()}"])
-                elif self.on_conflict == 'skip':
-                    print(f"Skipping {self.target.as_posix()}")
-                    report.append_source(
-                        self.target, source_path,
-                        merge_status or MergeStatus.SKIPPED)
-                    return
-                # Assert that target isn't an existing directory
-                if not self.target.is_file():
-                    raise SystemTemplateException([
-                        f"Failed to create the target file because there a folder "
-                        f"at the same path already exists: {self.target.as_posix()}"])
-            else:
-                # Takes precedence over the other statuses using
+            target_exists = self.target.exists()
+            merge_status: MergeStatus | None = (
+                # CREATED takes precedence over the other statuses using
                 # 'merge_status or ...' pattern
-                merge_status = MergeStatus.CREATED
+                None if target_exists else MergeStatus.CREATED)
+
+            def _assert_target_not_folder():
+                if not target_exists or self.target.is_file():
+                    return
+                raise SystemTemplateException([
+                    "Failed to create the target file because there a folder "
+                    "at the same path already exists: "
+                    f"{self.target.as_posix()}"])
+            # Evaluate python script
+            input_text: str | None = None
+            if self.python_script:
+                exec_text = source_path.read_text(encoding='utf8')
+                exec_scope = {
+                    "__target__": self.target.absolute()
+                } | copy(self.scope)
+                with WdSwitch(self.parent.system_path):
+                    exec(exec_text, exec_scope)
+                    script_output = exec_scope.get('__output__', None)
+                    if script_output is not None:
+                        if not isinstance(script_output, str):
+                            raise SystemTemplateException([
+                                "The __output__ variable in the python script "
+                                "must either be a string or not assigned at "
+                                "all."])
+                        input_text = script_output
+                    else:
+                        print(
+                            f"Evaluated python script, without output "
+                            f"(skipping): {source_path.as_posix()}")
+                        return
 
             # Evaluate based on the on_conflict policy
-            if self.on_conflict == 'stop':  # Target doesn't exist
+            if self.on_conflict == 'stop':
+                if target_exists:
+                    raise SystemTemplateException([
+                        f"Target already exists: {self.target.as_posix()}"])
+                # _assert_target_not_file() # Desn't exist so it's not a folder
+
                 source_path = cast(
                     TextFilePath | BinaryFilePath | JsonFilePath, source_path)
-                self._eval_create(source_path)
+                self._eval_create(source_path, input_text)
                 report.append_source(
                     self.target, source_path,
                     MergeStatus.CREATED)
             elif self.on_conflict == 'overwrite':
+                _assert_target_not_folder()
                 if self.target.exists():
                     print(f"Overwriting {self.target.as_posix()}")
                     self.target.unlink()
                 source_path = cast(
                     TextFilePath | BinaryFilePath | JsonFilePath, source_path)
-                self._eval_create(source_path)
+                self._eval_create(source_path, input_text)
                 report.append_source(
                     self.target, source_path,
                     merge_status or MergeStatus.OVERWRITTEN)
-            elif self.on_conflict == 'skip':  # Target doesn't exist
+            elif self.on_conflict == 'skip':
+                if target_exists:
+                    print(f"Skipping {self.target.as_posix()}")
+                    report.append_source(
+                        self.target, source_path,
+                        MergeStatus.SKIPPED)
+                    return
+                _assert_target_not_folder()
                 source_path = cast(
                     TextFilePath | BinaryFilePath | JsonFilePath, source_path)
-                self._eval_create(source_path)
+                self._eval_create(source_path, input_text)
                 report.append_source(
                     self.target, source_path,
                     MergeStatus.CREATED)
                 return
             elif self.on_conflict == 'merge':
+                _assert_target_not_folder()
                 source_path = cast(JsonFilePath, source_path)
-                self._eval_merge_json(source_path)
+                self._eval_merge_json(source_path, input_text)
                 report.append_source(
                     self.target, source_path,
                     merge_status or MergeStatus.MERGED)
             elif self.on_conflict in ['append_start', 'append_end']:
+                _assert_target_not_folder()
                 source_path = cast(TextFilePath, source_path)
                 self._eval_append(
-                    source_path,
+                    source_path, input_text,
                     on_start=self.on_conflict == 'append_start')
                 report.append_source(
                     self.target, source_path,
@@ -782,7 +813,8 @@ class SystemItem:
                 f'Target: {self.target.as_posix()}',
                 f'Error: {e}'])
 
-    def _eval_merge_json(self, source_path: JsonFilePath) -> None:
+    def _eval_merge_json(
+            self, source_path: JsonFilePath, input_text: str | None) -> None:
         # Load the target and unlink it if it exists
         if self.target.exists():
             try:
@@ -796,7 +828,7 @@ class SystemItem:
         else:
             target_data = {}
         # Load the source with the replacements
-        source_text = self._load_file_with_replacements(source_path)
+        source_text = self._load_file_with_replacements(source_path, input_text)
         # Load the source as JSON
         source_json: Any = None
         # Load the file as JSON if necessary
@@ -807,11 +839,12 @@ class SystemItem:
             if self.json_template or self.on_conflict == 'merge':
                 source_json = json.loads(source_text, cls=JSONCDecoder)
                 if self.json_template:
-                    source_json = eval_json(
-                        source_json, {
-                            "K": JsonTemplateK,
-                            "JoinStr": JsonTemplateJoinStr,
-                        } | self.scope)
+                    with WdSwitch(self.parent.system_path):
+                        source_json = eval_json(
+                            source_json, {
+                                "K": JsonTemplateK,
+                                "JoinStr": JsonTemplateJoinStr,
+                            } | self.scope)
         # Merge
         source_json = merge.deep_merge_objects(
             target_data, source_json,
@@ -822,7 +855,8 @@ class SystemItem:
             json.dump(source_json, f, cls=CompactEncoder)
 
     def _eval_append(
-            self, source_path: TextFilePath, on_start: bool=True) -> None:
+            self, source_path: TextFilePath, input_text: str | None,
+            on_start: bool=True) -> None:
         # Load the target and unlink it if it exists
         target_text: str | None = None
         if self.target.exists():
@@ -836,7 +870,8 @@ class SystemItem:
             self.target.unlink()
 
         # Load the source with the replacements
-        source_text = self._load_file_with_replacements(source_path)
+        source_text = self._load_file_with_replacements(
+            source_path, input_text)
 
         # Handle appending on start/end
         if target_text is not None:
@@ -860,7 +895,8 @@ class SystemItem:
 
     def _eval_create(
             self,
-            source_path: TextFilePath | BinaryFilePath | JsonFilePath) -> None:
+            source_path: TextFilePath | BinaryFilePath | JsonFilePath,
+            input_text: str | None) -> None:
         '''
         Creates the target file by copying the source file.
         '''
@@ -871,12 +907,12 @@ class SystemItem:
                     and self.target_file_type == '.json'
                 )
         ):
-            self._eval_merge_json(cast(JsonFilePath, source_path))
+            self._eval_merge_json(cast(JsonFilePath, source_path), input_text)
         elif self.subfunctions:
-            self._eval_append(cast(TextFilePath, source_path))
+            self._eval_append(cast(TextFilePath, source_path), input_text)
         elif self.replacements is not None:
             source_path = cast(TextFilePath, source_path)
-            source_text = self._load_file_with_replacements(source_path)
+            source_text = self._load_file_with_replacements(source_path, input_text)
             self.target.parent.mkdir(parents=True, exist_ok=True)
             self.target.write_text(source_text, encoding='utf8')
         else:
@@ -886,12 +922,13 @@ class SystemItem:
                 and (
                     self.parent.namespace_settings is not None
                     or self.parent.global_replacements is not None
+                    or input_text is not None
                 )
             ):
                 # Potentially a text file, maybe apply replacements
                 try:
                     source_text = self._load_file_with_replacements(
-                            source_path)  # type: ignore
+                            source_path, input_text)  # type: ignore
                     self.target.write_text(source_text, encoding='utf8')
                     return  # It was a text file
                 except SystemTemplateException:  # We don't care not a text file
@@ -900,16 +937,20 @@ class SystemItem:
             shutil.copy(source_path, self.target)
 
     def _load_file_with_replacements(
-            self, source_path: TextFilePath | JsonFilePath) -> str:
+            self, source_path: TextFilePath | JsonFilePath,
+            input_text: str | None) -> str:
         '''
         Applies provided replacements to the source text.
         '''
-        try:
-            source_text = source_path.read_text(encoding='utf8')
-        except Exception:
-            raise SystemTemplateException([
-                "Failed to read source file for text replacements. ",
-                f"Is this a text file?: {source_path.as_posix()}"])
+        if input_text is None:
+            try:
+                source_text = source_path.read_text(encoding='utf8')
+            except Exception:
+                raise SystemTemplateException([
+                    "Failed to read source file for text replacements. ",
+                    f"Is this a text file?: {source_path.as_posix()}"])
+        else:
+            source_text = input_text
         # Combine replacements with global replacements if they exist
         replacements = self.replacements
         if self.parent.global_replacements is not None:
