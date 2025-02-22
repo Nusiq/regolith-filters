@@ -702,29 +702,27 @@ class SystemItem:
 
         # READ TARGET DATA AND HANDLE CONFLICTS
         try:
-            merge_status: MergeStatus | None = None
-            if self.target.exists():
-                if self.on_conflict == 'stop':
-                    raise SystemTemplateException([
-                        f"Target already exists: {self.target.as_posix()}"])
-                elif self.on_conflict == 'skip':
-                    print(f"Skipping {self.target.as_posix()}")
-                    report.append_source(
-                        self.target, source_path,
-                        merge_status or MergeStatus.SKIPPED)
-                    return
-                # Assert that target isn't an existing directory
-                if not self.target.is_file():
-                    raise SystemTemplateException([
-                        f"Failed to create the target file because there a folder "
-                        f"at the same path already exists: {self.target.as_posix()}"])
-            else:
-                # Takes precedence over the other statuses using
+            target_exists = self.target.exists()
+            merge_status: MergeStatus | None = (
+                # CREATED takes precedence over the other statuses using
                 # 'merge_status or ...' pattern
-                merge_status = MergeStatus.CREATED
+                None if target_exists else MergeStatus.CREATED)
+
+            def _assert_target_not_folder():
+                if not target_exists or self.target.is_file():
+                    return
+                raise SystemTemplateException([
+                    "Failed to create the target file because there a folder "
+                    "at the same path already exists: "
+                    f"{self.target.as_posix()}"])
 
             # Evaluate based on the on_conflict policy
-            if self.on_conflict == 'stop':  # Target doesn't exist
+            if self.on_conflict == 'stop':
+                if target_exists:
+                    raise SystemTemplateException([
+                        f"Target already exists: {self.target.as_posix()}"])
+                # _assert_target_not_file() # Desn't exist so it's not a folder
+
                 source_path = cast(
                     TextFilePath | BinaryFilePath | JsonFilePath, source_path)
                 self._eval_create(source_path)
@@ -732,6 +730,7 @@ class SystemItem:
                     self.target, source_path,
                     MergeStatus.CREATED)
             elif self.on_conflict == 'overwrite':
+                _assert_target_not_folder()
                 if self.target.exists():
                     print(f"Overwriting {self.target.as_posix()}")
                     self.target.unlink()
@@ -741,7 +740,14 @@ class SystemItem:
                 report.append_source(
                     self.target, source_path,
                     merge_status or MergeStatus.OVERWRITTEN)
-            elif self.on_conflict == 'skip':  # Target doesn't exist
+            elif self.on_conflict == 'skip':
+                if target_exists:
+                    print(f"Skipping {self.target.as_posix()}")
+                    report.append_source(
+                        self.target, source_path,
+                        MergeStatus.SKIPPED)
+                    return
+                _assert_target_not_folder()
                 source_path = cast(
                     TextFilePath | BinaryFilePath | JsonFilePath, source_path)
                 self._eval_create(source_path)
@@ -750,12 +756,14 @@ class SystemItem:
                     MergeStatus.CREATED)
                 return
             elif self.on_conflict == 'merge':
+                _assert_target_not_folder()
                 source_path = cast(JsonFilePath, source_path)
                 self._eval_merge_json(source_path)
                 report.append_source(
                     self.target, source_path,
                     merge_status or MergeStatus.MERGED)
             elif self.on_conflict in ['append_start', 'append_end']:
+                _assert_target_not_folder()
                 source_path = cast(TextFilePath, source_path)
                 self._eval_append(
                     source_path,
