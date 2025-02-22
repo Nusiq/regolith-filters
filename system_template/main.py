@@ -864,7 +864,6 @@ class SystemItem:
         '''
         Creates the target file by copying the source file.
         '''
-        print(source_path.as_posix())
         if (
                 self.json_template
                 or (
