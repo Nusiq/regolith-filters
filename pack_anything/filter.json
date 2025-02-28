@@ -1,0 +1,10 @@
+{
+	"description": "Unopinionated filter that lets you pack anything into a ZIP file in any way you want.",
+	"filters": [
+		{
+			"runWith": "python",
+			"script": "./main.py",
+			"name": "nusiq:pack_anything"
+		}
+	]
+}
