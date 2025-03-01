@@ -1,0 +1,1 @@
+The target of this file was determined using AUTO mapping that uses [@]global_replacement_1 that is replaced with replaced_global_1

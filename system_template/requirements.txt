@@ -1,3 +1,2 @@
-better-json-tools~=1.0.3
-regolith-subfunctions~=1.4.0
-regolith-json-template~=1.3.1
+# -e "C:/Documents/Projects/Regolith/regolith-system-template"
+regolith-system-template==1.2.1

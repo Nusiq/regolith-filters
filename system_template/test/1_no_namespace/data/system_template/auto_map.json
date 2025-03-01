@@ -1,4 +1,5 @@
 {
+	".global_replacement.txt": "BP/@global_replacement_1",
 	".bp_ac.json": "BP/animation_controllers",
 	".bp_anim.json": "BP/animations",
 	".biome.json": "BP/biomes",

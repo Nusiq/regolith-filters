@@ -75,6 +75,14 @@
 			}
 		]
 	},
+	"BP/replaced_global_1/auto_map.global_replacement.txt": {
+		"sources": [
+			{
+				"path": "data/system_template/auto_map_global_replacement/auto_map.global_replacement.txt",
+				"status": "Created."
+			}
+		]
+	},
 	"RP/models/entity/auto_subfolder/some_path/auto_subfolder_example.geo.json": {
 		"sources": [
 			{

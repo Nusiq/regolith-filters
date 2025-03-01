@@ -1,4 +1,9 @@
 # Change log
+## 3.14.0
+- The global replacements feature affects the auto_map.json file.
+- Moved the code of the filter to a Python package: https://pypi.org/project/regolith-system-template/1.2.1/
+- The default setting for `"systems"` `config.json` setting isn't `"**/*"` anymore. Now it's `"**"`. The paths of the systems are matched starting from the `system_template` folder (exclusive). Previously, the `system_template` string was included in the path pattern.
+
 ## 3.13.0
 ## New Features
 - Added new `python_script` feature. Everything in `_map.py` can now be marked as a Python script. Python scripts are evaluated using Python's `exect()` before their output is passed to the regular system_template flow. The scripts are evaluated in the root of the system as their working directory, but have access to a `__target__` variable which is a `pathlib.Path` object with the evaluated absolute target path. If script doesn't define `__output__` variable, no file is created.
