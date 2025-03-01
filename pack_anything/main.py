@@ -15,7 +15,8 @@ def resolver_input_path(path: str):
 
 def main():
     config = json.loads(sys.argv[1])
-    output = Path(PROJECT_PATH) / config['output']
+    output: Path = Path(PROJECT_PATH) / config['output']
+    output.parent.mkdir(parents=True, exist_ok=True)
 
     # [path_on_disk, path_in_zip]
     pathmap: list[tuple[Path, Path]] = [
