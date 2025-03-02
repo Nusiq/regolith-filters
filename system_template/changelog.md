@@ -1,4 +1,7 @@
 # Change log
+## 3.15.0
+Every file, including `_map.py` and `_scope.json` is now loaded with the global replacements applied to it.
+
 ## 3.14.0
 - The global replacements feature affects the auto_map.json file.
 - Moved the code of the filter to a Python package: https://pypi.org/project/regolith-system-template/1.2.1/
