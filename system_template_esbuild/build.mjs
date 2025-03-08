@@ -160,7 +160,7 @@ if (working_dir === null) {
 		if (readdirSync(working_dir).length !== 0) {
 			if (existsSync(join(working_dir, ".system_template_esbuild"))) {
 				rmSync(working_dir, { recursive: true, force: true });
-				mkdirSync(working_dir);
+				mkdirSync(working_dir, { recursive: true });
 			} else {
 				console.error(
 					"The working directory couldn't be safely cleaned. It's not empty " +
@@ -171,7 +171,7 @@ if (working_dir === null) {
 			}
 		}
 	} else {
-		mkdirSync(working_dir);
+		mkdirSync(working_dir, { recursive: true });
 	}
 
 	// Copy the files form data/system_template_esbuild to the working directory
