@@ -3,6 +3,7 @@ import zipfile
 import sys
 import json
 import os
+import subprocess
 
 PROJECT_PATH = Path(os.environ['ROOT_DIR'])
 
@@ -12,10 +13,21 @@ def resolver_input_path(path: str):
         return (PROJECT_PATH / path)
     return Path(path)
 
+def get_git_tag():
+    try:
+        return subprocess.check_output(
+            'git describe --tags --always --abbrev=0')
+    except:
+        return 'unknown'
 
 def main():
     config = json.loads(sys.argv[1])
-    output: Path = Path(PROJECT_PATH) / config['output']
+    output_str = config['output']
+    if output_str.startswith('`') and output_str.endswith('`'):
+        output_str = output_str[1:-1]
+        output_str = eval(output_str, {'git_describe': get_git_tag()})
+
+    output: Path = Path(PROJECT_PATH) / output_str
     output.parent.mkdir(parents=True, exist_ok=True)
 
     # [path_on_disk, path_in_zip]
