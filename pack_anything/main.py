@@ -15,8 +15,10 @@ def resolver_input_path(path: str):
 
 def get_git_tag():
     try:
-        return subprocess.check_output(
+        git_out = subprocess.check_output(
             'git describe --tags --always --abbrev=0')
+        git_out = git_out.decode('utf-8').splitlines()[0].strip()
+        return git_out
     except:
         return 'unknown'
 
