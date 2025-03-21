@@ -1,4 +1,7 @@
 # Change log
+## 3.15.1
+Updated `regolith-system-template` dependency to 1.3.1. All of the JSON files are now parsed using JSONC parser.
+
 ## 3.15.0
 Every file, including `_map.py` and `_scope.json` is now loaded with the global replacements applied to it.
 

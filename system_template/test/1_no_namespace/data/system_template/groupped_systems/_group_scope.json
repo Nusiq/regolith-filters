@@ -1,3 +1,4 @@
 {
+	// A comment to make it harder to parse.
 	"variable_from_group_scope": "This text is created based on the variable from the group scope"
 }
