@@ -479,6 +479,22 @@
 			}
 		]
 	},
+	"BP/entities/same_mapping.behavior.json": {
+		"sources": [
+			{
+				"path": "data/system_template/same_mapping/BP/entities/same_mapping.behavior.json",
+				"status": "Created."
+			}
+		]
+	},
+	"BP/entities/same_mapping_2_custom_stem.behavior.json": {
+		"sources": [
+			{
+				"path": "data/system_template/same_mapping/BP/entities/same_mapping_2.behavior.json",
+				"status": "Created."
+			}
+		]
+	},
 	"BP/functions/unpack.mcfunction": {
 		"sources": [
 			{

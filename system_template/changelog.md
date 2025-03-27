@@ -1,4 +1,9 @@
 # Change log
+## 3.16.0
+Updated `regolith-system-template` dependency to 1.4.0.
+
+Added new mapping target type `SAME`. The `SAME` mapping is used to copy the path from source to target without any changes.
+
 ## 3.15.1
 Updated `regolith-system-template` dependency to 1.3.1. All of the JSON files are now parsed using JSONC parser.
 

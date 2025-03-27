@@ -1,6 +1,6 @@
 # System Template
 
-You can find the documentation of System Template [here](https://system-template-docs.readthedocs.io/en/3.12.0/)
+You can find the documentation of System Template [here](https://system-template-docs.readthedocs.io/en/stable/)
 
 ## Contact
 
