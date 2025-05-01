@@ -1,9 +1,8 @@
-import { evaluate } from "./json-template.ts";
+import { processSystemTemplate } from "./map-ts.ts";
 
-// Example usage
-const template = {
-	"`'greeting'`": "`message + '!'`",
-};
-
-const result = evaluate(template, { message: "Hello world" });
-console.log(result);
+if (import.meta.main) {
+	const systems = await processSystemTemplate();
+	for (const system of systems) {
+		await system.apply();
+	}
+}
