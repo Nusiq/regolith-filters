@@ -1,5 +1,6 @@
 import { walk } from "@std/fs/walk";
 import { isAbsolute, normalize, resolve, toFileUrl, dirname } from "@std/path";
+import { evaluate } from "./json-template.ts";
 
 /**
  * Ensures a path uses forward slashes regardless of platform
@@ -14,15 +15,18 @@ function asPosix(path: string): string {
 export class MapTsEntry {
 	source: string;
 	target: string;
+	jsonTemplate: boolean;
 
 	/**
 	 * Creates a new MapTsEntry without validation
 	 * @param source Source path or content
 	 * @param target Target path in the pack
+	 * @param jsonTemplate Whether the source should be processed as a JSON template
 	 */
-	constructor(source: string, target: string) {
+	constructor(source: string, target: string, jsonTemplate: boolean = false) {
 		this.source = source;
 		this.target = target;
+		this.jsonTemplate = jsonTemplate;
 	}
 
 	/**
@@ -34,9 +38,14 @@ export class MapTsEntry {
 
 		const source = validatedObj.source;
 		const target = validatedObj.target;
+		const jsonTemplate = validatedObj.jsonTemplate || false;
 
 		// Create the entry
-		return new MapTsEntry(resolve(dirname(mapFilePath), source), target);
+		return new MapTsEntry(
+			resolve(dirname(mapFilePath), source),
+			target,
+			jsonTemplate
+		);
 	}
 
 	/**
@@ -46,7 +55,7 @@ export class MapTsEntry {
 	private static validate(
 		obj: unknown,
 		mapFilePath: string
-	): { source: string; target: string } {
+	): { source: string; target: string; jsonTemplate?: boolean } {
 		// Check if entry is an object with required properties
 		if (
 			typeof obj !== "object" ||
@@ -62,7 +71,18 @@ export class MapTsEntry {
 		}
 
 		// Extract values for additional validation
-		const { source, target } = obj as { source: string; target: string };
+		const { source, target, jsonTemplate } = obj as {
+			source: string;
+			target: string;
+			jsonTemplate?: boolean;
+		};
+
+		// Validate jsonTemplate if present
+		if (jsonTemplate !== undefined && typeof jsonTemplate !== "boolean") {
+			throw new Error(
+				`Invalid jsonTemplate property in ${mapFilePath}. jsonTemplate must be a boolean.`
+			);
+		}
 
 		// Normalize paths for consistent processing - ensure forward slashes
 		const normalizedTarget = asPosix(normalize(target));
@@ -95,7 +115,7 @@ export class MapTsEntry {
 			);
 		}
 
-		return { source, target };
+		return { source, target, jsonTemplate };
 	}
 
 	/**
@@ -109,8 +129,10 @@ export class MapTsEntry {
 
 	/**
 	 * Applies this entry by copying the source file to the target location.
+	 * If jsonTemplate is true, processes the source as a JSON template.
+	 * @param scope Optional scope to use for JSON template evaluation
 	 */
-	async apply(): Promise<void> {
+	async apply(scope: Record<string, any> = {}): Promise<void> {
 		// Get the full path to the source file
 		const sourcePath = resolve(this.source);
 
@@ -120,8 +142,32 @@ export class MapTsEntry {
 		// Ensure the target directory exists
 		await Deno.mkdir(dirname(targetPath), { recursive: true });
 
-		// Copy the file
-		await Deno.copyFile(sourcePath, targetPath);
+		if (this.jsonTemplate) {
+			// Read the source file content
+			const sourceContent = await Deno.readTextFile(sourcePath);
+
+			// Parse the source content as JSON
+			let jsonTemplate;
+			try {
+				jsonTemplate = JSON.parse(sourceContent);
+			} catch (error: unknown) {
+				throw new Error(
+					`Failed to parse JSON template at ${sourcePath}: ${error}`
+				);
+			}
+
+			// Evaluate the template with the provided scope
+			const evaluatedTemplate = evaluate(jsonTemplate, scope);
+
+			// Stringify the evaluated template with nice formatting
+			const resultContent = JSON.stringify(evaluatedTemplate, null, "\t");
+
+			// Write the result to the target file
+			await Deno.writeTextFile(targetPath, resultContent);
+		} else {
+			// Standard file copy
+			await Deno.copyFile(sourcePath, targetPath);
+		}
 	}
 }
 
@@ -185,9 +231,9 @@ export class MapTs {
 
 	/**
 	 * Applies the map by copying all source files to their target locations
-	 * @param outputDir The root directory where the files should be copied to
+	 * @param scope Optional scope to use for JSON template evaluation
 	 */
-	async apply(): Promise<void> {
+	async apply(scope: Record<string, any> = {}): Promise<void> {
 		// Process each entry
 		// Split entries into those that can and cannot run concurrently
 		const concurrentEntries: MapTsEntry[] = [];
@@ -203,13 +249,13 @@ export class MapTs {
 
 		// Run concurrent entries in parallel
 		if (concurrentEntries.length > 0) {
-			const copyPromises = concurrentEntries.map((entry) => entry.apply());
+			const copyPromises = concurrentEntries.map((entry) => entry.apply(scope));
 			await Promise.all(copyPromises);
 		}
 
 		// Run sequential entries one at a time
 		for (const entry of sequentialEntries) {
-			await entry.apply();
+			await entry.apply(scope);
 		}
 	}
 }
@@ -235,6 +281,7 @@ export async function findMapFiles(rootDir: string): Promise<string[]> {
 
 /**
  * Processes all _map.ts files in the given directory and returns a list of MapTs objects
+ * @param rootDir The root directory to search for _map.ts files
  */
 export async function processSystemTemplate(
 	rootDir: string = "data/system_template_2"
