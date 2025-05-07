@@ -172,7 +172,7 @@ export class MapTsEntry {
 }
 
 /**
- * Represents a single _map.ts file as a system
+ * Represents a single _map.ts file and its module.
  */
 export class MapTs {
 	path: string;
@@ -283,18 +283,18 @@ export async function findMapFiles(rootDir: string): Promise<string[]> {
  * Processes all _map.ts files in the given directory and returns a list of MapTs objects
  * @param rootDir The root directory to search for _map.ts files
  */
-export async function processSystemTemplate(
-	rootDir: string = "data/system_template_2"
+export async function processModule(
+	rootDir: string = "data/modular_mc"
 ): Promise<MapTs[]> {
 	// Normalize the root directory path - ensure forward slashes
 	const normalizedRootDir = asPosix(normalize(rootDir));
 	const mapFiles = await findMapFiles(normalizedRootDir);
-	const systems: MapTs[] = [];
+	const modules: MapTs[] = [];
 
 	for (const mapFile of mapFiles) {
-		const system = await MapTs.fromFile(mapFile);
-		systems.push(system);
+		const module = await MapTs.fromFile(mapFile);
+		modules.push(module);
 	}
 
-	return systems;
+	return modules;
 }

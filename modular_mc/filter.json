@@ -4,7 +4,7 @@
 		{
 			"runWith": "deno",
 			"script": "./main.ts",
-			"name": "nusiq:system_template_2"
+			"name": "nusiq:modular_mc"
 		}
 	]
 }
