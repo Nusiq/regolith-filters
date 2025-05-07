@@ -1,6 +1,14 @@
 import { walk } from "@std/fs/walk";
-import { isAbsolute, normalize, resolve, toFileUrl, dirname } from "@std/path";
+import {
+	isAbsolute,
+	normalize,
+	resolve,
+	toFileUrl,
+	dirname,
+	extname,
+} from "@std/path";
 import { evaluate } from "./json-template.ts";
+import { deepMergeObjects, ListMergePolicy } from "./json-merge.ts";
 
 /**
  * Ensures a path uses forward slashes regardless of platform
@@ -16,17 +24,29 @@ export class MapTsEntry {
 	source: string;
 	target: string;
 	jsonTemplate: boolean;
+	onConflict: string;
+	fileType?: string;
 
 	/**
 	 * Creates a new MapTsEntry without validation
 	 * @param source Source path or content
 	 * @param target Target path in the pack
 	 * @param jsonTemplate Whether the source should be processed as a JSON template
+	 * @param onConflict How to handle conflicts: "stop" (default), "skip", or "merge"
+	 * @param fileType Optional file type override (e.g., "json", "material")
 	 */
-	constructor(source: string, target: string, jsonTemplate: boolean = false) {
+	constructor(
+		source: string,
+		target: string,
+		jsonTemplate: boolean = false,
+		onConflict: string = "stop",
+		fileType?: string
+	) {
 		this.source = source;
 		this.target = target;
 		this.jsonTemplate = jsonTemplate;
+		this.onConflict = onConflict;
+		this.fileType = fileType;
 	}
 
 	/**
@@ -39,12 +59,16 @@ export class MapTsEntry {
 		const source = validatedObj.source;
 		const target = validatedObj.target;
 		const jsonTemplate = validatedObj.jsonTemplate || false;
+		const onConflict = validatedObj.onConflict || "stop";
+		const fileType = validatedObj.fileType;
 
 		// Create the entry
 		return new MapTsEntry(
 			resolve(dirname(mapFilePath), source),
 			target,
-			jsonTemplate
+			jsonTemplate,
+			onConflict,
+			fileType
 		);
 	}
 
@@ -55,7 +79,13 @@ export class MapTsEntry {
 	private static validate(
 		obj: unknown,
 		mapFilePath: string
-	): { source: string; target: string; jsonTemplate?: boolean } {
+	): {
+		source: string;
+		target: string;
+		jsonTemplate?: boolean;
+		onConflict?: string;
+		fileType?: string;
+	} {
 		// Check if entry is an object with required properties
 		if (
 			typeof obj !== "object" ||
@@ -71,16 +101,44 @@ export class MapTsEntry {
 		}
 
 		// Extract values for additional validation
-		const { source, target, jsonTemplate } = obj as {
+		const { source, target, jsonTemplate, onConflict, fileType } = obj as {
 			source: string;
 			target: string;
 			jsonTemplate?: boolean;
+			onConflict?: string;
+			fileType?: string;
 		};
 
 		// Validate jsonTemplate if present
 		if (jsonTemplate !== undefined && typeof jsonTemplate !== "boolean") {
 			throw new Error(
 				`Invalid jsonTemplate property in ${mapFilePath}. jsonTemplate must be a boolean.`
+			);
+		}
+
+		// Validate onConflict if present
+		if (onConflict !== undefined) {
+			if (typeof onConflict !== "string") {
+				throw new Error(
+					`Invalid onConflict property in ${mapFilePath}. onConflict must be a string.`
+				);
+			}
+
+			// Check if onConflict has valid value
+			const validValues = ["stop", "skip", "merge"];
+			if (!validValues.includes(onConflict)) {
+				throw new Error(
+					`Invalid onConflict value in ${mapFilePath}. Must be one of: ${validValues.join(
+						", "
+					)}. Got: ${onConflict}`
+				);
+			}
+		}
+
+		// Validate fileType if present
+		if (fileType !== undefined && typeof fileType !== "string") {
+			throw new Error(
+				`Invalid fileType property in ${mapFilePath}. fileType must be a string.`
 			);
 		}
 
@@ -115,7 +173,41 @@ export class MapTsEntry {
 			);
 		}
 
-		return { source, target, jsonTemplate };
+		return {
+			source,
+			target,
+			jsonTemplate,
+			onConflict,
+			fileType,
+		};
+	}
+
+	/**
+	 * Gets the file type for a path, respecting fileType overrides
+	 * @param path The file path
+	 * @param typeOverride Optional type override
+	 */
+	private getFileType(path: string, typeOverride?: string): string {
+		if (typeOverride) {
+			return typeOverride;
+		}
+
+		// Extract extension without the dot
+		const extension = extname(path).slice(1).toLowerCase();
+		return extension;
+	}
+
+	/**
+	 * Determines if a file is mergeable based on its type
+	 * @param sourceType The source file type
+	 * @param targetType The target file type
+	 */
+	private isMergeable(sourceType: string, targetType: string): boolean {
+		// Currently only JSON and material files are mergeable
+		const mergeableTypes = ["json", "material"];
+		return (
+			mergeableTypes.includes(sourceType) && mergeableTypes.includes(targetType)
+		);
 	}
 
 	/**
@@ -123,13 +215,21 @@ export class MapTsEntry {
 	 * @returns true if the entry can be run concurrently, false otherwise
 	 */
 	canRunConcurrently(): boolean {
-		// For now, all entries can run concurrently
-		return true;
+		// Files that need to be merged cannot run concurrently as they depend
+		// on the previous files being created first.
+		// Files that use JSON templates cannot run concurrently because they
+		// may internally have dependencies on other files.
+		return (
+			this.onConflict !== "merge" &&
+			this.onConflict !== "skip" &&
+			!this.jsonTemplate
+		);
 	}
 
 	/**
 	 * Applies this entry by copying the source file to the target location.
 	 * If jsonTemplate is true, processes the source as a JSON template.
+	 * Handles conflicts according to onConflict setting.
 	 * @param scope Optional scope to use for JSON template evaluation
 	 */
 	async apply(scope: Record<string, any> = {}): Promise<void> {
@@ -139,34 +239,98 @@ export class MapTsEntry {
 		// Get the full path to the target file
 		const targetPath = resolve(this.target);
 
+		// Get file types
+		const sourceType = this.getFileType(sourcePath, this.fileType);
+		const targetType = this.getFileType(targetPath, this.fileType);
+
+		// Check if target file exists
+		const targetExists = await Deno.stat(targetPath).then(
+			() => true,
+			() => false
+		);
+
+		// Handle conflict if target exists
+		if (targetExists) {
+			if (this.onConflict === "stop") {
+				throw new Error(
+					`Target file already exists: ${targetPath}. Use onConflict: "skip" or "merge" to handle this.`
+				);
+			} else if (this.onConflict === "skip") {
+				console.log(
+					`Skipped exporting ${sourcePath} to ${targetPath}. Target already exists.`
+				);
+				return;
+			} else if (this.onConflict === "merge") {
+				// Check if files are mergeable
+				if (!this.isMergeable(sourceType, targetType)) {
+					throw new Error(
+						`Cannot merge files with types ${sourceType} and ${targetType}. Only json and material files can be merged.`
+					);
+				}
+
+				// Continue with merge operations below
+			}
+		}
+
 		// Ensure the target directory exists
 		await Deno.mkdir(dirname(targetPath), { recursive: true });
 
-		if (this.jsonTemplate) {
-			// Read the source file content
-			const sourceContent = await Deno.readTextFile(sourcePath);
+		// Read the source file content
+		const sourceContent = await Deno.readTextFile(sourcePath);
 
+		// Handle JSON files
+		if (sourceType === "json" || targetType === "json") {
 			// Parse the source content as JSON
-			let jsonTemplate;
+			let sourceJSON;
 			try {
-				jsonTemplate = JSON.parse(sourceContent);
+				sourceJSON = JSON.parse(sourceContent);
 			} catch (error: unknown) {
-				throw new Error(
-					`Failed to parse JSON template at ${sourcePath}: ${error}`
-				);
+				throw new Error(`Failed to parse JSON at ${sourcePath}: ${error}`);
 			}
 
-			// Evaluate the template with the provided scope
-			const evaluatedTemplate = evaluate(jsonTemplate, scope);
+			// Apply JSON template if enabled
+			if (this.jsonTemplate) {
+				sourceJSON = evaluate(sourceJSON, scope);
+			}
 
-			// Stringify the evaluated template with nice formatting
-			const resultContent = JSON.stringify(evaluatedTemplate, null, "\t");
+			// Check if we need to merge with an existing file
+			if (targetExists && this.onConflict === "merge") {
+				try {
+					// Read target file
+					const targetContent = await Deno.readTextFile(targetPath);
+
+					try {
+						const targetJSON = JSON.parse(targetContent);
+
+						// Merge the files using APPEND for lists
+						sourceJSON = deepMergeObjects(
+							targetJSON,
+							sourceJSON,
+							ListMergePolicy.APPEND
+						);
+					} catch (error: unknown) {
+						throw new Error(
+							`Failed to parse existing JSON at ${targetPath}: ${error}`
+						);
+					}
+				} catch (error: unknown) {
+					// If error is not related to file not existing, rethrow
+					if (!(error instanceof Deno.errors.NotFound)) {
+						throw error;
+					}
+				}
+			}
+
+			// Stringify the JSON with nice formatting
+			const resultContent = JSON.stringify(sourceJSON, null, "\t");
 
 			// Write the result to the target file
 			await Deno.writeTextFile(targetPath, resultContent);
 		} else {
-			// Standard file copy
-			await Deno.copyFile(sourcePath, targetPath);
+			// For non-JSON files, just copy the file if it doesn't exist or onConflict is merge
+			if (!targetExists || this.onConflict !== "merge") {
+				await Deno.copyFile(sourcePath, targetPath);
+			}
 		}
 	}
 }
