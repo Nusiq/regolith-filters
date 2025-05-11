@@ -27,6 +27,7 @@ export class MapTsEntry {
 	jsonTemplate: boolean;
 	onConflict: string;
 	fileType?: string;
+	scope: Record<string, any>;
 
 	// Used for error reporting only!
 	private readonly mapFilePath: string | undefined;
@@ -38,6 +39,8 @@ export class MapTsEntry {
 	 * @param jsonTemplate Whether the source should be processed as a JSON template
 	 * @param onConflict How to handle conflicts: "stop" (default), "skip", or "merge"
 	 * @param fileType Optional file type override (e.g., "json", "material")
+	 * @param scope Optional scope to use for JSON template evaluation
+	 * @param mapFilePath Path to the map file (for error reporting)
 	 */
 	constructor(
 		source: string,
@@ -45,6 +48,7 @@ export class MapTsEntry {
 		jsonTemplate: boolean = false,
 		onConflict: string = "stop",
 		fileType?: string,
+		scope?: Record<string, any>,
 		mapFilePath?: string
 	) {
 		this.source = source;
@@ -52,6 +56,7 @@ export class MapTsEntry {
 		this.jsonTemplate = jsonTemplate;
 		this.onConflict = onConflict;
 		this.fileType = fileType;
+		this.scope = scope || {};
 		this.mapFilePath = mapFilePath;
 	}
 
@@ -67,6 +72,7 @@ export class MapTsEntry {
 		const jsonTemplate = validatedObj.jsonTemplate || false;
 		const onConflict = validatedObj.onConflict || "stop";
 		const fileType = validatedObj.fileType;
+		const scope = validatedObj.scope;
 
 		// Create the entry
 		return new MapTsEntry(
@@ -75,6 +81,7 @@ export class MapTsEntry {
 			jsonTemplate,
 			onConflict,
 			fileType,
+			scope,
 			mapFilePath
 		);
 	}
@@ -92,6 +99,7 @@ export class MapTsEntry {
 		jsonTemplate?: boolean;
 		onConflict?: string;
 		fileType?: string;
+		scope?: Record<string, any>;
 	} {
 		// Check if entry is an object with required properties
 		if (
@@ -108,13 +116,15 @@ export class MapTsEntry {
 		}
 
 		// Extract values for additional validation
-		const { source, target, jsonTemplate, onConflict, fileType } = obj as {
-			source: string;
-			target: string;
-			jsonTemplate?: boolean;
-			onConflict?: string;
-			fileType?: string;
-		};
+		const { source, target, jsonTemplate, onConflict, fileType, scope } =
+			obj as {
+				source: string;
+				target: string;
+				jsonTemplate?: boolean;
+				onConflict?: string;
+				fileType?: string;
+				scope?: Record<string, any>;
+			};
 
 		// Validate jsonTemplate if present
 		if (jsonTemplate !== undefined && typeof jsonTemplate !== "boolean") {
@@ -146,6 +156,13 @@ export class MapTsEntry {
 		if (fileType !== undefined && typeof fileType !== "string") {
 			throw new Error(
 				`Invalid fileType property in ${mapFilePath}. fileType must be a string.`
+			);
+		}
+
+		// Validate scope if present
+		if (scope !== undefined && typeof scope !== "object") {
+			throw new Error(
+				`Invalid scope property in ${mapFilePath}. scope must be an object.`
 			);
 		}
 
@@ -186,6 +203,7 @@ export class MapTsEntry {
 			jsonTemplate,
 			onConflict,
 			fileType,
+			scope,
 		};
 	}
 
@@ -310,7 +328,13 @@ export class MapTsEntry {
 
 			// Apply JSON template if enabled
 			if (this.jsonTemplate) {
-				sourceJSON = evaluate(sourceJSON, scope);
+				// Merge entry scope with global scope, with entry scope taking precedence
+				const mergedScope = deepMergeObjects(
+					scope,
+					this.scope,
+					ListMergePolicy.GREATER_LENGTH
+				);
+				sourceJSON = evaluate(sourceJSON, mergedScope);
 			}
 
 			// Check if we need to merge with an existing file
