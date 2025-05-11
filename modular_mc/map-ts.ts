@@ -439,7 +439,7 @@ export class MapTs {
 				const errorMessage =
 					error instanceof Error ? error.message : String(error);
 				const path = asPosix(relative("data/modular_mc", this.path));
-				throw new Error(`Error in map file ${path}:\n` + `  ${errorMessage}`);
+				throw new Error(`Error in map file ${path}:\n` + `${errorMessage}`);
 			}
 		}
 
@@ -451,7 +451,7 @@ export class MapTs {
 				const errorMessage =
 					error instanceof Error ? error.message : String(error);
 				throw new Error(
-					`Error in map file ${this.path}:\n` + `  ${errorMessage}`
+					`Error in map file ${this.path}:\n` + `${errorMessage}`
 				);
 			}
 		}

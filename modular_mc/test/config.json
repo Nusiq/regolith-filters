@@ -22,11 +22,20 @@
 		"profiles": {
 			"default": {
 				"export": {
-					"target": "local"
+					"target": "local",
+					"bpName": "'BP'",
+					"rpName": "'RP'"
 				},
 				"filters": [
 					{
-						"filter": "modular_mc"
+						"filter": "modular_mc",
+						"settings": {
+							"scope_path": "scope.json",
+							"scope": {
+								"config_scope_variable": "This comes from the config (1)",
+								"global_scope_variable_overwrite_config": "This comes from the config (2)"
+							}
+						}
 					},
 					{
 						"filter": "filter_tester",

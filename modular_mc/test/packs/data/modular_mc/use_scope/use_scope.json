@@ -1,0 +1,5 @@
+{
+	"config_scope_variable": "`config_scope_variable`",
+	"global_scope_variable": "`global_scope_variable`",
+	"global_scope_variable_overwrite_config": "`global_scope_variable_overwrite_config`"
+}

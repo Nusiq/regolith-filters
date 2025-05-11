@@ -1,0 +1,5 @@
+{
+	"config_scope_variable": "This comes from the config (1)",
+	"global_scope_variable": "This comes from global scope (1)",
+	"global_scope_variable_overwrite_config": "This comes from global scope (2)"
+}
