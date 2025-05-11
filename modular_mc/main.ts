@@ -5,6 +5,13 @@ if (import.meta.main) {
 	const scope = {};
 	const modules = await processModule();
 	for (const module of modules) {
-		await module.apply(scope);
+		try {
+			await module.apply(scope);
+		} catch (error: unknown) {
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			console.error(errorMessage);
+			Deno.exit(1);
+		}
 	}
 }

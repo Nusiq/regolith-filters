@@ -6,6 +6,7 @@ import {
 	toFileUrl,
 	dirname,
 	extname,
+	relative,
 } from "@std/path";
 import { evaluate } from "./json-template.ts";
 import { deepMergeObjects, ListMergePolicy } from "./json-merge.ts";
@@ -27,6 +28,9 @@ export class MapTsEntry {
 	onConflict: string;
 	fileType?: string;
 
+	// Used for error reporting only!
+	private readonly mapFilePath: string | undefined;
+
 	/**
 	 * Creates a new MapTsEntry without validation
 	 * @param source Source path or content
@@ -40,13 +44,15 @@ export class MapTsEntry {
 		target: string,
 		jsonTemplate: boolean = false,
 		onConflict: string = "stop",
-		fileType?: string
+		fileType?: string,
+		mapFilePath?: string
 	) {
 		this.source = source;
 		this.target = target;
 		this.jsonTemplate = jsonTemplate;
 		this.onConflict = onConflict;
 		this.fileType = fileType;
+		this.mapFilePath = mapFilePath;
 	}
 
 	/**
@@ -68,7 +74,8 @@ export class MapTsEntry {
 			target,
 			jsonTemplate,
 			onConflict,
-			fileType
+			fileType,
+			mapFilePath
 		);
 	}
 
@@ -276,7 +283,20 @@ export class MapTsEntry {
 		await Deno.mkdir(dirname(targetPath), { recursive: true });
 
 		// Read the source file content
-		const sourceContent = await Deno.readTextFile(sourcePath);
+		let sourceContent: string;
+		try {
+			sourceContent = await Deno.readTextFile(sourcePath);
+		} catch (error) {
+			if (error instanceof Deno.errors.NotFound) {
+				// If we can we use relative path in the message
+				const msgSource =
+					this.mapFilePath === undefined
+						? this.source
+						: asPosix(relative(dirname(this.mapFilePath), sourcePath));
+				throw new Error(`Missing file: ${msgSource}`);
+			}
+			throw error;
+		}
 
 		// Handle JSON files
 		if (sourceType === "json" || targetType === "json") {
@@ -413,13 +433,27 @@ export class MapTs {
 
 		// Run concurrent entries in parallel
 		if (concurrentEntries.length > 0) {
-			const copyPromises = concurrentEntries.map((entry) => entry.apply(scope));
-			await Promise.all(copyPromises);
+			try {
+				await Promise.all(concurrentEntries.map((entry) => entry.apply(scope)));
+			} catch (error: unknown) {
+				const errorMessage =
+					error instanceof Error ? error.message : String(error);
+				const path = asPosix(relative("data/modular_mc", this.path));
+				throw new Error(`Error in map file ${path}:\n` + `  ${errorMessage}`);
+			}
 		}
 
 		// Run sequential entries one at a time
 		for (const entry of sequentialEntries) {
-			await entry.apply(scope);
+			try {
+				await entry.apply(scope);
+			} catch (error: unknown) {
+				const errorMessage =
+					error instanceof Error ? error.message : String(error);
+				throw new Error(
+					`Error in map file ${this.path}:\n` + `  ${errorMessage}`
+				);
+			}
 		}
 	}
 }
