@@ -1,22 +1,15 @@
 import { walk } from "@std/fs/walk";
-import {
-	isAbsolute,
-	normalize,
-	resolve,
-	toFileUrl,
-	dirname,
-	extname,
-	relative,
-} from "@std/path";
+import { isAbsolute, toFileUrl, extname } from "@std/path";
 import { evaluate } from "./json-template.ts";
 import { deepMergeObjects, ListMergePolicy } from "./json-merge.ts";
-
-/**
- * Ensures a path uses forward slashes regardless of platform
- */
-function asPosix(path: string): string {
-	return path.replace(/\\/g, "/");
-}
+import {
+	relative,
+	asPosix,
+	resolve,
+	dirname,
+	normalize,
+	join,
+} from "./path-utils.ts";
 
 /**
  * Represents a single entry in a _map.ts file
@@ -385,10 +378,16 @@ export class MapTsEntry {
 export class MapTs {
 	path: string;
 	entries: MapTsEntry[];
+	scripts: string[] = [];
 
-	constructor(path: string, entries: MapTsEntry[]) {
+	private constructor(
+		path: string,
+		entries: MapTsEntry[],
+		scripts: string[] = []
+	) {
 		this.path = path;
 		this.entries = entries;
+		this.scripts = scripts;
 	}
 
 	/**
@@ -410,24 +409,52 @@ export class MapTs {
 			// Directly import the map file
 			const mapModule = await import(fileUrl);
 
-			// Check if MAP is exported
-			if (!mapModule.MAP) {
-				throw new Error(`${mapFilePath} must export a MAP array`);
+			// Initialize arrays for entries and scripts
+			let validatedEntries: MapTsEntry[] = [];
+			const scripts: string[] = [];
+
+			// Process MAP if it exists
+			if (mapModule.MAP !== undefined) {
+				const mapResult = mapModule.MAP;
+
+				// Validate map structure
+				if (!Array.isArray(mapResult)) {
+					throw new Error(`MAP must be an array in ${mapFilePath}`);
+				}
+
+				// Validate and process each entry using the MapTsEntry class
+				validatedEntries = mapResult.map((entry) =>
+					MapTsEntry.fromObject(entry, mapFilePath)
+				);
 			}
 
-			const mapResult = mapModule.MAP;
+			// Process SCRIPTS if it exists
+			if (mapModule.SCRIPTS !== undefined) {
+				if (!Array.isArray(mapModule.SCRIPTS)) {
+					throw new Error(`SCRIPTS must be an array in ${mapFilePath}`);
+				}
 
-			// Validate map structure
-			if (!Array.isArray(mapResult)) {
-				throw new Error(`MAP must be an array in ${mapFilePath}`);
+				// Validate each script is a string and store it directly
+				for (const script of mapModule.SCRIPTS) {
+					if (typeof script !== "string") {
+						throw new Error(
+							`Each script in SCRIPTS must be a string in ${mapFilePath}`
+						);
+					}
+
+					// Store the path without resolving it
+					scripts.push(script);
+				}
 			}
 
-			// Validate and process each entry using the MapTsEntry class
-			const validatedEntries: MapTsEntry[] = mapResult.map((entry) =>
-				MapTsEntry.fromObject(entry, mapFilePath)
-			);
+			// Ensure at least one of MAP or SCRIPTS is present
+			if (validatedEntries.length === 0 && scripts.length === 0) {
+				console.warn(
+					`Warning: ${mapFilePath} does not export either MAP or SCRIPTS`
+				);
+			}
 
-			return new MapTs(mapFilePath, validatedEntries);
+			return new MapTs(mapFilePath, validatedEntries, scripts);
 		} catch (error) {
 			// Improve error message for import failures
 			if (error instanceof TypeError || error instanceof SyntaxError) {
@@ -479,6 +506,59 @@ export class MapTs {
 				);
 			}
 		}
+	}
+
+	/**
+	 * Resolves script paths to absolute paths based on provided ROOT_DIR and data path from
+	 * config.json. These paths lead to the original script files, not temporary files used
+	 * during regolith compilation.
+	 *
+	 * @param rootDir The ROOT_DIR value
+	 * @param configJsonDataPath The original data path
+	 * @returns Array of absolute paths to the original script files
+	 */
+	resolveScriptPaths(rootDir: string, configJsonDataPath: string): string[] {
+		// Resolve all script paths from all modules
+		const resolvedScripts: string[] = [];
+
+		// Get the directory of the _map.ts file
+		const mapDir = dirname(this.path);
+
+		// Process each script in the module
+		for (const scriptRelativePath of this.scripts) {
+			// 1. Resolve the script path relative to the _map.ts file
+			const scriptPath = join(mapDir, scriptRelativePath);
+
+			// 2. Get the path relative to the working directory
+			// For example, if scriptPath is '/path/to/tmp/data/modules/example/_map.ts',
+			// we need to extract the part after 'data/'
+
+			// Find the position of 'data/' in the path
+			const dataPrefixIndex = scriptPath.indexOf("data/");
+			let moduleRelativePath: string;
+
+			if (dataPrefixIndex !== -1) {
+				// Extract the part after 'data/'
+				moduleRelativePath = scriptPath.substring(dataPrefixIndex + 5); // 'data/'.length = 5
+			} else {
+				// If 'data/' is not found, use the relative path as is
+				// This shouldn't happen in normal operation, but we'll handle it gracefully
+				moduleRelativePath = scriptRelativePath;
+				console.warn(
+					`Warning: Could not find 'data/' prefix in path: ${scriptPath}`
+				);
+			}
+
+			// 3. Combine ROOT_DIR + dataPath + moduleRelativePath to get the absolute path to the original file
+			const absolutePath = join(
+				rootDir,
+				configJsonDataPath,
+				moduleRelativePath
+			);
+			resolvedScripts.push(absolutePath);
+		}
+
+		return resolvedScripts;
 	}
 }
 

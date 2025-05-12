@@ -1,9 +1,14 @@
-import { processModule } from "./map-ts.ts";
+import { isAbsolute } from "@std/path";
+import { compileWithEsbuild } from "./esbuild.ts";
 import { deepMergeObjects, ListMergePolicy } from "./json-merge.ts";
-import { join, isAbsolute } from "@std/path";
+import { processModule } from "./map-ts.ts";
+import { asPosix, join } from "./path-utils.ts";
+import { getDataPath, getRootDir } from "./regolith.ts";
 
 if (import.meta.main) {
 	let scope: Record<string, any> = {};
+	let esbuildOptions: Record<string, any> = {};
+	let buildPath: string | undefined;
 
 	// Get command line arguments
 	const args = Deno.args;
@@ -16,17 +21,17 @@ if (import.meta.main) {
 				scope = input.scope;
 			}
 
-			// Handle scope_path property
-			if (input.scope_path !== undefined) {
+			// Handle scopePath property
+			if (input.scopePath !== undefined) {
 				// Resolve the path - if not absolute, make it relative to ./data
-				const scopePath = isAbsolute(input.scope_path)
-					? input.scope_path
-					: join("./data", input.scope_path);
+				const scopePath = isAbsolute(input.scopePath)
+					? asPosix(input.scopePath)
+					: join("./data", input.scopePath);
 
 				const scopePathContent = await Deno.readTextFile(scopePath);
 				const scopePathData = JSON.parse(scopePathContent);
 
-				// Merge scope_path data into scope if both exist
+				// Merge scopePath data into scope if both exist
 				if (input.scope !== undefined) {
 					scope = deepMergeObjects(
 						scope,
@@ -37,21 +42,62 @@ if (import.meta.main) {
 					scope = scopePathData;
 				}
 			}
+
+			// Get esbuild options if provided
+			if (input.esbuild !== undefined && typeof input.esbuild === "object") {
+				esbuildOptions = input.esbuild.settings || {};
+				buildPath = input.esbuild.buildPath;
+			}
 		} catch (error) {
 			console.error("Error processing input:", error);
 			Deno.exit(1);
 		}
 	}
 
+	// Process and collect modules
 	const modules = await processModule();
+
+	// Collect all scripts from modules
+	const allScripts: string[] = [];
 	for (const module of modules) {
+		allScripts.push(...module.scripts);
+	}
+
+	// If we have scripts defined in modules, run the compilation
+	if (allScripts.length > 0) {
 		try {
-			await module.apply(scope);
-		} catch (error: unknown) {
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
-			console.error(errorMessage);
+			const rootDir = getRootDir();
+			const dataPath = await getDataPath(rootDir);
+
+			// Resolve script paths to absolute paths pointing to original files
+			const absoluteScriptPaths: string[] = [];
+			for (const module of modules) {
+				absoluteScriptPaths.push(
+					...module.resolveScriptPaths(rootDir, dataPath)
+				);
+			}
+
+			// Debug log to see the resolved paths
+			console.log("Compiling scripts:");
+			absoluteScriptPaths.forEach((path) => console.log(`  ${path}`));
+
+			if (buildPath !== undefined) {
+				buildPath = join(rootDir, buildPath);
+			}
+
+			// Run esbuild with the resolved script paths and buildPath
+			await compileWithEsbuild(esbuildOptions, absoluteScriptPaths, buildPath);
+		} catch (error) {
+			console.error(
+				"Error during script path resolution or compilation:",
+				error
+			);
 			Deno.exit(1);
 		}
+	}
+
+	// Apply all modules
+	for (const module of modules) {
+		await module.apply(scope);
 	}
 }
