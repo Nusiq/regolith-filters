@@ -10,6 +10,34 @@ import {
 	normalize,
 	join,
 } from "./path-utils.ts";
+import { AutoMapResolver } from "./auto-map-resolver.ts";
+
+// The path to the auto-map.ts file - using a function to resolve it at runtime
+function getAutoMapFilePath(): string {
+	return resolve(Deno.cwd(), "data/modular_mc/auto-map.ts");
+}
+
+// Singleton instance of the AutoMapResolver
+let autoMapResolver: AutoMapResolver | null = null;
+
+/**
+ * Initializes the AutoMapResolver if it hasn't been initialized already
+ * @returns Promise<AutoMapResolver> A promise that resolves to the AutoMapResolver
+ */
+async function getAutoMapResolver(): Promise<AutoMapResolver> {
+	if (!autoMapResolver) {
+		try {
+			autoMapResolver = await AutoMapResolver.fromFile(getAutoMapFilePath());
+		} catch (error: unknown) {
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			console.error(`Warning: Failed to load AUTO_MAP: ${errorMessage}`);
+			// Create an empty resolver as fallback
+			autoMapResolver = new AutoMapResolver({});
+		}
+	}
+	return autoMapResolver;
+}
 
 /**
  * Represents a single entry in a _map.ts file
@@ -24,6 +52,10 @@ export class MapTsEntry {
 
 	// Used for error reporting only!
 	private readonly mapFilePath: string | undefined;
+
+	// Special auto mapping keywords
+	private static readonly AUTO_KEYWORD = ":auto";
+	private static readonly AUTO_FLAT_KEYWORD = ":autoFlat";
 
 	/**
 	 * Creates a new MapTsEntry without validation
@@ -67,7 +99,7 @@ export class MapTsEntry {
 		const fileType = validatedObj.fileType;
 		const scope = validatedObj.scope;
 
-		// Create the entry
+		// Create the entry with the resolved source path
 		return new MapTsEntry(
 			resolve(dirname(mapFilePath), source),
 			target,
@@ -159,6 +191,21 @@ export class MapTsEntry {
 			);
 		}
 
+		// If target is a special auto-mapping keyword, it's valid.
+		if (
+			target === MapTsEntry.AUTO_KEYWORD ||
+			target === MapTsEntry.AUTO_FLAT_KEYWORD
+		) {
+			return {
+				source,
+				target,
+				jsonTemplate,
+				onConflict,
+				fileType,
+				scope,
+			};
+		}
+
 		// Normalize paths for consistent processing - ensure forward slashes
 		const normalizedTarget = asPosix(normalize(target));
 
@@ -245,6 +292,43 @@ export class MapTsEntry {
 	}
 
 	/**
+	 * Resolves auto mapping target path if the target is an auto keyword
+	 * @returns Promise<string> A promise that resolves to the actual target path
+	 * @throws Error if auto mapping fails
+	 */
+	private async resolveAutoTarget(): Promise<string> {
+		// If target is not an auto keyword, return it as is
+		if (
+			this.target !== MapTsEntry.AUTO_KEYWORD &&
+			this.target !== MapTsEntry.AUTO_FLAT_KEYWORD
+		) {
+			return this.target;
+		}
+
+		// Get the auto map resolver
+		const resolver = await getAutoMapResolver();
+
+		// Determine if we're using the flat mode
+		const isFlat = this.target === MapTsEntry.AUTO_FLAT_KEYWORD;
+
+		// Use relative source path for auto mapping to avoid absolute path issues
+		const sourcePath = this.mapFilePath
+			? relative(dirname(this.mapFilePath), this.source)
+			: this.source;
+
+		// Resolve the target path
+		const resolvedPath = resolver.resolveAutoPath(sourcePath, isFlat);
+
+		if (!resolvedPath) {
+			throw new Error(
+				`Failed to auto-map '${sourcePath}'. No matching pattern found in AUTO_MAP.`
+			);
+		}
+
+		return resolvedPath;
+	}
+
+	/**
 	 * Applies this entry by copying the source file to the target location.
 	 * If jsonTemplate is true, processes the source as a JSON template.
 	 * Handles conflicts according to onConflict setting.
@@ -254,8 +338,11 @@ export class MapTsEntry {
 		// Get the full path to the source file
 		const sourcePath = resolve(this.source);
 
+		// Resolve auto target if needed
+		const resolvedTarget = await this.resolveAutoTarget();
+
 		// Get the full path to the target file
-		const targetPath = resolve(this.target);
+		const targetPath = resolve(resolvedTarget);
 
 		// Get file types
 		const sourceType = this.getFileType(sourcePath, this.fileType);
