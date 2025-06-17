@@ -4,6 +4,7 @@ import { deepMergeObjects, ListMergePolicy } from "./json-merge.ts";
 import { processModule } from "./map-ts.ts";
 import { asPosix, join } from "./path-utils.ts";
 import { getDataPath, getRootDir } from "./regolith.ts";
+import * as JSONC from "@std/jsonc";
 
 if (import.meta.main) {
 	let scope: Record<string, any> = {};
@@ -29,7 +30,7 @@ if (import.meta.main) {
 					: join("./data", input.scopePath);
 
 				const scopePathContent = await Deno.readTextFile(scopePath);
-				const scopePathData = JSON.parse(scopePathContent);
+				const scopePathData: any = JSONC.parse(scopePathContent);
 
 				// Merge scopePath data into scope if both exist
 				if (input.scope !== undefined) {

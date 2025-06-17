@@ -1,4 +1,5 @@
 import { asPosix, join } from "./path-utils.ts";
+import * as JSONC from "@std/jsonc";
 
 /**
  * Gets the ROOT_DIR environment variable
@@ -24,7 +25,7 @@ export async function getDataPath(rootDir: string): Promise<string> {
 
 	try {
 		const configContent = await Deno.readTextFile(configPath);
-		const config = JSON.parse(configContent);
+		const config: any = JSONC.parse(configContent);
 
 		const dataPath = config?.regolith?.dataPath;
 		if (!dataPath) {

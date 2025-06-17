@@ -5,6 +5,7 @@
 	"imports": {
 		"@std/assert": "jsr:@std/assert@1",
 		"@std/fs": "jsr:@std/fs@^1.0.17",
+		"@std/jsonc": "jsr:@std/jsonc@^1.0.2",
 		"@std/path": "jsr:@std/path@^1.0.9",
 		"esbuild": "npm:esbuild@^0.25.4"
 	},

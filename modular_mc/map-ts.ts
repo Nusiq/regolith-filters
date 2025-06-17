@@ -11,6 +11,7 @@ import {
 	join,
 } from "./path-utils.ts";
 import { AutoMapResolver } from "./auto-map-resolver.ts";
+import * as JSONC from "@std/jsonc";
 
 export type OnConflictStrategy = "stop" | "skip" | "merge" | "overwrite";
 
@@ -413,9 +414,9 @@ export class MapTsEntry {
 		// Handle JSON files
 		if (sourceType === "json" || targetType === "json") {
 			// Parse the source content as JSON
-			let sourceJSON;
+			let sourceJSON: any;
 			try {
-				sourceJSON = JSON.parse(sourceContent);
+				sourceJSON = JSONC.parse(sourceContent);
 			} catch (error: unknown) {
 				throw new Error(`Failed to parse JSON at ${sourcePath}: ${error}`);
 			}
@@ -438,7 +439,7 @@ export class MapTsEntry {
 					const targetContent = await Deno.readTextFile(targetPath);
 
 					try {
-						const targetJSON = JSON.parse(targetContent);
+						const targetJSON: any = JSONC.parse(targetContent);
 
 						// Merge the files using APPEND for lists
 						sourceJSON = deepMergeObjects(
