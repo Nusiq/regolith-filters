@@ -36,7 +36,7 @@ if (import.meta.main) {
 					scope = deepMergeObjects(
 						scope,
 						scopePathData,
-						ListMergePolicy.GREATER_LENGTH
+						ListMergePolicy.APPEND
 					);
 				} else {
 					scope = scopePathData;

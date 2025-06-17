@@ -426,7 +426,7 @@ export class MapTsEntry {
 				const mergedScope = deepMergeObjects(
 					scope,
 					this.scope,
-					ListMergePolicy.GREATER_LENGTH
+					ListMergePolicy.APPEND
 				);
 				sourceJSON = evaluate(sourceJSON, mergedScope);
 			}
