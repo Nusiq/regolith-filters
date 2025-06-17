@@ -12,6 +12,8 @@ import {
 } from "./path-utils.ts";
 import { AutoMapResolver } from "./auto-map-resolver.ts";
 
+export type OnConflictStrategy = "stop" | "skip" | "merge" | "overwrite";
+
 // The path to the auto-map.ts file - using a function to resolve it at runtime
 function getAutoMapFilePath(): string {
 	return resolve(Deno.cwd(), "data/modular_mc/auto-map.ts");
@@ -46,7 +48,7 @@ export class MapTsEntry {
 	source: string;
 	target: string;
 	jsonTemplate: boolean;
-	onConflict: string;
+	onConflict: OnConflictStrategy;
 	fileType?: string;
 	scope: Record<string, any>;
 
@@ -62,7 +64,7 @@ export class MapTsEntry {
 	 * @param source Source path or content
 	 * @param target Target path in the pack
 	 * @param jsonTemplate Whether the source should be processed as a JSON template
-	 * @param onConflict How to handle conflicts: "stop" (default), "skip", or "merge"
+	 * @param onConflict How to handle conflicts: "stop" (default), "skip", "merge", or "overwrite"
 	 * @param fileType Optional file type override (e.g., "json", "material")
 	 * @param scope Optional scope to use for JSON template evaluation
 	 * @param mapFilePath Path to the map file (for error reporting)
@@ -71,7 +73,7 @@ export class MapTsEntry {
 		source: string,
 		target: string,
 		jsonTemplate: boolean = false,
-		onConflict: string = "stop",
+		onConflict: OnConflictStrategy = "stop",
 		fileType?: string,
 		scope?: Record<string, any>,
 		mapFilePath?: string
@@ -122,7 +124,7 @@ export class MapTsEntry {
 		source: string;
 		target: string;
 		jsonTemplate?: boolean;
-		onConflict?: string;
+		onConflict?: OnConflictStrategy;
 		fileType?: string;
 		scope?: Record<string, any>;
 	} {
@@ -146,7 +148,7 @@ export class MapTsEntry {
 				source: string;
 				target: string;
 				jsonTemplate?: boolean;
-				onConflict?: string;
+				onConflict?: OnConflictStrategy;
 				fileType?: string;
 				scope?: Record<string, any>;
 			};
@@ -167,7 +169,7 @@ export class MapTsEntry {
 			}
 
 			// Check if onConflict has valid value
-			const validValues = ["stop", "skip", "merge"];
+			const validValues = ["stop", "skip", "merge", "overwrite"];
 			if (!validValues.includes(onConflict)) {
 				throw new Error(
 					`Invalid onConflict value in ${mapFilePath}. Must be one of: ${validValues.join(
@@ -287,6 +289,7 @@ export class MapTsEntry {
 		return (
 			this.onConflict !== "merge" &&
 			this.onConflict !== "skip" &&
+			this.onConflict !== "overwrite" &&
 			!this.jsonTemplate
 		);
 	}
@@ -366,13 +369,16 @@ export class MapTsEntry {
 
 			if (this.onConflict === "stop") {
 				throw new Error(
-					`Target file already exists: ${targetPath}. Use onConflict: "skip" or "merge" to handle this.`
+					`Target file already exists: ${targetPath}. Use onConflict: ` +
+						`"skip", "merge", or "overwrite" to handle this.`
 				);
 			} else if (this.onConflict === "skip") {
 				console.log(
 					`Skipped exporting ${sourcePath} to ${targetPath}. Target already exists.`
 				);
 				return;
+			} else if (this.onConflict === "overwrite") {
+				// Allow overwriting, proceed to file operations
 			} else if (this.onConflict === "merge") {
 				// Check if files are mergeable
 				if (!this.isMergeable(sourceType, targetType)) {
