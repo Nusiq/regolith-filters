@@ -679,7 +679,7 @@ export async function findMapFiles(rootDir: string): Promise<string[]> {
 			mapFiles.push(asPosix(entry.path));
 		}
 	}
-	return mapFiles;
+	return mapFiles.sort();
 }
 
 /**
