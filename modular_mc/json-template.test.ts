@@ -1,5 +1,13 @@
 import { assertEquals } from "@std/assert";
-import { evaluate, k, joinStr } from "./json-template.ts";
+import {
+	evaluate,
+
+	// These values are actually used (but inside of executed strings):
+	// deno-lint-ignore no-unused-vars
+	k,
+	// deno-lint-ignore no-unused-vars
+	joinStr,
+} from "./json-template.ts";
 
 // Define a default scope similar to the Python tests
 const DEFAULT_SCOPE = { foo: 12345 };
