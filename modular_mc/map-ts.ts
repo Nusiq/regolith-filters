@@ -356,6 +356,14 @@ export class MapTsEntry {
 
 		// Handle conflict if target exists
 		if (targetExists) {
+			// Check if target is a directory
+			const targetStat = await Deno.stat(targetPath);
+			if (targetStat.isDirectory) {
+				throw new Error(
+					`Target path is a directory and cannot be overwritten: ${targetPath}`
+				);
+			}
+
 			if (this.onConflict === "stop") {
 				throw new Error(
 					`Target file already exists: ${targetPath}. Use onConflict: "skip" or "merge" to handle this.`
