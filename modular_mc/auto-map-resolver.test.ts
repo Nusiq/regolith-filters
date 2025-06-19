@@ -6,15 +6,15 @@ const TEST_AUTO_MAP: AutoMapType = {
 	".geo.json": "RP/models/entity",
 	".block.json": "BP/blocks",
 	".item.png": {
-		target: "RP/textures/items",
+		path: "RP/textures/items",
 		extension: ".png",
 	},
 	".entity.tga": {
-		target: "RP/textures/entity",
+		path: "RP/textures/entity",
 		extension: ".tga",
 	},
 	".mc.language.json": {
-		target: "texts/languages",
+		path: "texts/languages",
 		extension: ".lang",
 	},
 	// Order matters - this should match before .json

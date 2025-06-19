@@ -6,11 +6,11 @@ export const AUTO_MAP = {
 	".dialogue.json": "BP/dialogue",
 	".behavior.json": "BP/entities",
 	".feature_rule.json": {
-		target: "BP/feature_rules",
+		path: "BP/feature_rules",
 		extension: ".json",
 	},
 	".feature.json": {
-		target: "BP/features",
+		path: "BP/features",
 		extension: ".json",
 	},
 	".mcfunction": "BP/functions",
@@ -37,47 +37,47 @@ export const AUTO_MAP = {
 	".wav": "RP/sounds",
 	".lang": "RP/texts",
 	".attachable.tga": {
-		target: "RP/textures/attachables",
+		path: "RP/textures/attachables",
 		extension: ".tga",
 	},
 	".block.tga": {
-		target: "RP/textures/blocks",
+		path: "RP/textures/blocks",
 		extension: ".tga",
 	},
 	".item.tga": {
-		target: "RP/textures/items",
+		path: "RP/textures/items",
 		extension: ".tga",
 	},
 	".entity.tga": {
-		target: "RP/textures/entity",
+		path: "RP/textures/entity",
 		extension: ".tga",
 	},
 	".particle.tga": {
-		target: "RP/textures/particle",
+		path: "RP/textures/particle",
 		extension: ".tga",
 	},
 	".attachable.png": {
-		target: "RP/textures/attachables",
+		path: "RP/textures/attachables",
 		extension: ".png",
 	},
 	".block.png": {
-		target: "RP/textures/blocks",
+		path: "RP/textures/blocks",
 		extension: ".png",
 	},
 	".item.png": {
-		target: "RP/textures/items",
+		path: "RP/textures/items",
 		extension: ".png",
 	},
 	".entity.png": {
-		target: "RP/textures/entity",
+		path: "RP/textures/entity",
 		extension: ".png",
 	},
 	".particle.png": {
-		target: "RP/textures/particle",
+		path: "RP/textures/particle",
 		extension: ".png",
 	},
 	".ui.png": {
-		target: "`f'RP/textures/ui'`",
+		path: "RP/textures/ui",
 		extension: ".png",
 	},
 	".js": "data/system_template_esbuild",

@@ -5,7 +5,7 @@ import { basename, isAbsolute, toFileUrl } from "@std/path";
  * Interface for the auto map entry with target and optional extension
  */
 export interface AutoMapEntry {
-	target: string;
+	path: string;
 	extension?: string;
 }
 
@@ -100,7 +100,7 @@ export class AutoMapResolver {
 			targetDir = mapEntry;
 			targetExtension = ""; // Keep original extension
 		} else {
-			targetDir = mapEntry.target;
+			targetDir = mapEntry.path;
 			targetExtension = mapEntry.extension || "";
 		}
 
