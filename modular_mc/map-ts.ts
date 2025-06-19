@@ -9,11 +9,20 @@ import {
 	dirname,
 	normalize,
 	join,
+	basename,
 } from "./path-utils.ts";
 import { AutoMapResolver } from "./auto-map-resolver.ts";
 import * as JSONC from "@std/jsonc";
 
 export type OnConflictStrategy = "stop" | "skip" | "merge" | "overwrite";
+
+// New types for the target property
+export interface MapTargetObject {
+	path: string;
+	subpath?: string;
+	name: string;
+}
+export type MapTarget = string | MapTargetObject;
 
 // The path to the auto-map.ts file - using a function to resolve it at runtime
 function getAutoMapFilePath(): string {
@@ -47,7 +56,7 @@ async function getAutoMapResolver(): Promise<AutoMapResolver> {
  */
 export class MapTsEntry {
 	source: string;
-	target: string;
+	target: MapTarget;
 	jsonTemplate: boolean;
 	onConflict: OnConflictStrategy;
 	fileType?: string;
@@ -72,7 +81,7 @@ export class MapTsEntry {
 	 */
 	constructor(
 		source: string,
-		target: string,
+		target: MapTarget,
 		jsonTemplate: boolean = false,
 		onConflict: OnConflictStrategy = "stop",
 		fileType?: string,
@@ -123,7 +132,7 @@ export class MapTsEntry {
 		mapFilePath: string
 	): {
 		source: string;
-		target: string;
+		target: MapTarget;
 		jsonTemplate?: boolean;
 		onConflict?: OnConflictStrategy;
 		fileType?: string;
@@ -135,24 +144,61 @@ export class MapTsEntry {
 			obj === null ||
 			!("source" in obj) ||
 			!("target" in obj) ||
-			typeof obj.source !== "string" ||
-			typeof obj.target !== "string"
+			typeof obj.source !== "string"
 		) {
 			throw new Error(
-				`Invalid MAP entry in ${mapFilePath}. Each entry must have source and target properties as strings.`
+				`Invalid MAP entry in ${mapFilePath}. Each entry must have a 'source' (string) and a 'target' (string or object).`
 			);
 		}
 
-		// Extract values for additional validation
-		const { source, target, jsonTemplate, onConflict, fileType, scope } =
-			obj as {
-				source: string;
-				target: string;
-				jsonTemplate?: boolean;
-				onConflict?: OnConflictStrategy;
-				fileType?: string;
-				scope?: Record<string, any>;
-			};
+		// Use a type assertion for the whole object
+		const {
+			source,
+			target,
+			jsonTemplate,
+			onConflict,
+			fileType,
+			scope,
+		} = obj as {
+			source: string;
+			target: MapTarget;
+			jsonTemplate?: boolean;
+			onConflict?: OnConflictStrategy;
+			fileType?: string;
+			scope?: Record<string, any>;
+		};
+
+		// Validate target property
+		if (typeof target !== "string" && typeof target !== "object") {
+			throw new Error(
+				`Invalid MAP entry in ${mapFilePath}. Target must be a string or an object.`
+			);
+		}
+
+		if (typeof target === "object") {
+			if (target === null || !("path" in target) || !("name" in target)) {
+				throw new Error(
+					`Invalid MAP entry in ${mapFilePath}. Target object must have 'path' and 'name' properties.`
+				);
+			}
+			const targetObj = target as MapTargetObject;
+			if (
+				typeof targetObj.path !== "string" ||
+				typeof targetObj.name !== "string"
+			) {
+				throw new Error(
+					`Invalid MAP entry in ${mapFilePath}. Target 'path' and 'name' must be strings.`
+				);
+			}
+			if (
+				targetObj.subpath !== undefined &&
+				typeof targetObj.subpath !== "string"
+			) {
+				throw new Error(
+					`Invalid MAP entry in ${mapFilePath}. Target 'subpath' must be a string.`
+				);
+			}
+		}
 
 		// Validate jsonTemplate if present
 		if (jsonTemplate !== undefined && typeof jsonTemplate !== "boolean") {
@@ -209,18 +255,20 @@ export class MapTsEntry {
 			};
 		}
 
-		// Normalize paths for consistent processing - ensure forward slashes
-		const normalizedTarget = asPosix(normalize(target));
+		if (typeof target === "string") {
+			// Normalize paths for consistent processing - ensure forward slashes
+			const normalizedTarget = asPosix(normalize(target));
 
-		// Validate target path starts with RP/, BP/, or data/
-		if (
-			!normalizedTarget.startsWith("RP/") &&
-			!normalizedTarget.startsWith("BP/") &&
-			!normalizedTarget.startsWith("data/")
-		) {
-			throw new Error(
-				`Invalid target path in ${mapFilePath}. Target must start with RP/, BP/, or data/. Got: ${normalizedTarget}`
-			);
+			// Validate target path starts with RP/, BP/, or data/
+			if (
+				!normalizedTarget.startsWith("RP/") &&
+				!normalizedTarget.startsWith("BP/") &&
+				!normalizedTarget.startsWith("data/")
+			) {
+				throw new Error(
+					`Invalid target path in ${mapFilePath}. Target must start with RP/, BP/, or data/. Got: ${normalizedTarget}`
+				);
+			}
 		}
 
 		// Validate source path is relative and doesn't contain parent directory references
@@ -300,36 +348,59 @@ export class MapTsEntry {
 	 * @returns Promise<string> A promise that resolves to the actual target path
 	 * @throws Error if auto mapping fails
 	 */
-	private async resolveAutoTarget(): Promise<string> {
-		// If target is not an auto keyword, return it as is
-		if (
-			this.target !== MapTsEntry.AUTO_KEYWORD &&
-			this.target !== MapTsEntry.AUTO_FLAT_KEYWORD
-		) {
-			return this.target;
-		}
-
-		// Get the auto map resolver
+	private async resolveTargetPath(): Promise<string> {
 		const resolver = await getAutoMapResolver();
-
-		// Determine if we're using the flat mode
-		const isFlat = this.target === MapTsEntry.AUTO_FLAT_KEYWORD;
-
-		// Use relative source path for auto mapping to avoid absolute path issues
 		const sourcePath = this.mapFilePath
 			? relative(dirname(this.mapFilePath), this.source)
 			: this.source;
 
-		// Resolve the target path
-		const resolvedPath = resolver.resolveAutoPath(sourcePath, isFlat);
-
-		if (!resolvedPath) {
-			throw new Error(
-				`Failed to auto-map '${sourcePath}'. No matching pattern found in AUTO_MAP.`
-			);
+		if (typeof this.target === "string") {
+			if (
+				this.target === MapTsEntry.AUTO_KEYWORD ||
+				this.target === MapTsEntry.AUTO_FLAT_KEYWORD
+			) {
+				const isFlat = this.target === MapTsEntry.AUTO_FLAT_KEYWORD;
+				const resolvedPath = resolver.resolveAutoPath(sourcePath, isFlat);
+				if (!resolvedPath) {
+					throw new Error(
+						`Failed to auto-map '${sourcePath}'. No matching pattern found in AUTO_MAP.`
+					);
+				}
+				return resolvedPath;
+			}
+			return this.target;
 		}
 
-		return resolvedPath;
+		// Handle MapTargetObject
+		const { path, subpath, name } = this.target;
+		let resolvedPath = path;
+		if (
+			path === MapTsEntry.AUTO_KEYWORD ||
+			path === MapTsEntry.AUTO_FLAT_KEYWORD
+		) {
+			const isFlat = path === MapTsEntry.AUTO_FLAT_KEYWORD;
+			const autoPath = resolver.resolveAutoPath(sourcePath, isFlat);
+			if (!autoPath) {
+				throw new Error(
+					`Failed to auto-map path for '${sourcePath}'. No matching pattern found in AUTO_MAP.`
+				);
+			}
+			resolvedPath = dirname(autoPath); // We only need the directory part
+		}
+
+		let resolvedName = name;
+		if (name === MapTsEntry.AUTO_KEYWORD) {
+			const autoName = resolver.resolveAutoPath(sourcePath, false); // Not flat
+			if (!autoName) {
+				throw new Error(
+					`Failed to auto-map name for '${sourcePath}'. No matching pattern found in AUTO_MAP.`
+				);
+			}
+			resolvedName = basename(autoName);
+		}
+
+		const finalPath = join(resolvedPath, subpath || "", resolvedName);
+		return finalPath;
 	}
 
 	/**
@@ -343,7 +414,7 @@ export class MapTsEntry {
 		const sourcePath = resolve(this.source);
 
 		// Resolve auto target if needed
-		const resolvedTarget = await this.resolveAutoTarget();
+		const resolvedTarget = await this.resolveTargetPath();
 
 		// Get the full path to the target file
 		const targetPath = resolve(resolvedTarget);

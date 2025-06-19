@@ -41,3 +41,10 @@ export function dirname(path: string): string {
 export function resolve(...pathSegments: string[]): string {
 	return asPosix(stdPath.resolve(...pathSegments));
 }
+
+/**
+ * Returns the last portion of a path
+ */
+export function basename(path: string, suffix?: string): string {
+	return asPosix(stdPath.basename(path, suffix));
+}
