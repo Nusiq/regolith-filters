@@ -1,4 +1,6 @@
-import { walk } from "@std/fs/walk";
+import { walk, WalkEntry } from "@std/fs/walk";
+import { expandGlobSync } from "@std/fs/expand-glob";
+import { withWd } from "./wd-utils.ts";
 import { isAbsolute, toFileUrl, extname } from "@std/path";
 import { evaluate } from "./json-template.ts";
 import { deepMergeObjects, ListMergePolicy } from "./json-merge.ts";
@@ -104,9 +106,13 @@ export class MapTsEntry {
 	}
 
 	/**
-	 * Validates a raw object and returns a properly constructed MapTsEntry
+	 * Validates a raw object and returns a list of properly constructed MapTsEntries
+	 * If source is a glob pattern, returns one entry per matching file
 	 */
-	static fromObject(obj: unknown, mapFilePath: string): MapTsEntry {
+	static fromObject(
+		obj: unknown,
+		mapFilePath: string
+	) {
 		// First validate the object structure
 		const validatedObj = MapTsEntry.validate(obj, mapFilePath);
 
@@ -117,16 +123,64 @@ export class MapTsEntry {
 		const fileType = validatedObj.fileType;
 		const scope = validatedObj.scope;
 
-		// Create the entry with the resolved source path
-		return new MapTsEntry(
-			resolve(dirname(mapFilePath), source),
-			target,
-			jsonTemplate,
-			onConflict,
-			fileType,
-			scope,
-			mapFilePath
-		);
+		// Check if source contains glob patterns
+		const hasGlobPattern =
+			source.includes("*") ||
+			source.includes("?") ||
+			source.includes("[") ||
+			source.includes("{");
+
+		if (hasGlobPattern) {
+			// Handle glob pattern
+			const entries: MapTsEntry[] = [];
+			// const baseDir = dirname(mapFilePath);
+			try {
+				const resolvedSources: WalkEntry[] = [];
+				withWd(dirname(mapFilePath), () => {
+					for (const entry of expandGlobSync(source)) {
+						resolvedSources.push(entry);
+					}
+				});
+				for (const entry of resolvedSources) {
+					if (entry.isFile) {
+						entries.push(
+							new MapTsEntry(
+								entry.path,
+								target,
+								jsonTemplate,
+								onConflict,
+								fileType,
+								scope,
+								mapFilePath
+							)
+						);
+					}
+				}
+			} catch (error) {
+				throw new Error(
+					`Failed to expand glob pattern '${source}' in ${mapFilePath}: ${error}`
+				);
+			}
+			if (entries.length === 0) {
+				console.warn(
+					`Warning: Glob pattern '${source}' in ${mapFilePath} matched no files`
+				);
+			}
+			return entries;
+		} else {
+			// Handle single file
+			return [
+				new MapTsEntry(
+					resolve(dirname(mapFilePath), source),
+					target,
+					jsonTemplate,
+					onConflict,
+					fileType,
+					scope,
+					mapFilePath
+				),
+			];
+		}
 	}
 
 	/**
@@ -645,9 +699,9 @@ export class MapTs {
 				}
 
 				// Validate and process each entry using the MapTsEntry class
-				validatedEntries = mapResult.map((entry) =>
-					MapTsEntry.fromObject(entry, mapFilePath)
-				);
+				for (const entry of mapResult) {
+					validatedEntries.push(...MapTsEntry.fromObject(entry, mapFilePath));
+				}
 			}
 
 			// Process SCRIPTS if it exists
