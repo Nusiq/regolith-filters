@@ -14,7 +14,13 @@ import {
 import { AutoMapResolver } from "./auto-map-resolver.ts";
 import * as JSONC from "@std/jsonc";
 
-export type OnConflictStrategy = "stop" | "skip" | "merge" | "overwrite";
+export type OnConflictStrategy =
+	| "stop"
+	| "skip"
+	| "merge"
+	| "overwrite"
+	| "appendStart"
+	| "appendEnd";
 
 // New types for the target property
 export interface MapTargetObject {
@@ -216,7 +222,14 @@ export class MapTsEntry {
 			}
 
 			// Check if onConflict has valid value
-			const validValues = ["stop", "skip", "merge", "overwrite"];
+			const validValues = [
+				"stop",
+				"skip",
+				"merge",
+				"overwrite",
+				"appendStart",
+				"appendEnd",
+			];
 			if (!validValues.includes(onConflict)) {
 				throw new Error(
 					`Invalid onConflict value in ${mapFilePath}. Must be one of: ${validValues.join(
@@ -318,7 +331,7 @@ export class MapTsEntry {
 	 * @param sourceType The source file type
 	 * @param targetType The target file type
 	 */
-	private isMergeable(sourceType: string, targetType: string): boolean {
+	private isJsonMergeable(sourceType: string, targetType: string): boolean {
 		// Currently only JSON and material files are mergeable
 		const mergeableTypes = ["json", "material"];
 		return (
@@ -339,6 +352,8 @@ export class MapTsEntry {
 			this.onConflict !== "merge" &&
 			this.onConflict !== "skip" &&
 			this.onConflict !== "overwrite" &&
+			this.onConflict !== "appendStart" &&
+			this.onConflict !== "appendEnd" &&
 			!this.jsonTemplate
 		);
 	}
@@ -442,7 +457,7 @@ export class MapTsEntry {
 			if (this.onConflict === "stop") {
 				throw new Error(
 					`Target file already exists: ${targetPath}. Use onConflict: ` +
-						`"skip", "merge", or "overwrite" to handle this.`
+						`"skip", "merge", "overwrite", "appendStart", or "appendEnd" to handle this.`
 				);
 			} else if (this.onConflict === "skip") {
 				console.log(
@@ -453,13 +468,25 @@ export class MapTsEntry {
 				// Allow overwriting, proceed to file operations
 			} else if (this.onConflict === "merge") {
 				// Check if files are mergeable
-				if (!this.isMergeable(sourceType, targetType)) {
+				if (!this.isJsonMergeable(sourceType, targetType)) {
 					throw new Error(
 						`Cannot merge files with types ${sourceType} and ${targetType}. Only json and material files can be merged.`
 					);
 				}
 
 				// Continue with merge operations below
+			} else if (
+				this.onConflict === "appendStart" ||
+				this.onConflict === "appendEnd"
+			) {
+				// Check if files are non-JSON files (opposite of mergeable files)
+				if (this.isJsonMergeable(sourceType, targetType)) {
+					throw new Error(
+						`Cannot use ${this.onConflict} with JSON files. Use "merge" for JSON files or "appendStart"/"appendEnd" for non-JSON files.`
+					);
+				}
+
+				// Continue with append operations below
 			}
 		}
 
@@ -537,8 +564,30 @@ export class MapTsEntry {
 			// Write the result to the target file
 			await Deno.writeTextFile(targetPath, resultContent);
 		} else {
-			// For non-JSON files, just copy the file if it doesn't exist or onConflict is merge
-			if (!targetExists || this.onConflict !== "merge") {
+			// For non-JSON files, handle different conflict strategies
+			if (!targetExists || this.onConflict === "overwrite") {
+				// Simple copy for new files or overwrite
+				await Deno.copyFile(sourcePath, targetPath);
+			} else if (this.onConflict === "appendStart") {
+				// Read existing target content
+				const targetContent = await Deno.readTextFile(targetPath);
+
+				// Append source content at the start of target content
+				const resultContent = sourceContent + targetContent;
+
+				// Write the combined content
+				await Deno.writeTextFile(targetPath, resultContent);
+			} else if (this.onConflict === "appendEnd") {
+				// Read existing target content
+				const targetContent = await Deno.readTextFile(targetPath);
+
+				// Append source content at the end of target content
+				const resultContent = targetContent + sourceContent;
+
+				// Write the combined content
+				await Deno.writeTextFile(targetPath, resultContent);
+			} else if (this.onConflict !== "merge") {
+				// For any other non-merge conflicts (should not happen), copy the file
 				await Deno.copyFile(sourcePath, targetPath);
 			}
 		}
