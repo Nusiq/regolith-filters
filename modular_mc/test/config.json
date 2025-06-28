@@ -1,0 +1,56 @@
+{
+	"$schema": "https://raw.githubusercontent.com/Bedrock-OSS/regolith-schemas/main/config/v1.4.json",
+	"author": "Nusiq",
+	"name": "modular-mc",
+	"packs": {
+		"behaviorPack": "./packs/BP",
+		"resourcePack": "./packs/RP"
+	},
+	"regolith": {
+		"dataPath": "./packs/data",
+		"filterDefinitions": {
+			"filter_tester": {
+				"url": "github.com/Bedrock-OSS/regolith-filters",
+				"version": "1.0.0"
+			},
+			"modular_mc": {
+				"runWith": "deno",
+				"script": "../main.ts"
+			}
+		},
+		"formatVersion": "1.4.0",
+		"profiles": {
+			"default": {
+				"export": {
+					"target": "local",
+					"bpName": "'BP'",
+					"rpName": "'RP'"
+				},
+				"filters": [
+					{
+						"filter": "modular_mc",
+						"settings": {
+							"scopePath": "scope.json",
+							"scope": {
+								"config_scope_variable": "This comes from the config (1)",
+								"global_scope_variable_overwrite_config": "This comes from the config (2)"
+							},
+							"esbuild": {
+								"buildPath": ".modular_mc/main.js",
+								"settings": {
+									"sourcemap": true
+								}
+							}
+						}
+					},
+					{
+						"filter": "filter_tester",
+						"settings": {
+							"errors_stop_execution": false
+						}
+					}
+				]
+			}
+		}
+	}
+}

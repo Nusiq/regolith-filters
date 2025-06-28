@@ -1,0 +1,10 @@
+{
+	"description": "A filter that lets you group your project files into folders based on their purpose not their type.",
+	"filters": [
+		{
+			"runWith": "deno",
+			"script": "./main.ts",
+			"name": "nusiq:modular_mc"
+		}
+	]
+}
