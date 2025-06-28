@@ -25,3 +25,13 @@ export async function withWd<T>(
 		Deno.chdir(originalDir);
 	}
 }
+
+export function withWdSync<T>(dir: string, fn: () => T): T {
+	const originalDir = Deno.cwd();
+	try {
+		Deno.chdir(dir);
+		return fn();
+	} finally {
+		Deno.chdir(originalDir);
+	}
+}

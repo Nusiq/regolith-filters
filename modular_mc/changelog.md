@@ -1,4 +1,7 @@
 # Change log
+## 0.2.1
+Fixed a bug where the filter could incorrectly change working directory while resolving the list of files to process from glob patterns.
+
 ## 0.2.0
 Renamed the `k` function used in JSON Template to `K` to let users use variable name `k` (a common name for a key in a JSON object). This name also matches the JSON Template from System Template Regolith filter.
 

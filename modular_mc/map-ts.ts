@@ -1,6 +1,6 @@
 import { walk, WalkEntry } from "@std/fs/walk";
 import { expandGlobSync } from "@std/fs/expand-glob";
-import { withWd } from "./wd-utils.ts";
+import { withWdSync } from "./wd-utils.ts";
 import { isAbsolute, toFileUrl, extname } from "@std/path";
 import { evaluate } from "./json-template.ts";
 import { deepMergeObjects, ListMergePolicy } from "./json-merge.ts";
@@ -136,7 +136,7 @@ export class MapTsEntry {
 			// const baseDir = dirname(mapFilePath);
 			try {
 				const resolvedSources: WalkEntry[] = [];
-				withWd(dirname(mapFilePath), () => {
+				withWdSync(dirname(mapFilePath), () => {
 					for (const entry of expandGlobSync(source)) {
 						resolvedSources.push(entry);
 					}
@@ -686,7 +686,7 @@ export class MapTs {
 			const mapModule = await import(fileUrl);
 
 			// Initialize arrays for entries and scripts
-			let validatedEntries: MapTsEntry[] = [];
+			const validatedEntries: MapTsEntry[] = [];
 			const scripts: string[] = [];
 
 			// Process MAP if it exists
