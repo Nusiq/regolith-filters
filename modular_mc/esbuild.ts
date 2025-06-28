@@ -1,6 +1,6 @@
 import { ensureDirSync } from "@std/fs";
 import * as esbuild from "esbuild";
-import { dirname } from "./path-utils.ts";
+import { dirname, asPosix } from "./path-utils.ts";
 
 export interface CompileOptions {
 	/**
@@ -57,6 +57,8 @@ export async function compileWithEsbuild(
 		externalPackages.push("@minecraft/server");
 	}
 
+	let tempEntryFile: string | undefined;
+
 	try {
 		// Ensure output directory exists
 		ensureDirSync(dirname(outfile));
@@ -64,9 +66,24 @@ export async function compileWithEsbuild(
 		// Determine the final output path
 		const esbuildOutFile = buildPath ? buildPath : outfile;
 
+		// Handle multiple entry points by creating a temporary entry file
+		let finalEntryPoints: string[];
+		if (entryPoints.length > 1) {
+			// Create a temporary entry file that imports all the other files
+			tempEntryFile = `.temp_esbuild_entry_${Date.now()}.ts`;
+			const imports = entryPoints.map((file) => {
+				return `import "${asPosix(file)}";`;
+			}).join('\n');
+			
+			await Deno.writeTextFile(tempEntryFile, imports);
+			finalEntryPoints = [tempEntryFile];
+		} else {
+			finalEntryPoints = entryPoints;
+		}
+
 		// Build with esbuild
 		const result = await esbuild.build({
-			entryPoints: entryPoints,
+			entryPoints: finalEntryPoints,
 			bundle: true,
 			minify: minify,
 			format: "esm",
@@ -89,6 +106,9 @@ export async function compileWithEsbuild(
 			console.log(`Copied compiled file to ${outfile}`);
 		}
 	} finally {
+		// We don't need to clean up the temporary entry file because it's created
+		// in Regolith's temporary directory and Regolith will handle it.
+
 		// Stop esbuild service. This is helpful to stop the child process when
 		// running with Deno.
 		esbuild.stop();
