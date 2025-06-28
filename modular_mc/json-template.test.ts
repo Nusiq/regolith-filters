@@ -49,7 +49,7 @@ Deno.test("Using Variables from Scope", () => {
 Deno.test("Using K Object", () => {
 	const source = {
 		// Using Array.map instead of Python's list comprehension
-		"`Array(2).fill(0).map((_, i) => k('foo' + i, { number: i }))`": {
+		"`Array(2).fill(0).map((_, i) => K('foo' + i, { number: i }))`": {
 			bar: "`number`",
 		},
 	};
@@ -188,7 +188,7 @@ Deno.test("Undefined in Top Level Array", () => {
 // Add test for properly testing array map that returns K objects
 Deno.test("Array.map returning K objects", () => {
 	const source = {
-		"`[0, 1].map(i => k('bar' + i, {}))`": "baz",
+		"`[0, 1].map(i => K('bar' + i, {}))`": "baz",
 	};
 	const expected = {
 		bar0: "baz",

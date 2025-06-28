@@ -56,8 +56,9 @@ function isBacktickExpression(value: unknown): value is string {
  */
 function evaluateExpression(expr: string, scope: Record<string, any>): any {
 	// Create parameter names and values arrays for the function
-	const paramNames = ["K", "JoinStr", "k", "joinStr", ...Object.keys(scope)];
-	const paramValues = [K, JoinStr, k, joinStr, ...Object.values(scope)];
+	// "k" is imported as "K" to let users use variables named "k"
+	const paramNames = ["K", "joinStr", ...Object.keys(scope)];
+	const paramValues = [k, joinStr, ...Object.values(scope)];
 
 	// Create a function with our parameters
 	const fn = new Function(...paramNames, `return ${expr};`);
