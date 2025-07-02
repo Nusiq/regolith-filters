@@ -1,13 +1,9 @@
-import { isAbsolute } from "@std/path";
 import { compileWithEsbuild } from "./esbuild.ts";
-import { deepMergeObjects, ListMergePolicy } from "./json-merge.ts";
 import { processModule } from "./map-ts.ts";
-import { asPosix, join } from "./path-utils.ts";
+import { join } from "./path-utils.ts";
 import { getDataPath, getRootDir } from "./regolith.ts";
-import * as JSONC from "@std/jsonc";
 
 if (import.meta.main) {
-	let scope: Record<string, any> = {};
 	let esbuildOptions: Record<string, any> = {};
 	let buildPath: string | undefined;
 
@@ -16,33 +12,6 @@ if (import.meta.main) {
 	if (args.length > 0) {
 		try {
 			const input = JSON.parse(args[0]);
-
-			// Handle scope property
-			if (input.scope !== undefined) {
-				scope = input.scope;
-			}
-
-			// Handle scopePath property
-			if (input.scopePath !== undefined) {
-				// Resolve the path - if not absolute, make it relative to ./data
-				const scopePath = isAbsolute(input.scopePath)
-					? asPosix(input.scopePath)
-					: join("./data", input.scopePath);
-
-				const scopePathContent = await Deno.readTextFile(scopePath);
-				const scopePathData: any = JSONC.parse(scopePathContent);
-
-				// Merge scopePath data into scope if both exist
-				if (input.scope !== undefined) {
-					scope = deepMergeObjects(
-						scope,
-						scopePathData,
-						ListMergePolicy.APPEND
-					);
-				} else {
-					scope = scopePathData;
-				}
-			}
 
 			// Get esbuild options if provided
 			if (input.esbuild !== undefined && typeof input.esbuild === "object") {
@@ -99,6 +68,6 @@ if (import.meta.main) {
 
 	// Apply all modules
 	for (const module of modules) {
-		await module.apply(scope);
+		await module.apply();
 	}
 }

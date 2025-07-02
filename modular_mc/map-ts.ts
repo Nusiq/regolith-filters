@@ -492,9 +492,8 @@ export class MapTsEntry {
 	 * Applies this entry by copying the source file to the target location.
 	 * If jsonTemplate is true, processes the source as a JSON template.
 	 * Handles conflicts according to onConflict setting.
-	 * @param scope Optional scope to use for JSON template evaluation
 	 */
-	async apply(scope: Record<string, any> = {}): Promise<void> {
+	async apply(): Promise<void> {
 		// Get the full path to the source file
 		// If source is already absolute, use it as-is; otherwise resolve it
 		const sourcePath = isAbsolute(this.source)
@@ -598,12 +597,7 @@ export class MapTsEntry {
 			// Apply JSON template if enabled
 			if (this.jsonTemplate) {
 				// Merge entry scope with global scope, with entry scope taking precedence
-				const mergedScope = deepMergeObjects(
-					scope,
-					this.scope,
-					ListMergePolicy.APPEND
-				);
-				sourceJSON = evaluate(sourceJSON, mergedScope);
+				sourceJSON = evaluate(sourceJSON, this.scope);
 			}
 
 			// Check if we need to merge with an existing file
@@ -764,9 +758,8 @@ export class MapTs {
 
 	/**
 	 * Applies the map by copying all source files to their target locations
-	 * @param scope Optional scope to use for JSON template evaluation
-	 */
-	async apply(scope: Record<string, any> = {}): Promise<void> {
+`	 */
+	async apply(): Promise<void> {
 		// Process each entry
 		// Split entries into those that can and cannot run concurrently
 		const concurrentEntries: MapTsEntry[] = [];
@@ -783,7 +776,7 @@ export class MapTs {
 		// Run concurrent entries in parallel
 		if (concurrentEntries.length > 0) {
 			try {
-				await Promise.all(concurrentEntries.map((entry) => entry.apply(scope)));
+				await Promise.all(concurrentEntries.map((entry) => entry.apply()));
 			} catch (error: unknown) {
 				const errorMessage =
 					error instanceof Error
@@ -801,7 +794,7 @@ export class MapTs {
 		// Run sequential entries one at a time
 		for (const entry of sequentialEntries) {
 			try {
-				await entry.apply(scope);
+				await entry.apply();
 			} catch (error: unknown) {
 				const errorMessage =
 					error instanceof Error ? error.message : String(error);
