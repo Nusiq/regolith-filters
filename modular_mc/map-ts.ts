@@ -582,8 +582,11 @@ export class MapTsEntry {
 			throw error;
 		}
 
-		// Handle JSON files
-		if (sourceType === "json" || targetType === "json") {
+		// Handle generating/merging JSON files
+		if (
+			sourceType === "json" &&
+			(this.jsonTemplate || (targetExists && this.onConflict === "merge"))
+		) {
 			// Parse the source content as JSON
 			let sourceJSON: any;
 			try {
