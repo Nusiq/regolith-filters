@@ -430,26 +430,6 @@ export class MapTsEntry {
 	}
 
 	/**
-	 * Determines if the target should be treated as a directory
-	 * @returns true if the target should be treated as a directory, false otherwise
-	 */
-	private isDirectoryTarget(): boolean {
-		if (typeof this.target !== "string") {
-			return false;
-		}
-
-		const targetBasename = basename(this.target);
-		
-		// Special directory names that should not be treated as files
-		if (targetBasename === "." || targetBasename === "..") {
-			return true;
-		}
-
-		// Check if the basename has no extension (indicating it's likely a directory)
-		return suffixes(targetBasename) === "";
-	}
-
-	/**
 	 * Resolves auto mapping target path if the target is an auto keyword
 	 * @returns Promise<string> A promise that resolves to the actual target path
 	 * @throws Error if auto mapping fails
@@ -474,8 +454,12 @@ export class MapTsEntry {
 				}
 				return resolvedPath;
 			}
-			//if target is pointing to a directory (using "/" or not specifying an extension), we need to append the filename
-			else if (this.target.endsWith("/") || this.isDirectoryTarget()) {
+			//if target is pointing to a directory (using "/" or special
+			// ending - '..' or '.'), we need to append the filename
+			else if (
+				this.target.endsWith("/") ||
+				["..", "."].includes(basename(this.target))
+			) {
 				const filename = basename(this.source);
 				return join(this.target, filename);
 			}
