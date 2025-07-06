@@ -437,6 +437,11 @@ export class MapTsEntry {
 				}
 				return resolvedPath;
 			}
+			//if target is pointing to a directory (using "/"), we need to append the filename
+			else if (this.target.endsWith("/")) {
+				const filename = basename(this.source);
+				return join(this.target, filename);
+			}
 			return this.target;
 		}
 
