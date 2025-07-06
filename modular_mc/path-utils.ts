@@ -48,3 +48,12 @@ export function resolve(...pathSegments: string[]): string {
 export function basename(path: string, suffix?: string): string {
 	return asPosix(stdPath.basename(path, suffix));
 }
+/**
+ * Returns the extension of the file, defined as everything after the first dot in the basename.
+ * If there is no dot in the basename, returns an emtpy string.
+ */
+export function suffixes(str: string): string {
+	const firstDot = str.indexOf(".");
+	if (firstDot === -1) return "";
+	return str.slice(firstDot + 1);
+}
