@@ -12,6 +12,7 @@ import {
 	normalize,
 	join,
 	basename,
+	suffixes,
 } from "./path-utils.ts";
 import { AutoMapResolver } from "./auto-map-resolver.ts";
 import * as JSONC from "@std/jsonc";
@@ -437,8 +438,8 @@ export class MapTsEntry {
 				}
 				return resolvedPath;
 			}
-			//if target is pointing to a directory (using "/"), we need to append the filename
-			else if (this.target.endsWith("/")) {
+			//if target is pointing to a directory (using "/" or not specifying an extension), we need to append the filename
+			else if (this.target.endsWith("/") || suffixes(basename(this.target)) === "") {
 				const filename = basename(this.source);
 				return join(this.target, filename);
 			}
