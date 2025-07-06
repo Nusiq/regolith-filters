@@ -1,4 +1,8 @@
 # Change log
+## 0.3.0
+- Source paths in _map.ts entries now can be absolute paths, as long as the target path is not using `:auto` and the source path is inside the data directory of ModularMC.
+- Removed the `scope` and `scopePath` properties from the settings. Using imports in _map.ts file sufficiently covers the same use case.
+
 ## 0.2.1
 Fixed a bug where the filter could incorrectly change working directory while resolving the list of files to process from glob patterns.
 

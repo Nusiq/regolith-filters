@@ -110,10 +110,7 @@ export class MapTsEntry {
 	 * Validates a raw object and returns a list of properly constructed MapTsEntries
 	 * If source is a glob pattern, returns one entry per matching file
 	 */
-	static fromObject(
-		obj: unknown,
-		mapFilePath: string
-	) {
+	static fromObject(obj: unknown, mapFilePath: string) {
 		// First validate the object structure
 		const validatedObj = MapTsEntry.validate(obj, mapFilePath);
 
@@ -170,9 +167,14 @@ export class MapTsEntry {
 			return entries;
 		} else {
 			// Handle single file
+			// If source is already absolute, use it as-is; otherwise resolve relative to map file
+			const resolvedSource = isAbsolute(source)
+				? source
+				: resolve(dirname(mapFilePath), source);
+
 			return [
 				new MapTsEntry(
-					resolve(dirname(mapFilePath), source),
+					resolvedSource,
 					target,
 					jsonTemplate,
 					onConflict,
@@ -213,21 +215,15 @@ export class MapTsEntry {
 		}
 
 		// Use a type assertion for the whole object
-		const {
-			source,
-			target,
-			jsonTemplate,
-			onConflict,
-			fileType,
-			scope,
-		} = obj as {
-			source: string;
-			target: MapTarget;
-			jsonTemplate?: boolean;
-			onConflict?: OnConflictStrategy;
-			fileType?: string;
-			scope?: Record<string, any>;
-		};
+		const { source, target, jsonTemplate, onConflict, fileType, scope } =
+			obj as {
+				source: string;
+				target: MapTarget;
+				jsonTemplate?: boolean;
+				onConflict?: OnConflictStrategy;
+				fileType?: string;
+				scope?: Record<string, any>;
+			};
 
 		// Validate target property
 		if (typeof target !== "string" && typeof target !== "object") {
@@ -339,21 +335,41 @@ export class MapTsEntry {
 			}
 		}
 
-		// Validate source path is relative and doesn't contain parent directory references
+		// Validate source path based on target type and working directory constraints
 		if (isAbsolute(source)) {
-			throw new Error(
-				`Invalid source path in ${mapFilePath}. Absolute paths are not allowed. Got: ${source}`
-			);
-		}
+			// Check if target uses ":auto" (either as string or in object path property)
+			const usesAuto =
+				target === MapTsEntry.AUTO_KEYWORD ||
+				(typeof target === "object" && target.path === MapTsEntry.AUTO_KEYWORD);
 
-		// Normalize the source path for consistent analysis - ensure forward slashes
-		const normalizedSource = asPosix(normalize(source));
+			if (usesAuto) {
+				throw new Error(
+					`Invalid source path in ${mapFilePath}. Absolute paths are not allowed when target uses ":auto". Got: ${source}`
+				);
+			}
 
-		// Check if the normalized path contains parent directory references
-		if (normalizedSource.includes("..")) {
-			throw new Error(
-				`Invalid source path in ${mapFilePath}. Paths cannot contain parent directory references (..). Got: ${source}`
-			);
+			// Ensure absolute path is within the program's working directory
+			const workingDir = asPosix(resolve(Deno.cwd()));
+			const absoluteSource = asPosix(resolve(source));
+
+			if (
+				!absoluteSource.startsWith(workingDir + "/") &&
+				absoluteSource !== workingDir
+			) {
+				throw new Error(
+					`Invalid source path in ${mapFilePath}. Absolute paths must be within the program's working directory (${workingDir}). Got: ${source}`
+				);
+			}
+		} else {
+			// For relative paths, normalize and check for parent directory references
+			const normalizedSource = asPosix(normalize(source));
+
+			// Check if the normalized path contains parent directory references
+			if (normalizedSource.includes("..")) {
+				throw new Error(
+					`Invalid source path in ${mapFilePath}. Paths cannot contain parent directory references (..). Got: ${source}`
+				);
+			}
 		}
 
 		return {
@@ -482,11 +498,13 @@ export class MapTsEntry {
 	 * Applies this entry by copying the source file to the target location.
 	 * If jsonTemplate is true, processes the source as a JSON template.
 	 * Handles conflicts according to onConflict setting.
-	 * @param scope Optional scope to use for JSON template evaluation
 	 */
-	async apply(scope: Record<string, any> = {}): Promise<void> {
+	async apply(): Promise<void> {
 		// Get the full path to the source file
-		const sourcePath = resolve(this.source);
+		// If source is already absolute, use it as-is; otherwise resolve it
+		const sourcePath = isAbsolute(this.source)
+			? this.source
+			: resolve(this.source);
 
 		// Resolve auto target if needed
 		const resolvedTarget = await this.resolveTargetPath();
@@ -569,8 +587,11 @@ export class MapTsEntry {
 			throw error;
 		}
 
-		// Handle JSON files
-		if (sourceType === "json" || targetType === "json") {
+		// Handle generating/merging JSON files
+		if (
+			sourceType === "json" &&
+			(this.jsonTemplate || (targetExists && this.onConflict === "merge"))
+		) {
 			// Parse the source content as JSON
 			let sourceJSON: any;
 			try {
@@ -582,12 +603,7 @@ export class MapTsEntry {
 			// Apply JSON template if enabled
 			if (this.jsonTemplate) {
 				// Merge entry scope with global scope, with entry scope taking precedence
-				const mergedScope = deepMergeObjects(
-					scope,
-					this.scope,
-					ListMergePolicy.APPEND
-				);
-				sourceJSON = evaluate(sourceJSON, mergedScope);
+				sourceJSON = evaluate(sourceJSON, this.scope);
 			}
 
 			// Check if we need to merge with an existing file
@@ -748,9 +764,8 @@ export class MapTs {
 
 	/**
 	 * Applies the map by copying all source files to their target locations
-	 * @param scope Optional scope to use for JSON template evaluation
-	 */
-	async apply(scope: Record<string, any> = {}): Promise<void> {
+`	 */
+	async apply(): Promise<void> {
 		// Process each entry
 		// Split entries into those that can and cannot run concurrently
 		const concurrentEntries: MapTsEntry[] = [];
@@ -767,19 +782,25 @@ export class MapTs {
 		// Run concurrent entries in parallel
 		if (concurrentEntries.length > 0) {
 			try {
-				await Promise.all(concurrentEntries.map((entry) => entry.apply(scope)));
+				await Promise.all(concurrentEntries.map((entry) => entry.apply()));
 			} catch (error: unknown) {
 				const errorMessage =
-					error instanceof Error ? error.message : String(error);
-				const path = asPosix(relative("data/modular_mc", this.path));
-				throw new Error(`Error in map file ${path}:\n` + `${errorMessage}`);
+					error instanceof Error
+						? `${error.message}: ${error.stack}`
+						: String(error);
+				const errorPath = isAbsolute(this.path)
+					? this.path
+					: asPosix(relative("data/modular_mc", this.path));
+				throw new Error(
+					`Error in map file ${errorPath}:\n` + `${errorMessage}`
+				);
 			}
 		}
 
 		// Run sequential entries one at a time
 		for (const entry of sequentialEntries) {
 			try {
-				await entry.apply(scope);
+				await entry.apply();
 			} catch (error: unknown) {
 				const errorMessage =
 					error instanceof Error ? error.message : String(error);

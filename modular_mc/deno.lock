@@ -6,6 +6,7 @@
     "jsr:@std/internal@^1.0.6": "1.0.6",
     "jsr:@std/json@^1.0.2": "1.0.2",
     "jsr:@std/jsonc@^1.0.2": "1.0.2",
+    "jsr:@std/path@*": "1.0.9",
     "jsr:@std/path@^1.0.9": "1.0.9",
     "npm:@types/node@*": "22.15.15",
     "npm:esbuild@~0.25.4": "0.25.4"
@@ -20,7 +21,7 @@
     "@std/fs@1.0.17": {
       "integrity": "1c00c632677c1158988ef7a004cb16137f870aafdb8163b9dce86ec652f3952b",
       "dependencies": [
-        "jsr:@std/path"
+        "jsr:@std/path@^1.0.9"
       ]
     },
     "@std/internal@1.0.6": {
