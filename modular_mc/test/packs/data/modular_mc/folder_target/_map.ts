@@ -9,4 +9,13 @@ export const MAP = [
 		source: "**/*.json",
 		target: "BP/features_custom/folder_target/subfolder2/", // Note: Trailing slash here
 	},
+	// Edge cases
+	{
+		source: "**/*.json",
+		target: "BP/features_custom/folder_target/subfolder3/fake_subpath/..", 
+	},
+	{
+		source: "**/*.json",
+		target: "BP/features_custom/folder_target/subfolder4/.",
+	},
 ];
