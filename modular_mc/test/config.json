@@ -30,11 +30,6 @@
 					{
 						"filter": "modular_mc",
 						"settings": {
-							"scopePath": "scope.json",
-							"scope": {
-								"config_scope_variable": "This comes from the config (1)",
-								"global_scope_variable_overwrite_config": "This comes from the config (2)"
-							},
 							"esbuild": {
 								"buildPath": ".modular_mc/main.js",
 								"settings": {
