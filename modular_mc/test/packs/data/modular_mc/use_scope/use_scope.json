@@ -1,7 +1,0 @@
-{
-	"config_scope_variable": "`config_scope_variable`",
-	"global_scope_variable": "`global_scope_variable`",
-	"global_scope_variable_overwrite_config": "`global_scope_variable_overwrite_config`",
-	"map_ts_scope": "`map_ts_scope`",
-	"map_ts_scope_overwrite_global": "`map_ts_scope_overwrite_global`"
-}
