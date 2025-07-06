@@ -4,10 +4,11 @@ export const MAP = [
 	{
 		//THIS IS NOT ALLOWED. ADDING THIS WOULD MEAN THAT YOU CAN'T EXPORT
 		// FILES WITHOUT EXTENSION.
-		source: "**/*.json",
+		source: "folder_target.json",
 		target: "BP/features_custom/folder_target/not_a_subfolder", // No trailing slash here
 	},
 	{
+		// Note that the paths in the source get flattened.
 		source: "**/*.json",
 		target: "BP/features_custom/folder_target/subfolder2/", // Trailing slash here
 	},
