@@ -1,4 +1,7 @@
 # Change log
+## 0.3.1
+- Target paths that end with `/` are now used for folder export. Folder export lets you not specify the name of the file; it copies the file name from the source path.
+
 ## 0.3.0
 - Source paths in _map.ts entries now can be absolute paths, as long as the target path is not using `:auto` and the source path is inside the data directory of ModularMC.
 - Removed the `scope` and `scopePath` properties from the settings. Using imports in _map.ts file sufficiently covers the same use case.
