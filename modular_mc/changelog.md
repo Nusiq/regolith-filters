@@ -1,9 +1,12 @@
 # Change log
+## 0.4.1
+Improved error messages.
+
 ## 0.4.0
-- The JSON Template expressions previously marked with `` ` `` prefix and `` ` `` suffix are now marked just with `` :: `` prefix.
+The JSON Template expressions previously marked with `` ` `` prefix and `` ` `` suffix are now marked just with `` :: `` prefix.
 
 ## 0.3.1
-- Target paths that end with `/` are now used for folder export. Folder export lets you not specify the name of the file; it copies the file name from the source path.
+Target paths that end with `/` are now used for folder export. Folder export lets you not specify the name of the file; it copies the file name from the source path.
 
 ## 0.3.0
 - Source paths in _map.ts entries now can be absolute paths, as long as the target path is not using `:auto` and the source path is inside the data directory of ModularMC.

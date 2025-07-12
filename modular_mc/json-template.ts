@@ -1,3 +1,6 @@
+import { ModularMcError } from "./error.ts";
+import dedent from "npm:dedent";
+
 /**
  * Represents a dynamic key in a JSON template. When evaluated, it creates a key-value pair
  * where the key is the identifier and the value is evaluated in the provided scope.
@@ -9,10 +12,11 @@ export class K {
 	) {
 		// Validate that the identifier is a string
 		if (typeof identifier !== "string") {
-			throw new Error(
-				`K class identifier must be a string, got ${typeof identifier}: ${JSON.stringify(
-					identifier
-				)}`
+			throw new ModularMcError(
+				dedent`
+				K class identifier must be a string
+				Type: ${typeof identifier}
+				Value: ${JSON.stringify(identifier)}`
 			);
 		}
 	}
@@ -44,7 +48,7 @@ export function joinStr(separator: string): JoinStr {
  * Type guard to check if a value is a ::-prefixed expression.
  * These expressions are evaluated at runtime to produce dynamic values.
  */
-function isBacktickExpression(value: unknown): value is string {
+function isExpression(value: unknown): value is string {
 	return typeof value === "string" && value.startsWith("::");
 }
 
@@ -61,8 +65,16 @@ function evaluateExpression(expr: string, scope: Record<string, any>): any {
 	// Create a function with our parameters
 	const fn = new Function(...paramNames, `return ${expr};`);
 
-	// Execute the function with our context values
-	return fn(...paramValues);
+	try {
+		// Execute the function with our context values
+		return fn(...paramValues);
+	} catch (error) {
+		throw new ModularMcError(
+			dedent`
+			Failed to evaluate expression.
+			Expression: ${expr}`
+		).moreInfo(error);
+	}
 }
 
 /**
@@ -73,15 +85,16 @@ function evaluateUnpackExpression(
 	item: any,
 	scope: Record<string, any>
 ): any[] {
-	if (isBacktickExpression(item.__unpack__)) {
+	if (isExpression(item.__unpack__)) {
 		const expr = item.__unpack__.slice(2); // Remove "::" prefix
 		const evaluatedUnpack = evaluateExpression(expr, scope);
 
 		if (!Array.isArray(evaluatedUnpack)) {
-			throw new Error(
-				`__unpack__ expression must evaluate to an array, got ${typeof evaluatedUnpack}: ${JSON.stringify(
-					evaluatedUnpack
-				)}`
+			throw new ModularMcError(
+				dedent`
+				__unpack__ expression must evaluate to an array
+				Type: ${typeof evaluatedUnpack}
+				Value: ${JSON.stringify(evaluatedUnpack)}`
 			);
 		}
 
@@ -92,9 +105,11 @@ function evaluateUnpackExpression(
 		return item.__unpack__;
 	}
 
-	throw new Error(
-		`__unpack__ must be an array or a ::-prefixed expression that evaluates to an array,` +
-			` got ${typeof item.__unpack__}: ${JSON.stringify(item.__unpack__)}`
+	throw new ModularMcError(
+		dedent`
+		__unpack__ must be an array or a ::-prefixed expression that evaluates to an array,
+		Type: ${typeof item.__unpack__}
+		Value: ${JSON.stringify(item.__unpack__)}`
 	);
 }
 
@@ -103,10 +118,11 @@ function evaluateUnpackExpression(
  */
 function validateUnpackScope(unpackScope: any): void {
 	if (typeof unpackScope !== "object" || unpackScope === null) {
-		throw new Error(
-			`Each item in __unpack__ must be an object to use as scope, got ${typeof unpackScope}: ${JSON.stringify(
-				unpackScope
-			)}`
+		throw new ModularMcError(
+			dedent`
+			Each item in __unpack__ must be an object to use as scope,
+			Type: ${typeof unpackScope}
+			Value: ${JSON.stringify(unpackScope)}`
 		);
 	}
 }
@@ -142,7 +158,7 @@ export function evaluate(template: any, scope: Record<string, any> = {}): any {
 						validateUnpackScope(unpackScope);
 						const mergedScope = { ...scope, ...unpackScope };
 
-						const value = isBacktickExpression(item.__value__)
+						const value = isExpression(item.__value__)
 							? evaluateExpression(item.__value__.slice(2), mergedScope)
 							: evaluate(item.__value__, mergedScope);
 
@@ -186,7 +202,7 @@ export function evaluate(template: any, scope: Record<string, any> = {}): any {
 
 		for (const [key, value] of Object.entries(template)) {
 			// Check if key is an expression
-			if (isBacktickExpression(key)) {
+			if (isExpression(key)) {
 				const expr = key.slice(2); // Remove "::" prefix
 				const evaluatedKey = evaluateExpression(expr, scope);
 
@@ -222,19 +238,23 @@ export function evaluate(template: any, scope: Record<string, any> = {}): any {
 							}
 						}
 					} else {
-						throw new Error(
-							`Array keys must contain only K instances or strings, got mixed types: ${JSON.stringify(
-								evaluatedKey
-							)}`
+						throw new ModularMcError(
+							dedent`
+							Array keys must contain only K instances or strings.
+							Type: ${typeof evaluatedKey}
+							Key: ${key}
+							Evaluated key: ${JSON.stringify(evaluatedKey)}`
 						);
 					}
 				} else {
 					// For any other type, we require a string
 					if (typeof evaluatedKey !== "string") {
-						throw new Error(
-							`Object keys must be strings, got ${typeof evaluatedKey}: ${JSON.stringify(
-								evaluatedKey
-							)}`
+						throw new ModularMcError(
+							dedent`
+							Object keys must be strings.
+							Type: ${typeof evaluatedKey}
+							Key: ${key}
+							Evaluated key: ${JSON.stringify(evaluatedKey)}`
 						);
 					}
 
@@ -257,7 +277,7 @@ export function evaluate(template: any, scope: Record<string, any> = {}): any {
 	}
 
 	// Handle string values that may be expressions
-	if (isBacktickExpression(template)) {
+	if (isExpression(template)) {
 		const expr = template.slice(2); // Remove "::" prefix
 		return evaluateExpression(expr, scope);
 	}

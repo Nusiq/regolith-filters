@@ -12,10 +12,11 @@ import {
 	normalize,
 	join,
 	basename,
-	suffixes,
 } from "./path-utils.ts";
 import { AutoMapResolver } from "./auto-map-resolver.ts";
 import * as JSONC from "@std/jsonc";
+import { ModularMcError } from "./error.ts";
+import dedent from "npm:dedent";
 
 export type OnConflictStrategy =
 	| "stop"
@@ -155,9 +156,12 @@ export class MapTsEntry {
 					}
 				}
 			} catch (error) {
-				throw new Error(
-					`Failed to expand glob pattern '${source}' in ${mapFilePath}: ${error}`
-				);
+				throw new ModularMcError(
+					dedent`
+					Failed to expand glob pattern.
+					File: ${mapFilePath}
+					Pattern: ${source}`
+				).moreInfo(error);
 			}
 			if (entries.length === 0) {
 				console.warn(
@@ -209,8 +213,10 @@ export class MapTsEntry {
 			!("target" in obj) ||
 			typeof obj.source !== "string"
 		) {
-			throw new Error(
-				`Invalid MAP entry in ${mapFilePath}. Each entry must have a 'source' (string) and a 'target' (string or object).`
+			throw new ModularMcError(
+				`Invalid MAP entry. Each entry must have a 'source' (string) ` +
+					`and a 'target' (string or object).\n` +
+					`File: ${mapFilePath}`
 			);
 		}
 
@@ -227,15 +233,19 @@ export class MapTsEntry {
 
 		// Validate target property
 		if (typeof target !== "string" && typeof target !== "object") {
-			throw new Error(
-				`Invalid MAP entry in ${mapFilePath}. Target must be a string or an object.`
+			throw new ModularMcError(
+				dedent`
+				Invalid MAP entry. Target must be a string or an object.
+				File: ${mapFilePath}`
 			);
 		}
 
 		if (typeof target === "object") {
 			if (target === null || !("path" in target) || !("name" in target)) {
-				throw new Error(
-					`Invalid MAP entry in ${mapFilePath}. Target object must have 'path' and 'name' properties.`
+				throw new ModularMcError(
+					dedent`
+					Invalid MAP entry. Target object must have 'path' and 'name' properties.
+					File: ${mapFilePath}`
 				);
 			}
 			const targetObj = target as MapTargetObject;
@@ -243,32 +253,40 @@ export class MapTsEntry {
 				typeof targetObj.path !== "string" ||
 				typeof targetObj.name !== "string"
 			) {
-				throw new Error(
-					`Invalid MAP entry in ${mapFilePath}. Target 'path' and 'name' must be strings.`
+				throw new ModularMcError(
+					dedent`
+					Invalid MAP entry. Target 'path' and 'name' must be strings.
+					File: ${mapFilePath}`
 				);
 			}
 			if (
 				targetObj.subpath !== undefined &&
 				typeof targetObj.subpath !== "string"
 			) {
-				throw new Error(
-					`Invalid MAP entry in ${mapFilePath}. Target 'subpath' must be a string.`
+				throw new ModularMcError(
+					dedent`
+					Invalid MAP entry. Target 'subpath' must be a string.
+					File: ${mapFilePath}`
 				);
 			}
 		}
 
 		// Validate jsonTemplate if present
 		if (jsonTemplate !== undefined && typeof jsonTemplate !== "boolean") {
-			throw new Error(
-				`Invalid jsonTemplate property in ${mapFilePath}. jsonTemplate must be a boolean.`
+			throw new ModularMcError(
+				dedent`
+				Invalid jsonTemplate property. jsonTemplate must be a boolean.
+				File: ${mapFilePath}`
 			);
 		}
 
 		// Validate onConflict if present
 		if (onConflict !== undefined) {
 			if (typeof onConflict !== "string") {
-				throw new Error(
-					`Invalid onConflict property in ${mapFilePath}. onConflict must be a string.`
+				throw new ModularMcError(
+					dedent`
+					Invalid onConflict property. onConflict must be a string.
+					File: ${mapFilePath}`
 				);
 			}
 
@@ -282,25 +300,30 @@ export class MapTsEntry {
 				"appendEnd",
 			];
 			if (!validValues.includes(onConflict)) {
-				throw new Error(
-					`Invalid onConflict value in ${mapFilePath}. Must be one of: ${validValues.join(
-						", "
-					)}. Got: ${onConflict}`
+				throw new ModularMcError(
+					dedent`
+					Invalid onConflict value.
+					Accepted values: ${validValues.join(", ")}
+					File: ${mapFilePath}`
 				);
 			}
 		}
 
 		// Validate fileType if present
 		if (fileType !== undefined && typeof fileType !== "string") {
-			throw new Error(
-				`Invalid fileType property in ${mapFilePath}. fileType must be a string.`
+			throw new ModularMcError(
+				dedent`
+				Invalid fileType property. fileType must be a string.
+				File: ${mapFilePath}`
 			);
 		}
 
 		// Validate scope if present
 		if (scope !== undefined && typeof scope !== "object") {
-			throw new Error(
-				`Invalid scope property in ${mapFilePath}. scope must be an object.`
+			throw new ModularMcError(
+				dedent`
+				Invalid scope property. scope must be an object.
+				File: ${mapFilePath}`
 			);
 		}
 
@@ -329,8 +352,11 @@ export class MapTsEntry {
 				!normalizedTarget.startsWith("BP/") &&
 				!normalizedTarget.startsWith("data/")
 			) {
-				throw new Error(
-					`Invalid target path in ${mapFilePath}. Target must start with RP/, BP/, or data/. Got: ${normalizedTarget}`
+				throw new ModularMcError(
+					dedent`
+					Invalid target path. Target must start with RP/, BP/, or data/.
+					Got: ${normalizedTarget}
+					File: ${mapFilePath}`
 				);
 			}
 		}
@@ -343,8 +369,11 @@ export class MapTsEntry {
 				(typeof target === "object" && target.path === MapTsEntry.AUTO_KEYWORD);
 
 			if (usesAuto) {
-				throw new Error(
-					`Invalid source path in ${mapFilePath}. Absolute paths are not allowed when target uses ":auto". Got: ${source}`
+				throw new ModularMcError(
+					dedent`
+					Invalid source path. Absolute paths are not allowed when target uses ":auto".
+					Got: ${source}
+					File: ${mapFilePath}`
 				);
 			}
 
@@ -356,8 +385,13 @@ export class MapTsEntry {
 				!absoluteSource.startsWith(workingDir + "/") &&
 				absoluteSource !== workingDir
 			) {
-				throw new Error(
-					`Invalid source path in ${mapFilePath}. Absolute paths must be within the program's working directory (${workingDir}). Got: ${source}`
+				throw new ModularMcError(
+					`Invalid source path. Absolute paths must be within the ` +
+						`filter's working directory.\n` +
+						dedent`
+					Working directory: ${workingDir}
+					Got: ${source}
+					File: ${mapFilePath}`
 				);
 			}
 		} else {
@@ -366,8 +400,11 @@ export class MapTsEntry {
 
 			// Check if the normalized path contains parent directory references
 			if (normalizedSource.includes("..")) {
-				throw new Error(
-					`Invalid source path in ${mapFilePath}. Paths cannot contain parent directory references (..). Got: ${source}`
+				throw new ModularMcError(
+					dedent`
+					Invalid source path. Paths cannot contain parent directory references (..).
+					Got: ${source}
+					File: ${mapFilePath}`
 				);
 			}
 		}
@@ -448,8 +485,11 @@ export class MapTsEntry {
 				const isFlat = this.target === MapTsEntry.AUTO_FLAT_KEYWORD;
 				const resolvedPath = resolver.resolveAutoPath(sourcePath, isFlat);
 				if (!resolvedPath) {
-					throw new Error(
-						`Failed to auto-map '${sourcePath}'. No matching pattern found in AUTO_MAP.`
+					throw new ModularMcError(
+						dedent`
+						Failed to auto-map.
+						Source path: ${sourcePath}
+						File: ${this.mapFilePath}`
 					);
 				}
 				return resolvedPath;
@@ -476,8 +516,11 @@ export class MapTsEntry {
 			const isFlat = path === MapTsEntry.AUTO_FLAT_KEYWORD;
 			const autoPath = resolver.resolveAutoPath(sourcePath, isFlat);
 			if (!autoPath) {
-				throw new Error(
-					`Failed to auto-map path for '${sourcePath}'. No matching pattern found in AUTO_MAP.`
+				throw new ModularMcError(
+					dedent`
+					Failed to auto-map path.
+					Source path: ${sourcePath}
+					File: ${this.mapFilePath}`
 				);
 			}
 			resolvedPath = dirname(autoPath); // We only need the directory part
@@ -487,8 +530,11 @@ export class MapTsEntry {
 		if (name === MapTsEntry.AUTO_KEYWORD) {
 			const autoName = resolver.resolveAutoPath(sourcePath, false); // Not flat
 			if (!autoName) {
-				throw new Error(
-					`Failed to auto-map name for '${sourcePath}'. No matching pattern found in AUTO_MAP.`
+				throw new ModularMcError(
+					dedent`
+					Failed to auto-map name.
+					Source path: ${sourcePath}
+					File: ${this.mapFilePath}`
 				);
 			}
 			resolvedName = basename(autoName);
@@ -531,15 +577,19 @@ export class MapTsEntry {
 			// Check if target is a directory
 			const targetStat = await Deno.stat(targetPath);
 			if (targetStat.isDirectory) {
-				throw new Error(
-					`Target path is a directory and cannot be overwritten: ${targetPath}`
+				throw new ModularMcError(
+					dedent`
+					Target path is a directory and cannot be overwritten.
+					Path: ${targetPath}
+					File: ${this.mapFilePath}`
 				);
 			}
 
 			if (this.onConflict === "stop") {
-				throw new Error(
-					`Target file already exists: ${targetPath}. Use onConflict: ` +
-						`"skip", "merge", "overwrite", "appendStart", or "appendEnd" to handle this.`
+				throw new ModularMcError(
+					`Target file already exists. Use onConflict: "skip", "merge", ` +
+						`"overwrite", "appendStart", or "appendEnd" to handle this.\n` +
+						`Path: ${targetPath}`
 				);
 			} else if (this.onConflict === "skip") {
 				console.log(
@@ -551,8 +601,13 @@ export class MapTsEntry {
 			} else if (this.onConflict === "merge") {
 				// Check if files are mergeable
 				if (!this.isJsonMergeable(sourceType, targetType)) {
-					throw new Error(
-						`Cannot merge files with types ${sourceType} and ${targetType}. Only json and material files can be merged.`
+					throw new ModularMcError(
+						dedent`
+						Cannot merge files with types because of incompatible types.
+						Source type: ${sourceType}
+						Target type: ${targetType}
+						Types that can be merged: json, material
+						File: ${this.mapFilePath}`
 					);
 				}
 
@@ -563,8 +618,10 @@ export class MapTsEntry {
 			) {
 				// Check if files are non-JSON files (opposite of mergeable files)
 				if (this.isJsonMergeable(sourceType, targetType)) {
-					throw new Error(
-						`Cannot use ${this.onConflict} with JSON files. Use "merge" for JSON files or "appendStart"/"appendEnd" for non-JSON files.`
+					throw new ModularMcError(
+						`Cannot use "${this.onConflict}" with JSON files. JSON files ` +
+							`can be merged using "merge" option.\n` +
+							`File: ${this.mapFilePath}`
 					);
 				}
 
@@ -586,7 +643,7 @@ export class MapTsEntry {
 					this.mapFilePath === undefined
 						? this.source
 						: asPosix(relative(dirname(this.mapFilePath), sourcePath));
-				throw new Error(`Missing file: ${msgSource}`);
+				throw new ModularMcError(`Missing file: ${msgSource}`);
 			}
 			throw error;
 		}
@@ -601,7 +658,11 @@ export class MapTsEntry {
 			try {
 				sourceJSON = JSONC.parse(sourceContent);
 			} catch (error: unknown) {
-				throw new Error(`Failed to parse JSON at ${sourcePath}: ${error}`);
+				throw new ModularMcError(
+					dedent`
+					Failed to parse JSON.
+					File: ${sourcePath}`
+				).moreInfo(error);
 			}
 
 			// Apply JSON template if enabled
@@ -626,9 +687,11 @@ export class MapTsEntry {
 							ListMergePolicy.APPEND
 						);
 					} catch (error: unknown) {
-						throw new Error(
-							`Failed to parse existing JSON at ${targetPath}: ${error}`
-						);
+						throw new ModularMcError(
+							dedent`
+							Failed to parse existing JSON.
+							File: ${targetPath}`
+						).moreInfo(error);
 					}
 				} catch (error: unknown) {
 					// If error is not related to file not existing, rethrow
@@ -721,9 +784,12 @@ export class MapTs {
 
 				// Validate map structure
 				if (!Array.isArray(mapResult)) {
-					throw new Error(`MAP must be an array in ${mapFilePath}`);
+					throw new ModularMcError(
+						dedent`
+						MAP must be an array.
+						File: ${mapFilePath}`
+					);
 				}
-
 				// Validate and process each entry using the MapTsEntry class
 				for (const entry of mapResult) {
 					validatedEntries.push(...MapTsEntry.fromObject(entry, mapFilePath));
@@ -733,14 +799,20 @@ export class MapTs {
 			// Process SCRIPTS if it exists
 			if (mapModule.SCRIPTS !== undefined) {
 				if (!Array.isArray(mapModule.SCRIPTS)) {
-					throw new Error(`SCRIPTS must be an array in ${mapFilePath}`);
+					throw new ModularMcError(
+						dedent`
+						SCRIPTS must be an array.
+						File: ${mapFilePath}`
+					);
 				}
 
 				// Validate each script is a string and store it directly
 				for (const script of mapModule.SCRIPTS) {
 					if (typeof script !== "string") {
-						throw new Error(
-							`Each script in SCRIPTS must be a string in ${mapFilePath}`
+						throw new ModularMcError(
+							dedent`
+							Each script in SCRIPTS must be a string.
+							File: ${mapFilePath}`
 						);
 					}
 
@@ -760,7 +832,11 @@ export class MapTs {
 		} catch (error) {
 			// Improve error message for import failures
 			if (error instanceof TypeError || error instanceof SyntaxError) {
-				throw new Error(`Failed to import ${mapFilePath}: ${error.message}`);
+				throw new ModularMcError(
+					dedent`
+					Failed to open _map.ts file.
+					File: ${mapFilePath}`
+				).moreInfo(error);
 			}
 			throw error;
 		}
@@ -788,16 +864,14 @@ export class MapTs {
 			try {
 				await Promise.all(concurrentEntries.map((entry) => entry.apply()));
 			} catch (error: unknown) {
-				const errorMessage =
-					error instanceof Error
-						? `${error.message}: ${error.stack}`
-						: String(error);
 				const errorPath = isAbsolute(this.path)
 					? this.path
 					: asPosix(relative("data/modular_mc", this.path));
-				throw new Error(
-					`Error in map file ${errorPath}:\n` + `${errorMessage}`
-				);
+				throw new ModularMcError(
+					dedent`
+					Failed to apply some of the MAP entries.
+					File: ${errorPath}`
+				).moreInfo(error);
 			}
 		}
 
@@ -806,11 +880,11 @@ export class MapTs {
 			try {
 				await entry.apply();
 			} catch (error: unknown) {
-				const errorMessage =
-					error instanceof Error ? error.message : String(error);
-				throw new Error(
-					`Error in map file ${this.path}:\n` + `${errorMessage}`
-				);
+				throw new ModularMcError(
+					dedent`
+					Failed to apply MAP entry.
+					File: ${this.path}`
+				).moreInfo(error);
 			}
 		}
 	}

@@ -7,6 +7,7 @@
 		"@std/fs": "jsr:@std/fs@^1.0.17",
 		"@std/jsonc": "jsr:@std/jsonc@^1.0.2",
 		"@std/path": "jsr:@std/path@^1.0.9",
+		"dedent": "npm:dedent@^1.6.0",
 		"esbuild": "npm:esbuild@^0.25.4"
 	},
 	"lint": {

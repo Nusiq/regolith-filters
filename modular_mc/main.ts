@@ -2,6 +2,7 @@ import { compileWithEsbuild } from "./esbuild.ts";
 import { processModule } from "./map-ts.ts";
 import { join } from "./path-utils.ts";
 import { getDataPath, getRootDir } from "./regolith.ts";
+import dedent from "npm:dedent";
 
 if (import.meta.main) {
 	let esbuildOptions: Record<string, any> = {};
@@ -59,7 +60,7 @@ if (import.meta.main) {
 			await compileWithEsbuild(esbuildOptions, absoluteScriptPaths, buildPath);
 		} catch (error) {
 			console.error(
-				"Error during script path resolution or compilation:",
+				"Error during script path resolution or compilation:\n",
 				error
 			);
 			Deno.exit(1);
@@ -68,6 +69,17 @@ if (import.meta.main) {
 
 	// Apply all modules
 	for (const module of modules) {
-		await module.apply();
+		try {
+			await module.apply();
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			console.error(
+				dedent`
+				Error during evaluation of the MAP files:
+				${errorMessage}`
+			);
+			Deno.exit(1);
+		}
 	}
 }

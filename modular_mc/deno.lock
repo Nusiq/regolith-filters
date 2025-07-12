@@ -9,6 +9,8 @@
     "jsr:@std/path@*": "1.0.9",
     "jsr:@std/path@^1.0.9": "1.0.9",
     "npm:@types/node@*": "22.15.15",
+    "npm:dedent@*": "1.6.0",
+    "npm:dedent@^1.6.0": "1.6.0",
     "npm:esbuild@~0.25.4": "0.25.4"
   },
   "jsr": {
@@ -172,6 +174,9 @@
         "undici-types"
       ]
     },
+    "dedent@1.6.0": {
+      "integrity": "sha512-F1Z+5UCFpmQUzJa11agbyPVMbpgT/qA3/SKyJ1jyBgm7dUcUEa8v9JwDkerSQXfakBwFljIxhOJqGkjUwZ9FSA=="
+    },
     "esbuild@0.25.4": {
       "integrity": "sha512-8pgjLUcUjcgDg+2Q4NYXnPbo/vncAY4UmyaCm0jZevERqCHZIaWwdJHkf8XQtu4AxSKCdvrUbT0XUr1IdZzI8Q==",
       "optionalDependencies": [
@@ -214,6 +219,7 @@
       "jsr:@std/fs@^1.0.17",
       "jsr:@std/jsonc@^1.0.2",
       "jsr:@std/path@^1.0.9",
+      "npm:dedent@^1.6.0",
       "npm:esbuild@~0.25.4"
     ]
   }

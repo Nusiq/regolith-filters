@@ -1,5 +1,7 @@
 import { asPosix, join } from "./path-utils.ts";
 import * as JSONC from "@std/jsonc";
+import { ModularMcError } from "./error.ts";
+import dedent from "npm:dedent";
 
 /**
  * Gets the ROOT_DIR environment variable
@@ -9,7 +11,7 @@ import * as JSONC from "@std/jsonc";
 export function getRootDir(): string {
 	const rootDir = Deno.env.get("ROOT_DIR");
 	if (!rootDir) {
-		throw new Error("ROOT_DIR environment variable is not set");
+		throw new ModularMcError("ROOT_DIR environment variable is not set.");
 	}
 	return asPosix(rootDir);
 }
@@ -29,11 +31,15 @@ export async function getDataPath(rootDir: string): Promise<string> {
 
 		const dataPath = config?.regolith?.dataPath;
 		if (!dataPath) {
-			throw new Error("Could not find regolith.dataPath in config.json");
+			throw new ModularMcError("Could not find regolith.dataPath in config.json");
 		}
 
 		return asPosix(dataPath);
 	} catch (error) {
-		throw new Error(`Failed to read or parse config.json: ${error}`);
+		throw new ModularMcError(
+			dedent`
+			Failed to read or parse config.json.
+			File: ${configPath}`
+		).moreInfo(error);
 	}
 }

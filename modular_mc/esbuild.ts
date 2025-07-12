@@ -1,6 +1,8 @@
 import { ensureDirSync } from "@std/fs";
 import * as esbuild from "esbuild";
 import { dirname, asPosix } from "./path-utils.ts";
+import { ModularMcError } from "./error.ts";
+import dedent from "npm:dedent";
 
 export interface CompileOptions {
 	/**
@@ -94,8 +96,15 @@ export async function compileWithEsbuild(
 		});
 
 		if (result.errors.length > 0) {
-			console.error("Build failed with errors:", result.errors);
-			Deno.exit(1);
+			const error =  new ModularMcError(
+				dedent`
+				Build failed with errors.
+				Errors:`
+			);
+			for (const e of result.errors) {
+				error.moreInfo(e);
+			}
+			throw error;
 		}
 
 		console.log(`Compiled ${entryPoints.join(", ")} to ${esbuildOutFile}`);
