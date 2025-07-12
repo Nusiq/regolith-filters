@@ -14,8 +14,8 @@ const DEFAULT_SCOPE = { foo: 12345 };
 
 Deno.test("Basic Expressions", () => {
 	const source = {
-		foo: "`2 + 2`",
-		"`String(5+5)`": "baz",
+		foo: "::2 + 2",
+		"::String(5+5)": "baz",
 	};
 	const expected = {
 		foo: 4,
@@ -27,7 +27,7 @@ Deno.test("Basic Expressions", () => {
 Deno.test("List Comprehension as Key", () => {
 	const source = {
 		// Using Array.map instead of Python's list comprehension
-		"`Array(2).fill(0).map((_, i) => 'bar' + i)`": "baz",
+		"::Array(2).fill(0).map((_, i) => 'bar' + i)": "baz",
 	};
 	const expected = {
 		bar0: "baz",
@@ -38,7 +38,7 @@ Deno.test("List Comprehension as Key", () => {
 
 Deno.test("Using Variables from Scope", () => {
 	const source = {
-		bar: "`foo`",
+		bar: "::foo",
 	};
 	const expected = {
 		bar: 12345,
@@ -49,8 +49,8 @@ Deno.test("Using Variables from Scope", () => {
 Deno.test("Using K Object", () => {
 	const source = {
 		// Using Array.map instead of Python's list comprehension
-		"`Array(2).fill(0).map((_, i) => K('foo' + i, { number: i }))`": {
-			bar: "`number`",
+		"::Array(2).fill(0).map((_, i) => K('foo' + i, { number: i }))": {
+			bar: "::number",
 		},
 	};
 	const expected = {
@@ -71,7 +71,7 @@ Deno.test("Unpack with Objects", () => {
 		},
 		{
 			__unpack__: [{ color: "red" }, { color: "green" }],
-			my_favourite_color: "`color.toUpperCase()`",
+			my_favourite_color: "::color.toUpperCase()",
 		},
 		{
 			my_favourite_color: "BLACK",
@@ -100,8 +100,8 @@ Deno.test("Unpack with Expression", () => {
 			my_favourite_color: "I don't know",
 		},
 		{
-			__unpack__: "`['red', 'green'].map(c => ({ color: c }))`",
-			my_favourite_color: "`color.toUpperCase()`",
+			__unpack__: "::['red', 'green'].map(c => ({ color: c }))",
+			my_favourite_color: "::color.toUpperCase()",
 		},
 		{
 			my_favourite_color: "BLACK",
@@ -128,8 +128,8 @@ Deno.test("Unpack with Value", () => {
 	const source = [
 		"It's not green",
 		{
-			__unpack__: "`['red', 'green'].map(c => ({ color: c }))`",
-			__value__: "`color === 'green'`",
+			__unpack__: "::['red', 'green'].map(c => ({ color: c }))",
+			__value__: "::color === 'green'",
 		},
 		"Not green",
 	];
@@ -138,7 +138,7 @@ Deno.test("Unpack with Value", () => {
 });
 
 Deno.test("JoinStr", () => {
-	const source = ["`joinStr(';')`", "a = 1", "b = 2", "c = 3"];
+	const source = ["::joinStr(';')", "a = 1", "b = 2", "c = 3"];
 	const expected = "a = 1;b = 2;c = 3";
 	assertEquals(evaluate(source, DEFAULT_SCOPE), expected);
 });
@@ -146,8 +146,8 @@ Deno.test("JoinStr", () => {
 Deno.test("JoinStr with Unpack", () => {
 	const source = [
 		{
-			__unpack__: "`[{ v: joinStr(' ') }, { v: 'hi' }, { v: 'there' }]`",
-			__value__: "`v`",
+			__unpack__: "::[{ v: joinStr(' ') }, { v: 'hi' }, { v: 'there' }]",
+			__value__: "::v",
 		},
 		"hello",
 		"there",
@@ -159,9 +159,9 @@ Deno.test("JoinStr with Unpack", () => {
 
 Deno.test("Undefined for Removing Keys", () => {
 	const source = {
-		foo: "`undefined`",
-		"`String(5+5)`": "`undefined`",
-		bar: { baz: "`undefined`" },
+		foo: "::undefined",
+		"::String(5+5)": "::undefined",
+		bar: { baz: "::undefined" },
 	};
 	const expected = {
 		bar: {},
@@ -169,9 +169,9 @@ Deno.test("Undefined for Removing Keys", () => {
 	assertEquals(evaluate(source, DEFAULT_SCOPE), expected);
 });
 
-Deno.test("Undefined for Removing Array Items", () => {
+Deno.test("Undefined in Arrays", () => {
 	const source = {
-		foo: ["`undefined`", "`undefined`"],
+		foo: ["::undefined", "::undefined"],
 	};
 	const expected = {
 		foo: [],
@@ -179,16 +179,16 @@ Deno.test("Undefined for Removing Array Items", () => {
 	assertEquals(evaluate(source, DEFAULT_SCOPE), expected);
 });
 
-Deno.test("Undefined in Top Level Array", () => {
-	const source = ["`undefined`", "`undefined`"];
-	const expected: unknown[] = [];
+Deno.test("Undefined Array Elements", () => {
+	const source = ["::undefined", "::undefined"];
+	const expected: any[] = [];
 	assertEquals(evaluate(source, DEFAULT_SCOPE), expected);
 });
 
 // Add test for properly testing array map that returns K objects
 Deno.test("Array.map returning K objects", () => {
 	const source = {
-		"`[0, 1].map(i => K('bar' + i, {}))`": "baz",
+		"::[0, 1].map(i => K('bar' + i, {}))": "baz",
 	};
 	const expected = {
 		bar0: "baz",
@@ -200,7 +200,7 @@ Deno.test("Array.map returning K objects", () => {
 // Add test for invalid key type with proper error checking
 Deno.test("Invalid key type throws error", () => {
 	const source = {
-		"`[0, 1]`": "invalid",
+		"::[0, 1]": "invalid",
 	};
 
 	try {
@@ -215,7 +215,7 @@ Deno.test("Invalid key type throws error", () => {
 
 Deno.test("Number key throws error", () => {
 	const source = {
-		"`42`": "invalid",
+		"::42": "invalid",
 	};
 
 	try {

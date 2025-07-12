@@ -1,4 +1,7 @@
 # Change log
+## 0.4.0
+- The JSON Template expressions previously marked with `` ` `` prefix and `` ` `` suffix are now marked just with `` :: `` prefix.
+
 ## 0.3.1
 - Target paths that end with `/` are now used for folder export. Folder export lets you not specify the name of the file; it copies the file name from the source path.
 

@@ -41,13 +41,11 @@ export function joinStr(separator: string): JoinStr {
 }
 
 /**
- * Type guard to check if a value is a backtick-enclosed expression.
+ * Type guard to check if a value is a ::-prefixed expression.
  * These expressions are evaluated at runtime to produce dynamic values.
  */
 function isBacktickExpression(value: unknown): value is string {
-	return (
-		typeof value === "string" && value.startsWith("`") && value.endsWith("`")
-	);
+	return typeof value === "string" && value.startsWith("::");
 }
 
 /**
@@ -68,7 +66,7 @@ function evaluateExpression(expr: string, scope: Record<string, any>): any {
 }
 
 /**
- * Evaluates an __unpack__ expression, which can be either a backtick expression
+ * Evaluates an __unpack__ expression, which can be either a ::-prefixed expression
  * that evaluates to an array or a direct array value.
  */
 function evaluateUnpackExpression(
@@ -76,7 +74,7 @@ function evaluateUnpackExpression(
 	scope: Record<string, any>
 ): any[] {
 	if (isBacktickExpression(item.__unpack__)) {
-		const expr = item.__unpack__.slice(1, -1);
+		const expr = item.__unpack__.slice(2); // Remove "::" prefix
 		const evaluatedUnpack = evaluateExpression(expr, scope);
 
 		if (!Array.isArray(evaluatedUnpack)) {
@@ -95,9 +93,8 @@ function evaluateUnpackExpression(
 	}
 
 	throw new Error(
-		`__unpack__ must be an array or a backtick expression that evaluates to an array, got ${typeof item.__unpack__}: ${JSON.stringify(
-			item.__unpack__
-		)}`
+		`__unpack__ must be an array or a ::-prefixed expression that evaluates to an array,` +
+			` got ${typeof item.__unpack__}: ${JSON.stringify(item.__unpack__)}`
 	);
 }
 
@@ -118,7 +115,7 @@ function validateUnpackScope(unpackScope: any): void {
  * Evaluates a JSON template, replacing dynamic expressions with their computed values.
  *
  * The template can contain:
- * - Backtick-enclosed expressions (`2 + 2`)
+ * - ::-prefixed expressions (::2 + 2)
  * - K objects for dynamic keys
  * - JoinStr objects for string joining
  * - __unpack__ for array expansion
@@ -146,7 +143,7 @@ export function evaluate(template: any, scope: Record<string, any> = {}): any {
 						const mergedScope = { ...scope, ...unpackScope };
 
 						const value = isBacktickExpression(item.__value__)
-							? evaluateExpression(item.__value__.slice(1, -1), mergedScope)
+							? evaluateExpression(item.__value__.slice(2), mergedScope)
 							: evaluate(item.__value__, mergedScope);
 
 						if (value !== undefined) {
@@ -190,7 +187,7 @@ export function evaluate(template: any, scope: Record<string, any> = {}): any {
 		for (const [key, value] of Object.entries(template)) {
 			// Check if key is an expression
 			if (isBacktickExpression(key)) {
-				const expr = key.slice(1, -1);
+				const expr = key.slice(2); // Remove "::" prefix
 				const evaluatedKey = evaluateExpression(expr, scope);
 
 				if (evaluatedKey === undefined) {
@@ -261,7 +258,7 @@ export function evaluate(template: any, scope: Record<string, any> = {}): any {
 
 	// Handle string values that may be expressions
 	if (isBacktickExpression(template)) {
-		const expr = template.slice(1, -1);
+		const expr = template.slice(2); // Remove "::" prefix
 		return evaluateExpression(expr, scope);
 	}
 
