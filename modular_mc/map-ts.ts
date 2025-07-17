@@ -237,16 +237,15 @@ export class MapTsEntry {
 			onConflict,
 			fileType,
 			scope,
-		} =
-			obj as {
-				source: string;
-				target: MapTarget;
-				jsonTemplate?: boolean;
-				textTemplate?: boolean;
-				onConflict?: OnConflictStrategy;
-				fileType?: string;
-				scope?: Record<string, any>;
-			};
+		} = obj as {
+			source: string;
+			target: MapTarget;
+			jsonTemplate?: boolean;
+			textTemplate?: boolean;
+			onConflict?: OnConflictStrategy;
+			fileType?: string;
+			scope?: Record<string, any>;
+		};
 
 		// Validate target property
 		if (typeof target !== "string" && typeof target !== "object") {
@@ -612,53 +611,7 @@ export class MapTsEntry {
 					File: ${this.mapFilePath}`
 				);
 			}
-
-			if (this.onConflict === "stop") {
-				throw new ModularMcError(
-					`Target file already exists. Use onConflict: "skip", "merge", ` +
-						`"overwrite", "appendStart", or "appendEnd" to handle this.\n` +
-						`Path: ${targetPath}`
-				);
-			} else if (this.onConflict === "skip") {
-				console.log(
-					`Skipped exporting ${sourcePath} to ${targetPath}. Target already exists.`
-				);
-				return;
-			} else if (this.onConflict === "overwrite") {
-				// Allow overwriting, proceed to file operations
-			} else if (this.onConflict === "merge") {
-				// Check if files are mergeable
-				if (!this.isJsonMergeable(sourceType, targetType)) {
-					throw new ModularMcError(
-						dedent`
-						Cannot merge files with types because of incompatible types.
-						Source type: ${sourceType}
-						Target type: ${targetType}
-						Types that can be merged: json, material
-						File: ${this.mapFilePath}`
-					);
-				}
-
-				// Continue with merge operations below
-			} else if (
-				this.onConflict === "appendStart" ||
-				this.onConflict === "appendEnd"
-			) {
-				// Check if files are non-JSON files (opposite of mergeable files)
-				if (this.isJsonMergeable(sourceType, targetType)) {
-					throw new ModularMcError(
-						`Cannot use "${this.onConflict}" with JSON files. JSON files ` +
-							`can be merged using "merge" option.\n` +
-							`File: ${this.mapFilePath}`
-					);
-				}
-
-				// Continue with append operations below
-			}
 		}
-
-		// Ensure the target directory exists
-		await Deno.mkdir(dirname(targetPath), { recursive: true });
 
 		// Read the source file content
 		let sourceContent: string;
@@ -676,11 +629,85 @@ export class MapTsEntry {
 			throw error;
 		}
 
-		// Handle generating/merging JSON files
-		if (
-			sourceType === "json" &&
-			(this.jsonTemplate || (targetExists && this.onConflict === "merge"))
-		) {
+		// For non-JSON files, handle different conflict strategies
+		if (!targetExists || this.onConflict === "overwrite") {
+			if (this.textTemplate) {
+				const sourceContent = await Deno.readTextFile(sourcePath);
+				const resultContent = evaluateText(sourceContent, this.scope);
+
+				await Deno.mkdir(dirname(targetPath), { recursive: true });
+				await Deno.writeTextFile(targetPath, resultContent);
+			} else if (this.jsonTemplate) {
+				let sourceJSON: any;
+				try {
+					sourceJSON = JSONC.parse(sourceContent);
+				} catch (error: unknown) {
+					throw new ModularMcError(
+						dedent`
+						Failed to parse JSON.
+						File: ${sourcePath}`
+					).moreInfo(error);
+				}
+				sourceJSON = evaluate(sourceJSON, this.scope);
+
+				// Write the result to the target file
+				await Deno.mkdir(dirname(targetPath), { recursive: true });
+				await Deno.writeTextFile(
+					targetPath,
+					JSON.stringify(sourceJSON, null, "\t")
+				);
+			} else {
+				// Simple copy for new files or overwrite
+				await Deno.mkdir(dirname(targetPath), { recursive: true });
+				await Deno.copyFile(sourcePath, targetPath);
+			}
+		} else if (this.onConflict === "appendStart") {
+			if (this.isJsonMergeable(sourceType, targetType)) {
+				throw new ModularMcError(
+					`Cannot use "${this.onConflict}" with JSON files. JSON files ` +
+						`can be merged using "merge" option.\n` +
+						`File: ${this.mapFilePath}`
+				);
+			}
+			// Read existing target content
+			const targetContent = await Deno.readTextFile(targetPath);
+
+			// Append source content at the start of target content
+			const resultContent = sourceContent + targetContent;
+
+			// Write the combined content
+			await Deno.mkdir(dirname(targetPath), { recursive: true });
+			await Deno.writeTextFile(targetPath, resultContent);
+		} else if (this.onConflict === "appendEnd") {
+			if (this.isJsonMergeable(sourceType, targetType)) {
+				throw new ModularMcError(
+					`Cannot use "${this.onConflict}" with JSON files. JSON files ` +
+						`can be merged using "merge" option.\n` +
+						`File: ${this.mapFilePath}`
+				);
+			}
+			// Read existing target content
+			const targetContent = await Deno.readTextFile(targetPath);
+
+			// Append source content at the end of target content
+			const resultContent = targetContent + sourceContent;
+
+			// Write the combined content
+			await Deno.mkdir(dirname(targetPath), { recursive: true });
+			await Deno.writeTextFile(targetPath, resultContent);
+		} else if (this.onConflict === "merge") {
+			if (!this.isJsonMergeable(sourceType, targetType)) {
+				throw new ModularMcError(
+					dedent`
+					Cannot merge files with types because of incompatible types.
+					Source type: ${sourceType}
+					Target type: ${targetType}
+					Types that can be merged: json, material
+					File: ${this.mapFilePath}`
+				);
+			}
+			// targetExists is ture
+			// isJsonMergeable is true
 			// Parse the source content as JSON
 			let sourceJSON: any;
 			try {
@@ -695,37 +722,34 @@ export class MapTsEntry {
 
 			// Apply JSON template if enabled
 			if (this.jsonTemplate) {
-				// Merge entry scope with global scope, with entry scope taking precedence
 				sourceJSON = evaluate(sourceJSON, this.scope);
 			}
 
-			// Check if we need to merge with an existing file
-			if (targetExists && this.onConflict === "merge") {
+			// Merge with an existing file
+			try {
+				// Read target file
+				const targetContent = await Deno.readTextFile(targetPath);
+
 				try {
-					// Read target file
-					const targetContent = await Deno.readTextFile(targetPath);
+					const targetJSON: any = JSONC.parse(targetContent);
 
-					try {
-						const targetJSON: any = JSONC.parse(targetContent);
-
-						// Merge the files using APPEND for lists
-						sourceJSON = deepMergeObjects(
-							targetJSON,
-							sourceJSON,
-							ListMergePolicy.APPEND
-						);
-					} catch (error: unknown) {
-						throw new ModularMcError(
-							dedent`
-							Failed to parse existing JSON.
-							File: ${targetPath}`
-						).moreInfo(error);
-					}
+					// Merge the files using APPEND for lists
+					sourceJSON = deepMergeObjects(
+						targetJSON,
+						sourceJSON,
+						ListMergePolicy.APPEND
+					);
 				} catch (error: unknown) {
-					// If error is not related to file not existing, rethrow
-					if (!(error instanceof Deno.errors.NotFound)) {
-						throw error;
-					}
+					throw new ModularMcError(
+						dedent`
+						Failed to parse existing JSON.
+						File: ${targetPath}`
+					).moreInfo(error);
+				}
+			} catch (error: unknown) {
+				// If error is not related to file not existing, rethrow
+				if (!(error instanceof Deno.errors.NotFound)) {
+					throw error;
 				}
 			}
 
@@ -733,46 +757,33 @@ export class MapTsEntry {
 			const resultContent = JSON.stringify(sourceJSON, null, "\t");
 
 			// Write the result to the target file
+			await Deno.mkdir(dirname(targetPath), { recursive: true });
 			await Deno.writeTextFile(targetPath, resultContent);
+		} else if (this.onConflict === "stop") {
+			throw new ModularMcError(
+				`Target file already exists. Use onConflict: "skip", "merge", ` +
+					`"overwrite", "appendStart", or "appendEnd" to handle this.\n` +
+					`Path: ${targetPath}`
+			);
+		} else if (this.onConflict === "skip") {
+			console.log(
+				`Skipped exporting ${sourcePath} to ${targetPath}. Target already exists.`
+			);
 		} else {
-			// For non-JSON files, handle different conflict strategies
-			if (!targetExists || this.onConflict === "overwrite") {
-				if (this.textTemplate) {
-					const sourceContent = await Deno.readTextFile(sourcePath);
-					const resultContent = evaluateText(sourceContent, this.scope);
-					await Deno.writeTextFile(targetPath, resultContent);
-				} else {
-					// Simple copy for new files or overwrite
-					await Deno.copyFile(sourcePath, targetPath);
-				}
-			} else if (this.onConflict === "appendStart") {
-				// Read existing target content
-				const targetContent = await Deno.readTextFile(targetPath);
+			// Hopefully should never happen, this would be embarassing if it did.
 
-				// Append source content at the start of target content
-				const resultContent = sourceContent + targetContent;
+			// TypeScript exhaustive check
+			this.onConflict satisfies never;
 
-				// Write the combined content
-				await Deno.writeTextFile(targetPath, resultContent);
-			} else if (this.onConflict === "appendEnd") {
-				// Read existing target content
-				const targetContent = await Deno.readTextFile(targetPath);
-
-				// Append source content at the end of target content
-				const resultContent = targetContent + sourceContent;
-
-				// Write the combined content
-				await Deno.writeTextFile(targetPath, resultContent);
-			} else {
-				if (this.textTemplate) {
-					const sourceContent = await Deno.readTextFile(sourcePath);
-					const resultContent = evaluateText(sourceContent, this.scope);
-					await Deno.writeTextFile(targetPath, resultContent);
-				} else {
-					// For any other non-merge conflicts (should not happen), copy the file
-					await Deno.copyFile(sourcePath, targetPath);
-				}
-			}
+			throw new ModularMcError(
+				dedent`
+				Unexpected error. Please report this issue:
+				onConflict: ${this.onConflict}
+				textTemplate: ${this.textTemplate}
+				jsonTemplate: ${this.jsonTemplate}
+				targetExists: ${targetExists}
+				File: ${this.mapFilePath}`
+			);
 		}
 	}
 }
