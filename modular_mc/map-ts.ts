@@ -3,6 +3,7 @@ import { expandGlobSync } from "@std/fs/expand-glob";
 import { withWdSync } from "./wd-utils.ts";
 import { isAbsolute, toFileUrl, extname } from "@std/path";
 import { evaluate } from "./json-template.ts";
+import { evaluate as evaluateText } from "./text-template.ts";
 import { deepMergeObjects, ListMergePolicy } from "./json-merge.ts";
 import {
 	relative,
@@ -68,6 +69,7 @@ export class MapTsEntry {
 	source: string;
 	target: MapTarget;
 	jsonTemplate: boolean;
+	textTemplate: boolean;
 	onConflict: OnConflictStrategy;
 	fileType?: string;
 	scope: Record<string, any>;
@@ -93,6 +95,7 @@ export class MapTsEntry {
 		source: string,
 		target: MapTarget,
 		jsonTemplate: boolean = false,
+		textTemplate: boolean = false,
 		onConflict: OnConflictStrategy = "stop",
 		fileType?: string,
 		scope?: Record<string, any>,
@@ -101,6 +104,7 @@ export class MapTsEntry {
 		this.source = source;
 		this.target = target;
 		this.jsonTemplate = jsonTemplate;
+		this.textTemplate = textTemplate;
 		this.onConflict = onConflict;
 		this.fileType = fileType;
 		this.scope = scope || {};
@@ -118,6 +122,7 @@ export class MapTsEntry {
 		const source = validatedObj.source;
 		const target = validatedObj.target;
 		const jsonTemplate = validatedObj.jsonTemplate || false;
+		const textTemplate = validatedObj.textTemplate || false;
 		const onConflict = validatedObj.onConflict || "stop";
 		const fileType = validatedObj.fileType;
 		const scope = validatedObj.scope;
@@ -147,6 +152,7 @@ export class MapTsEntry {
 								entry.path,
 								target,
 								jsonTemplate,
+								textTemplate,
 								onConflict,
 								fileType,
 								scope,
@@ -181,6 +187,7 @@ export class MapTsEntry {
 					resolvedSource,
 					target,
 					jsonTemplate,
+					textTemplate,
 					onConflict,
 					fileType,
 					scope,
@@ -201,6 +208,7 @@ export class MapTsEntry {
 		source: string;
 		target: MapTarget;
 		jsonTemplate?: boolean;
+		textTemplate?: boolean;
 		onConflict?: OnConflictStrategy;
 		fileType?: string;
 		scope?: Record<string, any>;
@@ -221,11 +229,20 @@ export class MapTsEntry {
 		}
 
 		// Use a type assertion for the whole object
-		const { source, target, jsonTemplate, onConflict, fileType, scope } =
+		const {
+			source,
+			target,
+			jsonTemplate,
+			textTemplate,
+			onConflict,
+			fileType,
+			scope,
+		} =
 			obj as {
 				source: string;
 				target: MapTarget;
 				jsonTemplate?: boolean;
+				textTemplate?: boolean;
 				onConflict?: OnConflictStrategy;
 				fileType?: string;
 				scope?: Record<string, any>;
@@ -276,6 +293,15 @@ export class MapTsEntry {
 			throw new ModularMcError(
 				dedent`
 				Invalid jsonTemplate property. jsonTemplate must be a boolean.
+				File: ${mapFilePath}`
+			);
+		}
+
+		// Validate textTemplate if present
+		if (textTemplate !== undefined && typeof textTemplate !== "boolean") {
+			throw new ModularMcError(
+				dedent`
+				Invalid textTemplate property. textTemplate must be a boolean.
 				File: ${mapFilePath}`
 			);
 		}
@@ -336,6 +362,7 @@ export class MapTsEntry {
 				source,
 				target,
 				jsonTemplate,
+				textTemplate,
 				onConflict,
 				fileType,
 				scope,
@@ -413,6 +440,7 @@ export class MapTsEntry {
 			source,
 			target,
 			jsonTemplate,
+			textTemplate,
 			onConflict,
 			fileType,
 			scope,
@@ -709,8 +737,14 @@ export class MapTsEntry {
 		} else {
 			// For non-JSON files, handle different conflict strategies
 			if (!targetExists || this.onConflict === "overwrite") {
-				// Simple copy for new files or overwrite
-				await Deno.copyFile(sourcePath, targetPath);
+				if (this.textTemplate) {
+					const sourceContent = await Deno.readTextFile(sourcePath);
+					const resultContent = evaluateText(sourceContent, this.scope);
+					await Deno.writeTextFile(targetPath, resultContent);
+				} else {
+					// Simple copy for new files or overwrite
+					await Deno.copyFile(sourcePath, targetPath);
+				}
 			} else if (this.onConflict === "appendStart") {
 				// Read existing target content
 				const targetContent = await Deno.readTextFile(targetPath);
@@ -729,9 +763,15 @@ export class MapTsEntry {
 
 				// Write the combined content
 				await Deno.writeTextFile(targetPath, resultContent);
-			} else if (this.onConflict !== "merge") {
-				// For any other non-merge conflicts (should not happen), copy the file
-				await Deno.copyFile(sourcePath, targetPath);
+			} else {
+				if (this.textTemplate) {
+					const sourceContent = await Deno.readTextFile(sourcePath);
+					const resultContent = evaluateText(sourceContent, this.scope);
+					await Deno.writeTextFile(targetPath, resultContent);
+				} else {
+					// For any other non-merge conflicts (should not happen), copy the file
+					await Deno.copyFile(sourcePath, targetPath);
+				}
 			}
 		}
 	}
