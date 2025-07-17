@@ -305,6 +305,15 @@ export class MapTsEntry {
 			);
 		}
 
+		// Validate that jsonTemplate and textTemplate are not both true
+		if (jsonTemplate === true && textTemplate === true) {
+			throw new ModularMcError(
+				dedent`
+				Invalid configuration. jsonTemplate and textTemplate cannot both be true.
+				File: ${mapFilePath}`
+			);
+		}
+
 		// Validate onConflict if present
 		if (onConflict !== undefined) {
 			if (typeof onConflict !== "string") {
@@ -632,6 +641,13 @@ export class MapTsEntry {
 		// For non-JSON files, handle different conflict strategies
 		if (!targetExists || this.onConflict === "overwrite") {
 			if (this.textTemplate) {
+				if (this.isJsonMergeable(sourceType, targetType)) {
+					throw new ModularMcError(
+						`Cannot use "${this.onConflict}" with JSON files. JSON files ` +
+							`can be merged using "merge" option.\n` +
+							`File: ${this.mapFilePath}`
+					);
+				}
 				const sourceContent = await Deno.readTextFile(sourcePath);
 				const resultContent = evaluateText(sourceContent, this.scope);
 
