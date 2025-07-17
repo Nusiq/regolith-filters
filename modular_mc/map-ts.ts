@@ -688,8 +688,14 @@ export class MapTsEntry {
 			// Read existing target content
 			const targetContent = await Deno.readTextFile(targetPath);
 
+			// Process source content if textTemplate is enabled
+			let processedSourceContent = sourceContent;
+			if (this.textTemplate) {
+				processedSourceContent = evaluateText(sourceContent, this.scope);
+			}
+
 			// Append source content at the start of target content
-			const resultContent = sourceContent + targetContent;
+			const resultContent = processedSourceContent + targetContent;
 
 			// Write the combined content
 			await Deno.mkdir(dirname(targetPath), { recursive: true });
@@ -705,8 +711,14 @@ export class MapTsEntry {
 			// Read existing target content
 			const targetContent = await Deno.readTextFile(targetPath);
 
+			// Process source content if textTemplate is enabled
+			let processedSourceContent = sourceContent;
+			if (this.textTemplate) {
+				processedSourceContent = evaluateText(sourceContent, this.scope);
+			}
+
 			// Append source content at the end of target content
-			const resultContent = targetContent + sourceContent;
+			const resultContent = targetContent + processedSourceContent;
 
 			// Write the combined content
 			await Deno.mkdir(dirname(targetPath), { recursive: true });
