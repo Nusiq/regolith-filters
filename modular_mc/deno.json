@@ -1,6 +1,6 @@
 {
 	"tasks": {
-		"test": "deno test && cd test && regolith run"
+		"test": "deno test --allow-all && cd test && regolith run"
 	},
 	"imports": {
 		"@std/assert": "jsr:@std/assert@1",
