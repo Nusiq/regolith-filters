@@ -1,4 +1,7 @@
 # Change log
+## 0.5.0
+Added support for text templates.
+
 ## 0.4.1
 Improved error messages.
 
