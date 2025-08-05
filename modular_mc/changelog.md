@@ -1,4 +1,7 @@
 # Change log
+## 0.6.0
+Added support for the `dropLabels` option in the Esbuild settings.
+
 ## 0.5.0
 Added support for text templates.
 

@@ -33,7 +33,8 @@
 							"esbuild": {
 								"buildPath": ".modular_mc/main.js",
 								"settings": {
-									"sourcemap": true
+									"sourcemap": true,
+									"dropLabels": ["DEBUG"]
 								}
 							}
 						}

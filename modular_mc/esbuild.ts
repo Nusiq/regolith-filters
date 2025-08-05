@@ -28,6 +28,12 @@ export interface CompileOptions {
 	 * @default false
 	 */
 	sourcemap?: boolean;
+
+	/**
+	 * Labels to drop during compilation
+	 * @default []
+	 */
+	dropLabels?: string[];
 }
 
 /**
@@ -51,6 +57,7 @@ export async function compileWithEsbuild(
 		outfile = "BP/scripts/main.js",
 		external = ["@minecraft/server"],
 		sourcemap = false,
+		dropLabels = [],
 	} = options;
 
 	// Make sure @minecraft/server is in the external list
@@ -93,6 +100,7 @@ export async function compileWithEsbuild(
 			outfile: esbuildOutFile,
 			sourcemap: sourcemap,
 			external: externalPackages,
+			dropLabels: dropLabels,
 		});
 
 		if (result.errors.length > 0) {
