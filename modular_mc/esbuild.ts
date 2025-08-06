@@ -43,6 +43,7 @@ export interface CompileOptions {
  * @param buildPath Optional build path
  */
 export async function compileWithEsbuild(
+	rootDir: string,
 	options: CompileOptions | undefined,
 	entryPoints: string[] = [],
 	buildPath?: string
@@ -66,7 +67,7 @@ export async function compileWithEsbuild(
 		externalPackages.push("@minecraft/server");
 	}
 
-	let tempEntryFile: string | undefined;
+	
 
 	try {
 		// Ensure output directory exists
@@ -78,12 +79,14 @@ export async function compileWithEsbuild(
 		// Handle multiple entry points by creating a temporary entry file
 		let finalEntryPoints: string[];
 		if (entryPoints.length > 1) {
+			const tempEntryFile = `${Deno.cwd()}/.temp_esbuild_entry_${Date.now()}.ts`;
 			// Create a temporary entry file that imports all the other files
-			tempEntryFile = `.temp_esbuild_entry_${Date.now()}.ts`;
-			const imports = entryPoints.map((file) => {
-				return `import "${asPosix(file)}";`;
-			}).join('\n');
-			
+			const imports = entryPoints
+				.map((file) => {
+					return `import "${asPosix(file)}";`;
+				})
+				.join("\n");
+
 			await Deno.writeTextFile(tempEntryFile, imports);
 			finalEntryPoints = [tempEntryFile];
 		} else {
@@ -92,6 +95,7 @@ export async function compileWithEsbuild(
 
 		// Build with esbuild
 		const result = await esbuild.build({
+			absWorkingDir: rootDir,
 			entryPoints: finalEntryPoints,
 			bundle: true,
 			minify: minify,
@@ -104,7 +108,7 @@ export async function compileWithEsbuild(
 		});
 
 		if (result.errors.length > 0) {
-			const error =  new ModularMcError(
+			const error = new ModularMcError(
 				dedent`
 				Build failed with errors.
 				Errors:`

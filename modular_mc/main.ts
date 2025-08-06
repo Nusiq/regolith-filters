@@ -57,7 +57,12 @@ if (import.meta.main) {
 			}
 
 			// Run esbuild with the resolved script paths and buildPath
-			await compileWithEsbuild(esbuildOptions, absoluteScriptPaths, buildPath);
+			await compileWithEsbuild(
+				rootDir,
+				esbuildOptions,
+				absoluteScriptPaths,
+				buildPath
+			);
 		} catch (error) {
 			console.error(
 				"Error during script path resolution or compilation:\n",
