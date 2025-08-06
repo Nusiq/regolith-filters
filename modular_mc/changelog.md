@@ -1,4 +1,7 @@
 # Change log
+## 0.7.0
+If Regolith project has `deno.json` file in its root directory, the filter will use it to resolve the dependencies.
+
 ## 0.6.0
 Added support for the `dropLabels` option in the Esbuild settings.
 
