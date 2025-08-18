@@ -1,4 +1,7 @@
 # Change log
+## 0.7.1
+`appendStart` and `appendEnd` now add a newline character between the content of the merged files if there is no newline character at the end of the top file or the start of the bottom file.
+
 ## 0.7.0
 If Regolith project has `deno.json` file in its root directory, the filter will use it to resolve the dependencies.
 

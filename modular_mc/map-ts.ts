@@ -695,7 +695,17 @@ export class MapTsEntry {
 			}
 
 			// Append source content at the start of target content
-			const resultContent = processedSourceContent + targetContent;
+			// Ensure there's a newline between blocks if neither side provides one
+			const eolStyle = targetContent.endsWith("\r\n") ? "\r\n" : "\n";
+			const needsBoundaryNewlineStart =
+				processedSourceContent.length > 0 &&
+				targetContent.length > 0 &&
+				!processedSourceContent.endsWith("\n") &&
+				!targetContent.startsWith("\n");
+			const resultContent =
+				processedSourceContent +
+				(needsBoundaryNewlineStart ? eolStyle : "") +
+				targetContent;
 
 			// Write the combined content
 			await Deno.mkdir(dirname(targetPath), { recursive: true });
@@ -718,7 +728,17 @@ export class MapTsEntry {
 			}
 
 			// Append source content at the end of target content
-			const resultContent = targetContent + processedSourceContent;
+			// Ensure there's a newline between blocks if neither side provides one
+			const eolStyle = targetContent.endsWith("\r\n") ? "\r\n" : "\n";
+			const needsBoundaryNewlineEnd =
+				targetContent.length > 0 &&
+				processedSourceContent.length > 0 &&
+				!targetContent.endsWith("\n") &&
+				!processedSourceContent.startsWith("\n");
+			const resultContent =
+				targetContent +
+				(needsBoundaryNewlineEnd ? eolStyle : "") +
+				processedSourceContent;
 
 			// Write the combined content
 			await Deno.mkdir(dirname(targetPath), { recursive: true });
