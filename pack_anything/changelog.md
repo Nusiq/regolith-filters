@@ -1,4 +1,7 @@
 # Changelog
+## 1.1.1
+Enabled usual ZIP compression method.
+
 ## 1.1.0
 The `output` parameter can be treated as Python expression if it starts and ends with backtick (`` ` ``). The expression is evaluated in the context that has `git_describe` variable, which is created by running `git describe --tags --always --abbrev=0` command.
 
