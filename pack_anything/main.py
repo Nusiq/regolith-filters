@@ -37,7 +37,7 @@ def main():
         (resolver_input_path(k), Path(v))
         for k, v in config['pathmap'].items()
     ]
-    with zipfile.ZipFile(output, 'w') as zf:
+    with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as zf:
         for path_on_disk, path_in_zip in pathmap:
             if path_on_disk.is_file():
                 zf.write(path_on_disk, path_in_zip)
