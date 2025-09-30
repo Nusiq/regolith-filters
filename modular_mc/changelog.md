@@ -1,4 +1,7 @@
 # Change log
+## 0.7.2
+Fixed `onConflict: 'stop'` not working correctly in some cases by removing concurrent evaluation of MapTs items.
+
 ## 0.7.1
 `appendStart` and `appendEnd` now add a newline character between the content of the merged files if there is no newline character at the end of the top file or the start of the bottom file.
 

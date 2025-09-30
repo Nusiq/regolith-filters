@@ -484,25 +484,6 @@ export class MapTsEntry {
 	}
 
 	/**
-	 * Checks if this entry can be safely run concurrently with other entries
-	 * @returns true if the entry can be run concurrently, false otherwise
-	 */
-	canRunConcurrently(): boolean {
-		// Files that need to be merged cannot run concurrently as they depend
-		// on the previous files being created first.
-		// Files that use JSON templates cannot run concurrently because they
-		// may internally have dependencies on other files.
-		return (
-			this.onConflict !== "merge" &&
-			this.onConflict !== "skip" &&
-			this.onConflict !== "overwrite" &&
-			this.onConflict !== "appendStart" &&
-			this.onConflict !== "appendEnd" &&
-			!this.jsonTemplate
-		);
-	}
-
-	/**
 	 * Resolves auto mapping target path if the target is an auto keyword
 	 * @returns Promise<string> A promise that resolves to the actual target path
 	 * @throws Error if auto mapping fails
@@ -945,37 +926,7 @@ export class MapTs {
 	 * Applies the map by copying all source files to their target locations
 `	 */
 	async apply(): Promise<void> {
-		// Process each entry
-		// Split entries into those that can and cannot run concurrently
-		const concurrentEntries: MapTsEntry[] = [];
-		const sequentialEntries: MapTsEntry[] = [];
-
 		for (const entry of this.entries) {
-			if (entry.canRunConcurrently()) {
-				concurrentEntries.push(entry);
-			} else {
-				sequentialEntries.push(entry);
-			}
-		}
-
-		// Run concurrent entries in parallel
-		if (concurrentEntries.length > 0) {
-			try {
-				await Promise.all(concurrentEntries.map((entry) => entry.apply()));
-			} catch (error: unknown) {
-				const errorPath = isAbsolute(this.path)
-					? this.path
-					: asPosix(relative("data/modular_mc", this.path));
-				throw new ModularMcError(
-					dedent`
-					Failed to apply some of the MAP entries.
-					File: ${errorPath}`
-				).moreInfo(error);
-			}
-		}
-
-		// Run sequential entries one at a time
-		for (const entry of sequentialEntries) {
 			try {
 				await entry.apply();
 			} catch (error: unknown) {
