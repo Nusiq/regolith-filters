@@ -924,7 +924,7 @@ export class MapTs {
 
 	/**
 	 * Applies the map by copying all source files to their target locations
-`	 */
+	 */
 	async apply(): Promise<void> {
 		for (const entry of this.entries) {
 			try {
