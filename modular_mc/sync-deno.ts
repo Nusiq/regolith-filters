@@ -26,6 +26,19 @@ function main() {
 	console.log("Reading %FILTER_DIR%/deno.json...");
 	const filterConfig = JSON.parse(readFileSync(filterDenoJsonPath, "utf-8"));
 
+	// Preserve original FILTER_DIR/deno.json
+	const oldDenoJsonPath = join(FILTER_DIR, "old_deno.json");
+	try {
+		Deno.statSync(oldDenoJsonPath);
+		// old_deno.json exists, restore original
+		console.log("Restoring original %FILTER_DIR%/deno.json from old_deno.json...");
+		Deno.copyFileSync(oldDenoJsonPath, filterDenoJsonPath);
+	} catch {
+		// old_deno.json doesn't exist, backup current
+		console.log("Backing up original %FILTER_DIR%/deno.json to old_deno.json...");
+		Deno.copyFileSync(filterDenoJsonPath, oldDenoJsonPath);
+	}
+
 	// Read ROOT_DIR/deno.json if exists
 	let rootImports: Record<string, any> = {};
 	const rootDenoJsonPath = join(ROOT_DIR, "deno.json");
