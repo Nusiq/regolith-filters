@@ -27,13 +27,26 @@ function main() {
 	const filterConfig = JSON.parse(readFileSync(filterDenoJsonPath, "utf-8"));
 
 	// Read ROOT_DIR/deno.json if exists
-	let rootConfig: Record<string, any> = {};
+	let rootImports: Record<string, any> = {};
 	const rootDenoJsonPath = join(ROOT_DIR, "deno.json");
 	try {
 		console.log("Reading %ROOT_DIR%/deno.json...");
-		rootConfig = JSON.parse(readFileSync(rootDenoJsonPath, "utf-8"));
+		const rootConfig: any = JSON.parse(readFileSync(rootDenoJsonPath, "utf-8"));
+		if (
+			rootConfig.imports &&
+			typeof rootConfig.imports === "object" &&
+			!Array.isArray(rootConfig.imports)
+		) {
+			rootImports = rootConfig.imports;
+		}
 	} catch {
-		console.log("%ROOT_DIR%/deno.json not found, using empty config.");
+		console.log("%ROOT_DIR%/deno.json not found, skipping.");
+		return;
+	}
+
+	if (Object.keys(rootImports).length === 0) {
+		console.log("No imports to sync from %ROOT_DIR%, skipping.");
+		return;
 	}
 
 	// Read config.json to get dataPath
@@ -54,43 +67,47 @@ function main() {
 		Deno.exit(1);
 	}
 
-	// Resolve relative imports in filterConfig to ROOT_DIR
-	if (rootConfig.imports) {
-		console.log("Resolving relative imports in %FILTER_DIR%/deno.json...");
-		for (const [key, value] of Object.entries(rootConfig.imports)) {
-			if (
-				typeof value === "string" &&
-				(value.startsWith("./") || value.startsWith("../"))
-			) {
-				let resolved = resolve(ROOT_DIR, value);
-				// If within dataPath, swap to temp data
-				if (dataPathAbs) {
-					const relPath = relative(dataPathAbs, resolved);
-					if (
-						!relPath.startsWith("..") &&
-						relPath !== "" &&
-						!relPath.startsWith("/")
-					) {
-						resolved = join(tempData, relPath);
-					}
+	// Resolve relative imports in rootImports
+	console.log("Resolving relative imports from %ROOT_DIR%/deno.json...");
+	for (const [key, value] of Object.entries(rootImports)) {
+		if (
+			typeof value === "string" &&
+			(value.startsWith("./") || value.startsWith("../"))
+		) {
+			let resolved = resolve(ROOT_DIR, value);
+			// If within dataPath, swap to temp data
+			if (dataPathAbs) {
+				const relPath = relative(dataPathAbs, resolved);
+				if (
+					!relPath.startsWith("..") &&
+					relPath !== "" &&
+					!relPath.startsWith("/")
+				) {
+					resolved = join(tempData, relPath);
 				}
-				rootConfig.imports[key] = toFileUrl(resolved).href;
-				// Ensure file URL ends with / for directory mappings
-				if (!rootConfig.imports[key].endsWith("/")) {
-					rootConfig.imports[key] += "/";
-				}
-				console.log(`Resolved ${key}: ${value} -> ${rootConfig.imports[key]}`);
 			}
+			rootImports[key] = toFileUrl(resolved).href;
+			// Ensure file URL ends with / for directory mappings
+			if (!rootImports[key].endsWith("/")) {
+				rootImports[key] += "/";
+			}
+			console.log(`Resolved ${key}: ${value} -> ${rootImports[key]}`);
+		} else if (typeof value !== "string") {
+			console.warn(`Skipping non-string import ${key}: ${value}`);
+			delete rootImports[key];
 		}
 	}
 
-	// Merge filterConfig on top of rootConfig (filter overwrites)
-	console.log("Merging configs...");
-	const mergedConfig = deepMergeObjects(
-		rootConfig,
-		filterConfig,
+	// Merge imports: rootImports + filterConfig.imports
+	console.log("Merging imports...");
+	const mergedImports = deepMergeObjects(
+		rootImports,
+		filterConfig.imports || {},
 		ListMergePolicy.APPEND
 	);
+
+	// Create final config: filterConfig with merged imports
+	const mergedConfig = { ...filterConfig, imports: mergedImports };
 
 	// Write to FILTER_DIR/deno.json
 	console.log("Writing merged deno.json to %FILTER_DIR%...");
