@@ -3,6 +3,11 @@
 	"filters": [
 		{
 			"runWith": "deno",
+			"script": "./sync-deno.ts",
+			"name": "sync-deno"
+		},
+		{
+			"runWith": "deno",
 			"script": "./main.ts",
 			"name": "nusiq:modular_mc"
 		}
