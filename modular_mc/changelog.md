@@ -1,4 +1,9 @@
 # Change log
+## 1.0.0
+*I felt like the project is stable enough so it's not 0.8.0*
+
+Added support for importing modules from `deno.json` in context of the _map.ts files.
+
 ## 0.7.2
 Fixed `onConflict: 'stop'` not working correctly in some cases by removing concurrent evaluation of MapTs items.
 
