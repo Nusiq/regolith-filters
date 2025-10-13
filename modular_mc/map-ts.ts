@@ -1012,12 +1012,50 @@ export async function findMapFiles(rootDir: string): Promise<string[]> {
 	return mapFiles.sort();
 }
 
+/** Used for filtering generated modules. */
+export function isModulePathIncluded(
+	modulePath: string,
+	whitelist: string[],
+	blacklist: string[]
+): boolean {
+	// Check if in blacklist
+	for (const bl of blacklist) {
+		// Normalize by removing trailing slashes
+		const blNormalized = bl.replace(/\/+$/, "");
+		if (
+			blNormalized === "" ||
+			modulePath === blNormalized ||
+			modulePath.startsWith(blNormalized + "/")
+		) {
+			return false;
+		}
+	}
+
+	// Check if in whitelist
+	for (const wl of whitelist) {
+		// Normalize by removing trailing slashes
+		const wlNormalized = wl.replace(/\/+$/, "");
+		if (
+			wlNormalized === "" ||
+			modulePath === wlNormalized ||
+			modulePath.startsWith(wlNormalized + "/")
+		) {
+			return true;
+		}
+	}
+	return false;
+}
+
 /**
  * Processes all _map.ts files in the given directory and returns a list of MapTs objects
  * @param rootDir The root directory to search for _map.ts files
+ * @param whitelist List of paths to include modules from (empty string includes all)
+ * @param blacklist List of paths to exclude modules from
  */
-export async function processModule(
-	rootDir: string = "data/modular_mc"
+export async function processModules(
+	rootDir: string = "data/modular_mc",
+	whitelist: string[] = [""],
+	blacklist: string[] = []
 ): Promise<MapTs[]> {
 	// Normalize the root directory path - ensure forward slashes
 	const normalizedRootDir = asPosix(normalize(rootDir));
@@ -1025,6 +1063,10 @@ export async function processModule(
 	const modules: MapTs[] = [];
 
 	for (const mapFile of mapFiles) {
+		const modulePath = relative(normalizedRootDir, dirname(mapFile));
+		if (!isModulePathIncluded(modulePath, whitelist, blacklist)) {
+			continue;
+		}
 		const module = await MapTs.fromFile(mapFile);
 		modules.push(module);
 	}

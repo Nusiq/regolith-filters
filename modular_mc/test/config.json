@@ -30,6 +30,8 @@
 					{
 						"filter": "modular_mc",
 						"settings": {
+							"whitelist": [""],
+							"blacklist": ["blacklist"],
 							"esbuild": {
 								"buildPath": ".modular_mc/main.js",
 								"settings": {

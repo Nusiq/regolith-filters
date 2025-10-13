@@ -1,5 +1,5 @@
 import { compileWithEsbuild } from "./esbuild.ts";
-import { processModule } from "./map-ts.ts";
+import { processModules } from "./map-ts.ts";
 import { join } from "./path-utils.ts";
 import { getDataPath, getRootDir } from "./regolith.ts";
 import dedent from "npm:dedent";
@@ -7,6 +7,8 @@ import dedent from "npm:dedent";
 if (import.meta.main) {
 	let esbuildOptions: Record<string, any> = {};
 	let buildPath: string | undefined;
+	let whitelist: string[] = [""];
+	let blacklist: string[] = [];
 
 	// Get command line arguments
 	const args = Deno.args;
@@ -19,6 +21,24 @@ if (import.meta.main) {
 				esbuildOptions = input.esbuild.settings || {};
 				buildPath = input.esbuild.buildPath;
 			}
+
+			// Get whitelist if provided
+			if (input.whitelist !== undefined) {
+				if (!Array.isArray(input.whitelist)) {
+					console.error("whitelist must be an array");
+					Deno.exit(1);
+				}
+				whitelist = input.whitelist.filter((item: unknown) => typeof item === 'string') as string[];
+			}
+
+			// Get blacklist if provided
+			if (input.blacklist !== undefined) {
+				if (!Array.isArray(input.blacklist)) {
+					console.error("blacklist must be an array");
+					Deno.exit(1);
+				}
+				blacklist = input.blacklist.filter((item: unknown) => typeof item === 'string') as string[];
+			}
 		} catch (error) {
 			console.error("Error processing input:", error);
 			Deno.exit(1);
@@ -26,7 +46,7 @@ if (import.meta.main) {
 	}
 
 	// Process and collect modules
-	const modules = await processModule();
+	const modules = await processModules("data/modular_mc", whitelist, blacklist);
 
 	// Collect all scripts from modules
 	const allScripts: string[] = [];

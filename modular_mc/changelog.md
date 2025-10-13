@@ -1,4 +1,7 @@
 # Change log
+## 1.1.0
+Added whitelist/blacklist module filtering for modules.
+
 ## 1.0.0
 *I felt like the project is stable enough so it's not 0.8.0*
 
