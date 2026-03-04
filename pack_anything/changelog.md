@@ -1,4 +1,7 @@
 # Changelog
+## 1.2.0
+The `git decribe` command runs with current working directory set to the project root directory, instead of running in Regolith's tmp files.
+
 ## 1.1.1
 Enabled usual ZIP compression method.
 

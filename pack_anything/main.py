@@ -16,7 +16,8 @@ def resolver_input_path(path: str):
 def get_git_tag():
     try:
         git_out = subprocess.check_output(
-            'git describe --tags --always --abbrev=0')
+            'git describe --tags --always --abbrev=0',
+            cwd=PROJECT_PATH.as_posix())
         git_out = git_out.decode('utf-8').splitlines()[0].strip()
         return git_out
     except:
