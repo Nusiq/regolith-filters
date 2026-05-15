@@ -41,17 +41,26 @@ def main():
     with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as zf:
         for path_on_disk, path_in_zip in pathmap:
             if path_on_disk.is_file():
-                zf.write(path_on_disk, path_in_zip)
+                zf.write(path_on_disk, path_in_zip.as_posix())
                 continue
-            if Path(path_in_zip) != Path('.'):
+            if path_in_zip != Path('.'):
                 zf.mkdir(path_in_zip.as_posix())
-            for file in path_on_disk.rglob('*'):
-                out_path = (
-                    path_in_zip / file.relative_to(path_on_disk)).as_posix()
-                if file.is_file():
+            # os.walk with topdown=True guarantees that each directory is
+            # visited before its contents, so directory entries are always
+            # written to the archive before any of their child files.
+            for dirpath, dirnames, filenames in os.walk(path_on_disk):
+                dirnames.sort()
+                filenames.sort()
+                rel_dir = Path(dirpath).relative_to(path_on_disk)
+                for dirname in dirnames:
+                    out_path = (
+                        path_in_zip / rel_dir / dirname).as_posix()
+                    zf.mkdir(out_path)
+                for filename in filenames:
+                    file = Path(dirpath) / filename
+                    out_path = (
+                        path_in_zip / rel_dir / filename).as_posix()
                     zf.write(file, out_path)
-                    continue
-                zf.mkdir(out_path)
 
 if __name__ == '__main__':
     main()
