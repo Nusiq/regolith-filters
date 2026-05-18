@@ -22,7 +22,8 @@ For example configuration below could be used to create Mctemplate file:
             // This configuration assumes that you keep the world files in your
             // project in "worlds/release-world" directory.
             "PROJECT:worlds/release-world": "."
-        }
+        },
+        "allow_backslash_paths": false
     }
 }
 ```
@@ -41,3 +42,11 @@ Adding this setting to the configuration would create an mctemplate file named l
 
 ## pathmap
 A dictionary that maps the paths in the project to the paths in the output ZIP file. By default, the paths start in Regolith working directory, which means you have access to `RP`, `BP` and `data` folders. If you put a `PROJECT:` prefix in the path, it will start in the Regolith project directory.
+
+## allow_backslash_paths
+> [!WARNING]
+> This is `false` by default. You almost certainly don't want to enable it in anything related to Minecraft.
+
+When `false` (default): paths from the pathmap setting are normalized to use `/`. If a file or directory discovered during compression contains a literal `\` in its name, the filter will error.
+
+When `true`: the filter will allow creating ZIP entries containing `\` in names. This won't work on Windows (which always treats `\` as a path separator). Archives created with such names on other platforms also won't extract correctly on Windows.
