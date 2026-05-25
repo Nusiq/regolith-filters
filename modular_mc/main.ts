@@ -1,5 +1,5 @@
 import { compileWithEsbuild } from "./esbuild.ts";
-import { processModules } from "./map-ts.ts";
+import { applyModules, processModules } from "./map-ts.ts";
 import { join } from "./path-utils.ts";
 import { getDataPath, getRootDir } from "./regolith.ts";
 import dedent from "npm:dedent";
@@ -93,18 +93,16 @@ if (import.meta.main) {
 	}
 
 	// Apply all modules
-	for (const module of modules) {
-		try {
-			await module.apply();
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
-			console.error(
-				dedent`
-				Error during evaluation of the MAP files:
-				${errorMessage}`
-			);
-			Deno.exit(1);
-		}
+	try {
+		await applyModules(modules);
+	} catch (error) {
+		const errorMessage =
+			error instanceof Error ? error.message : String(error);
+		console.error(
+			dedent`
+			Error during evaluation of the MAP files:
+			${errorMessage}`
+		);
+		Deno.exit(1);
 	}
 }

@@ -27,6 +27,25 @@ export type OnConflictStrategy =
 	| "appendStart"
 	| "appendEnd";
 
+export type ModuleApplyMode = "concurrent" | "sequential";
+
+export interface PlannedMapEntryJob {
+	sequence: number;
+	targetPath: string;
+	run: () => Promise<void>;
+}
+
+export interface ApplyModulesOptions {
+	mode?: ModuleApplyMode;
+}
+
+interface PlannedMapEntryExecution {
+	targetPath: string;
+	run: () => Promise<void>;
+}
+
+type PlannedJobMap = Map<string, PlannedMapEntryJob[]>;
+
 // New types for the target property
 export interface MapTargetObject {
 	path: string;
@@ -145,6 +164,9 @@ export class MapTsEntry {
 						resolvedSources.push(entry);
 					}
 				});
+				resolvedSources.sort((a, b) =>
+					asPosix(a.path).localeCompare(asPosix(b.path))
+				);
 				for (const entry of resolvedSources) {
 					if (entry.isFile) {
 						entries.push(
@@ -561,24 +583,45 @@ export class MapTsEntry {
 		return finalPath;
 	}
 
+	private resolveSourcePath(): string {
+		return isAbsolute(this.source) ? this.source : resolve(this.source);
+	}
+
+	private async planApply(): Promise<PlannedMapEntryExecution> {
+		const sourcePath = this.resolveSourcePath();
+		const resolvedTarget = await this.resolveTargetPath();
+		const targetPath = resolve(resolvedTarget);
+
+		return {
+			targetPath,
+			run: async () => {
+				await this.applyPlanned(sourcePath, targetPath);
+			},
+		};
+	}
+
+	createApplyJob(sequence: number): Promise<PlannedMapEntryJob> {
+		return this.planApply().then((plannedExecution) => ({
+			sequence,
+			targetPath: plannedExecution.targetPath,
+			run: plannedExecution.run,
+		}));
+	}
+
 	/**
 	 * Applies this entry by copying the source file to the target location.
 	 * If jsonTemplate is true, processes the source as a JSON template.
 	 * Handles conflicts according to onConflict setting.
 	 */
 	async apply(): Promise<void> {
-		// Get the full path to the source file
-		// If source is already absolute, use it as-is; otherwise resolve it
-		const sourcePath = isAbsolute(this.source)
-			? this.source
-			: resolve(this.source);
+		const plannedExecution = await this.planApply();
+		await plannedExecution.run();
+	}
 
-		// Resolve auto target if needed
-		const resolvedTarget = await this.resolveTargetPath();
-
-		// Get the full path to the target file
-		const targetPath = resolve(resolvedTarget);
-
+	private async applyPlanned(
+		sourcePath: string,
+		targetPath: string
+	): Promise<void> {
 		// Get file types
 		const sourceType = this.getFileType(sourcePath, this.fileType);
 		const targetType = this.getFileType(targetPath, this.fileType);
@@ -925,18 +968,34 @@ export class MapTs {
 	/**
 	 * Applies the map by copying all source files to their target locations
 	 */
-	async apply(): Promise<void> {
-		for (const entry of this.entries) {
-			try {
-				await entry.apply();
-			} catch (error: unknown) {
-				throw new ModularMcError(
-					dedent`
-					Failed to apply MAP entry.
-					File: ${this.path}`
-				).moreInfo(error);
-			}
+	async planApplyJobs(startSequence: number): Promise<PlannedMapEntryJob[]> {
+		const jobs: PlannedMapEntryJob[] = [];
+
+		for (const [index, entry] of this.entries.entries()) {
+			const sequence = startSequence + index;
+			const job = await entry.createApplyJob(sequence);
+			jobs.push({
+				sequence: job.sequence,
+				targetPath: job.targetPath,
+				run: async () => {
+					try {
+						await job.run();
+					} catch (error: unknown) {
+						throw new ModularMcError(
+							dedent`
+							Failed to apply MAP entry.
+							File: ${this.path}`
+						).moreInfo(error);
+					}
+				},
+			});
 		}
+
+		return jobs;
+	}
+
+	async apply(options: ApplyModulesOptions = {}): Promise<void> {
+		await applyModules([this], { mode: options.mode ?? "sequential" });
 	}
 
 	/**
@@ -1072,4 +1131,78 @@ export async function processModules(
 	}
 
 	return modules;
+}
+
+function addPlannedJob(
+	jobsByTargetPath: PlannedJobMap,
+	job: PlannedMapEntryJob
+): void {
+	const targetJobs = jobsByTargetPath.get(job.targetPath);
+	if (targetJobs === undefined) {
+		jobsByTargetPath.set(job.targetPath, [job]);
+		return;
+	}
+
+	targetJobs.push(job);
+}
+
+function flattenPlannedJobs(jobsByTargetPath: PlannedJobMap): PlannedMapEntryJob[] {
+	const flattenedJobs: PlannedMapEntryJob[] = [];
+
+	for (const targetJobs of jobsByTargetPath.values()) {
+		flattenedJobs.push(...targetJobs);
+	}
+
+	return flattenedJobs;
+}
+
+async function planModuleJobs(modules: MapTs[]): Promise<PlannedJobMap> {
+	const plannedJobsByTargetPath: PlannedJobMap = new Map();
+	let nextSequence = 0;
+
+	for (const module of modules) {
+		const moduleJobs = await module.planApplyJobs(nextSequence);
+
+		for (const job of moduleJobs) {
+			addPlannedJob(plannedJobsByTargetPath, job);
+		}
+
+		nextSequence += moduleJobs.length;
+	}
+
+	return plannedJobsByTargetPath;
+}
+
+async function runJobQueue(jobs: PlannedMapEntryJob[]): Promise<void> {
+	for (const job of jobs) {
+		await job.run();
+	}
+}
+
+async function runPlannedJobs(
+	jobsByTargetPath: PlannedJobMap,
+	mode: ModuleApplyMode
+): Promise<void> {
+	if (mode === "sequential") {
+		const orderedJobs = flattenPlannedJobs(jobsByTargetPath);
+		orderedJobs.sort((a, b) => a.sequence - b.sequence);
+		for (const job of orderedJobs) {
+			await job.run();
+		}
+		return;
+	}
+
+	const jobQueues = Array.from(jobsByTargetPath.values()).map(
+		(targetJobs) => runJobQueue(targetJobs)
+	);
+	await Promise.all(jobQueues);
+}
+
+export async function applyModules(
+	modules: MapTs[],
+	options: ApplyModulesOptions = {}
+): Promise<void> {
+	const mode = options.mode ?? "concurrent";
+	const plannedJobsByTargetPath = await planModuleJobs(modules);
+	await runPlannedJobs(plannedJobsByTargetPath, mode);
 }
