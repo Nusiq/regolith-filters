@@ -71,8 +71,7 @@ async function getAutoMapResolver(): Promise<AutoMapResolver> {
 		try {
 			autoMapResolver = await AutoMapResolver.fromFile(getAutoMapFilePath());
 		} catch (error: unknown) {
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
 			console.error(`Warning: Failed to load AUTO_MAP: ${errorMessage}`);
 			// Create an empty resolver as fallback
 			autoMapResolver = new AutoMapResolver({});
@@ -500,9 +499,7 @@ export class MapTsEntry {
 	private isJsonMergeable(sourceType: string, targetType: string): boolean {
 		// Currently only JSON and material files are mergeable
 		const mergeableTypes = ["json", "material"];
-		return (
-			mergeableTypes.includes(sourceType) && mergeableTypes.includes(targetType)
-		);
+		return mergeableTypes.includes(sourceType) && mergeableTypes.includes(targetType);
 	}
 
 	/**
@@ -548,10 +545,7 @@ export class MapTsEntry {
 		// Handle MapTargetObject
 		const { path, subpath, name } = this.target;
 		let resolvedPath = path;
-		if (
-			path === MapTsEntry.AUTO_KEYWORD ||
-			path === MapTsEntry.AUTO_FLAT_KEYWORD
-		) {
+		if (path === MapTsEntry.AUTO_KEYWORD || path === MapTsEntry.AUTO_FLAT_KEYWORD) {
 			const isFlat = path === MapTsEntry.AUTO_FLAT_KEYWORD;
 			const autoPath = resolver.resolveAutoPath(sourcePath, isFlat);
 			if (!autoPath) {
@@ -618,10 +612,7 @@ export class MapTsEntry {
 		await plannedExecution.run();
 	}
 
-	private async applyPlanned(
-		sourcePath: string,
-		targetPath: string
-	): Promise<void> {
+	private async applyPlanned(sourcePath: string, targetPath: string): Promise<void> {
 		// Get file types
 		const sourceType = this.getFileType(sourcePath, this.fileType);
 		const targetType = this.getFileType(targetPath, this.fileType);
@@ -868,11 +859,7 @@ export class MapTs {
 	entries: MapTsEntry[];
 	scripts: string[] = [];
 
-	private constructor(
-		path: string,
-		entries: MapTsEntry[],
-		scripts: string[] = []
-	) {
+	private constructor(path: string, entries: MapTsEntry[], scripts: string[] = []) {
 		this.path = path;
 		this.entries = entries;
 		this.scripts = scripts;
@@ -1040,11 +1027,7 @@ export class MapTs {
 			}
 
 			// 3. Combine ROOT_DIR + dataPath + moduleRelativePath to get the absolute path to the original file
-			const absolutePath = join(
-				rootDir,
-				configJsonDataPath,
-				moduleRelativePath
-			);
+			const absolutePath = join(rootDir, configJsonDataPath, moduleRelativePath);
 			resolvedScripts.push(absolutePath);
 		}
 
@@ -1133,10 +1116,7 @@ export async function processModules(
 	return modules;
 }
 
-function addPlannedJob(
-	jobsByTargetPath: PlannedJobMap,
-	job: PlannedMapEntryJob
-): void {
+function addPlannedJob(jobsByTargetPath: PlannedJobMap, job: PlannedMapEntryJob): void {
 	const targetJobs = jobsByTargetPath.get(job.targetPath);
 	if (targetJobs === undefined) {
 		jobsByTargetPath.set(job.targetPath, [job]);
@@ -1192,8 +1172,8 @@ async function runPlannedJobs(
 		return;
 	}
 
-	const jobQueues = Array.from(jobsByTargetPath.values()).map(
-		(targetJobs) => runJobQueue(targetJobs)
+	const jobQueues = Array.from(jobsByTargetPath.values()).map((targetJobs) =>
+		runJobQueue(targetJobs)
 	);
 	await Promise.all(jobQueues);
 }
