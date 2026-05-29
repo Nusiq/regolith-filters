@@ -211,7 +211,7 @@ Deno.test("applyModules supports sequential execution mode", async () => {
 		},
 		async () => {
 			const modules = await processModules("data/modular_mc");
-			await applyModules(modules, { mode: "sequential" });
+			await applyModules(modules, "sequential");
 
 			const output = await Deno.readTextFile("BP/out.txt");
 			assertEquals(output, "START\nBASE\nEND\n");

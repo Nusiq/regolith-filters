@@ -35,10 +35,6 @@ export interface PlannedMapEntryJob {
 	run: () => Promise<void>;
 }
 
-export interface ApplyModulesOptions {
-	mode?: ModuleApplyMode;
-}
-
 interface PlannedMapEntryExecution {
 	targetPath: string;
 	run: () => Promise<void>;
@@ -594,22 +590,12 @@ export class MapTsEntry {
 		};
 	}
 
-	createApplyJob(sequence: number): Promise<PlannedMapEntryJob> {
-		return this.planApply().then((plannedExecution) => ({
+	async createApplyJob(sequence: number): Promise<PlannedMapEntryJob> {
+		return await this.planApply().then((plannedExecution) => ({
 			sequence,
 			targetPath: plannedExecution.targetPath,
 			run: plannedExecution.run,
 		}));
-	}
-
-	/**
-	 * Applies this entry by copying the source file to the target location.
-	 * If jsonTemplate is true, processes the source as a JSON template.
-	 * Handles conflicts according to onConflict setting.
-	 */
-	async apply(): Promise<void> {
-		const plannedExecution = await this.planApply();
-		await plannedExecution.run();
 	}
 
 	private async applyPlanned(sourcePath: string, targetPath: string): Promise<void> {
@@ -981,10 +967,6 @@ export class MapTs {
 		return jobs;
 	}
 
-	async apply(options: ApplyModulesOptions = {}): Promise<void> {
-		await applyModules([this], { mode: options.mode ?? "sequential" });
-	}
-
 	/**
 	 * Resolves script paths to absolute paths based on provided ROOT_DIR and data path from
 	 * config.json. These paths lead to the original script files, not temporary files used
@@ -1116,73 +1098,44 @@ export async function processModules(
 	return modules;
 }
 
-function addPlannedJob(jobsByTargetPath: PlannedJobMap, job: PlannedMapEntryJob): void {
-	const targetJobs = jobsByTargetPath.get(job.targetPath);
-	if (targetJobs === undefined) {
-		jobsByTargetPath.set(job.targetPath, [job]);
-		return;
-	}
-
-	targetJobs.push(job);
-}
-
-function flattenPlannedJobs(jobsByTargetPath: PlannedJobMap): PlannedMapEntryJob[] {
-	const flattenedJobs: PlannedMapEntryJob[] = [];
-
-	for (const targetJobs of jobsByTargetPath.values()) {
-		flattenedJobs.push(...targetJobs);
-	}
-
-	return flattenedJobs;
-}
-
-async function planModuleJobs(modules: MapTs[]): Promise<PlannedJobMap> {
+export async function applyModules(
+	modules: MapTs[],
+	mode: ModuleApplyMode = "concurrent"
+): Promise<void> {
+	// Plan all jobs
 	const plannedJobsByTargetPath: PlannedJobMap = new Map();
 	let nextSequence = 0;
-
 	for (const module of modules) {
 		const moduleJobs = await module.planApplyJobs(nextSequence);
-
 		for (const job of moduleJobs) {
-			addPlannedJob(plannedJobsByTargetPath, job);
+			const targetJobs = plannedJobsByTargetPath.get(job.targetPath);
+			if (targetJobs === undefined) {
+				plannedJobsByTargetPath.set(job.targetPath, [job]);
+				continue;
+			}
+			targetJobs.push(job);
 		}
-
 		nextSequence += moduleJobs.length;
 	}
-
-	return plannedJobsByTargetPath;
-}
-
-async function runJobQueue(jobs: PlannedMapEntryJob[]): Promise<void> {
-	for (const job of jobs) {
-		await job.run();
-	}
-}
-
-async function runPlannedJobs(
-	jobsByTargetPath: PlannedJobMap,
-	mode: ModuleApplyMode
-): Promise<void> {
+	// Run planned jobs
 	if (mode === "sequential") {
-		const orderedJobs = flattenPlannedJobs(jobsByTargetPath);
+		// Flatten and sort the jobs using their sequence numbers
+		const orderedJobs: PlannedMapEntryJob[] = [];
+		for (const targetJobs of plannedJobsByTargetPath.values()) {
+			orderedJobs.push(...targetJobs);
+		}
 		orderedJobs.sort((a, b) => a.sequence - b.sequence);
 		for (const job of orderedJobs) {
 			await job.run();
 		}
 		return;
 	}
-
-	const jobQueues = Array.from(jobsByTargetPath.values()).map((targetJobs) =>
-		runJobQueue(targetJobs)
+	const jobQueues = Array.from(plannedJobsByTargetPath.values()).map(
+		async (targetJobs) => {
+			for (const job of targetJobs) {
+				await job.run();
+			}
+		}
 	);
 	await Promise.all(jobQueues);
-}
-
-export async function applyModules(
-	modules: MapTs[],
-	options: ApplyModulesOptions = {}
-): Promise<void> {
-	const mode = options.mode ?? "concurrent";
-	const plannedJobsByTargetPath = await planModuleJobs(modules);
-	await runPlannedJobs(plannedJobsByTargetPath, mode);
 }
