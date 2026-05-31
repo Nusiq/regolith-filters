@@ -55,24 +55,24 @@ export interface PlannedMapEntryJob extends PartialPlannedMapEntryJob {
 	sequence: number;
 }
 
-function applyPlannedMapEntryJobResult(
+async function applyPlannedMapEntryJobResult(
 	job: PlannedMapEntryJob,
 	result: PlannedMapEntryJobResult
 ) {
 	if (result.resultType !== "skip") {
-		Deno.mkdirSync(dirname(job.targetPath), { recursive: true });
+		await Deno.mkdir(dirname(job.targetPath), { recursive: true });
 	} else {
 		return;
 	}
 	switch (result.resultType) {
 		case "copyFile":
-			Deno.copyFileSync(result.sourcePath, job.targetPath);
+			await Deno.copyFile(result.sourcePath, job.targetPath);
 			break;
 		case "string":
-			Deno.writeTextFileSync(job.targetPath, result.value);
+			await Deno.writeTextFile(job.targetPath, result.value);
 			break;
 		case "json":
-			Deno.writeTextFileSync(
+			await Deno.writeTextFile(
 				job.targetPath,
 				JSON.stringify(result.value, null, "\t")
 			);
@@ -1254,7 +1254,7 @@ export async function applyModules(
 		}
 		orderedJobs.sort((a, b) => a.sequence - b.sequence);
 		for (const job of orderedJobs) {
-			applyPlannedMapEntryJobResult(job, await job.run());
+			await applyPlannedMapEntryJobResult(job, await job.run());
 		}
 		return;
 	}
@@ -1267,7 +1267,7 @@ export async function applyModules(
 			if (previousResult === undefined) {
 				return;
 			}
-			applyPlannedMapEntryJobResult(
+			await applyPlannedMapEntryJobResult(
 				targetJobs[targetJobs.length - 1],
 				previousResult
 			);
