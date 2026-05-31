@@ -29,15 +29,58 @@ export type OnConflictStrategy =
 
 export type ModuleApplyMode = "concurrent" | "sequential";
 
-export interface PlannedMapEntryJob {
-	sequence: number;
+type PlannedMapEntryJobResult =
+	| {
+			resultType: "string";
+			value: string;
+	  }
+	| {
+			resultType: "json";
+			value: any;
+	  }
+	| {
+			resultType: "copyFile";
+			sourcePath: string;
+	  }
+	| {
+			resultType: "skip";
+	  };
+
+interface PartialPlannedMapEntryJob {
 	targetPath: string;
-	run: () => Promise<void>;
+	run: (previousResult?: PlannedMapEntryJobResult) => Promise<PlannedMapEntryJobResult>;
 }
 
-interface PlannedMapEntryExecution {
-	targetPath: string;
-	run: () => Promise<void>;
+export interface PlannedMapEntryJob extends PartialPlannedMapEntryJob {
+	sequence: number;
+}
+
+function applyPlannedMapEntryJobResult(
+	job: PlannedMapEntryJob,
+	result: PlannedMapEntryJobResult
+) {
+	if (result.resultType !== "skip") {
+		Deno.mkdirSync(dirname(job.targetPath), { recursive: true });
+	} else {
+		return;
+	}
+	switch (result.resultType) {
+		case "copyFile":
+			Deno.copyFileSync(result.sourcePath, job.targetPath);
+			break;
+		case "string":
+			Deno.writeTextFileSync(job.targetPath, result.value);
+			break;
+		case "json":
+			Deno.writeTextFileSync(
+				job.targetPath,
+				JSON.stringify(result.value, null, "\t")
+			);
+			break;
+		default:
+			result satisfies never;
+			throw new ModularMcError("Unexpected error.");
+	}
 }
 
 type PlannedJobMap = Map<string, PlannedMapEntryJob[]>;
@@ -577,40 +620,49 @@ export class MapTsEntry {
 		return isAbsolute(this.source) ? this.source : resolve(this.source);
 	}
 
-	private async planApply(): Promise<PlannedMapEntryExecution> {
+	async planApply(): Promise<PartialPlannedMapEntryJob> {
 		const sourcePath = this.resolveSourcePath();
 		const resolvedTarget = await this.resolveTargetPath();
 		const targetPath = resolve(resolvedTarget);
 
 		return {
 			targetPath,
-			run: async () => {
-				await this.applyPlanned(sourcePath, targetPath);
+			run: async (previousResult?: PlannedMapEntryJobResult) => {
+				return await this.applyPlanned(sourcePath, targetPath, previousResult);
 			},
 		};
 	}
 
-	async createApplyJob(sequence: number): Promise<PlannedMapEntryJob> {
-		return await this.planApply().then((plannedExecution) => ({
-			sequence,
-			targetPath: plannedExecution.targetPath,
-			run: plannedExecution.run,
-		}));
-	}
-
-	private async applyPlanned(sourcePath: string, targetPath: string): Promise<void> {
+	/**
+	 * Applies a single entry from _map.ts returns the result object after
+	 * applying the opreation. WARNING: This function doesn't actually modify
+	 * the file system.
+	 * @param sourcePath
+	 * @param targetPath
+	 * @param previousApplyResult if executed in chain, the previous MapTsEntry
+	 * can pass its result to the next one to skip unnecessary IO operations
+	 * in the file system.
+	 */
+	private async applyPlanned(
+		sourcePath: string,
+		targetPath: string,
+		previousApplyResult?: PlannedMapEntryJobResult
+	): Promise<PlannedMapEntryJobResult> {
 		// Get file types
 		const sourceType = this.getFileType(sourcePath, this.fileType);
 		const targetType = this.getFileType(targetPath, this.fileType);
 
 		// Check if target file exists
-		const targetExists = await Deno.stat(targetPath).then(
-			() => true,
-			() => false
-		);
+		const hasPreviousResult = previousApplyResult !== undefined;
+		const targetExists =
+			(hasPreviousResult && previousApplyResult.resultType != "skip") ||
+			(await Deno.stat(targetPath).then(
+				() => true,
+				() => false
+			));
 
 		// Handle conflict if target exists
-		if (targetExists) {
+		if (targetExists && !hasPreviousResult) {
 			// Check if target is a directory
 			const targetStat = await Deno.stat(targetPath);
 			if (targetStat.isDirectory) {
@@ -652,8 +704,10 @@ export class MapTsEntry {
 				const sourceContent = await Deno.readTextFile(sourcePath);
 				const resultContent = evaluateText(sourceContent, this.scope);
 
-				await Deno.mkdir(dirname(targetPath), { recursive: true });
-				await Deno.writeTextFile(targetPath, resultContent);
+				return {
+					resultType: "string",
+					value: resultContent,
+				};
 			} else if (this.jsonTemplate) {
 				let sourceJSON: any;
 				try {
@@ -668,15 +722,16 @@ export class MapTsEntry {
 				sourceJSON = evaluate(sourceJSON, this.scope);
 
 				// Write the result to the target file
-				await Deno.mkdir(dirname(targetPath), { recursive: true });
-				await Deno.writeTextFile(
-					targetPath,
-					JSON.stringify(sourceJSON, null, "\t")
-				);
+				return {
+					resultType: "json",
+					value: sourceJSON,
+				};
 			} else {
 				// Simple copy for new files or overwrite
-				await Deno.mkdir(dirname(targetPath), { recursive: true });
-				await Deno.copyFile(sourcePath, targetPath);
+				return {
+					resultType: "copyFile",
+					sourcePath: sourcePath,
+				};
 			}
 		} else if (this.onConflict === "appendStart") {
 			if (this.isJsonMergeable(sourceType, targetType)) {
@@ -687,7 +742,27 @@ export class MapTsEntry {
 				);
 			}
 			// Read existing target content
-			const targetContent = await Deno.readTextFile(targetPath);
+			let targetContent: string;
+			switch (previousApplyResult?.resultType) {
+				case "copyFile":
+					targetContent = await Deno.readTextFile(
+						previousApplyResult.sourcePath
+					);
+					break;
+				case "json":
+					targetContent = JSON.stringify(previousApplyResult.value, null, "\t");
+					break;
+				case "string":
+					targetContent = previousApplyResult.value;
+					break;
+				case "skip":
+				case undefined: // undefined || "skip"
+					targetContent = await Deno.readTextFile(targetPath);
+					break;
+				default:
+					previousApplyResult satisfies never;
+					throw new ModularMcError("Unexpected error.");
+			}
 
 			// Process source content if textTemplate is enabled
 			let processedSourceContent = sourceContent;
@@ -708,9 +783,11 @@ export class MapTsEntry {
 				(needsBoundaryNewlineStart ? eolStyle : "") +
 				targetContent;
 
-			// Write the combined content
-			await Deno.mkdir(dirname(targetPath), { recursive: true });
-			await Deno.writeTextFile(targetPath, resultContent);
+			// Return the combined content
+			return {
+				resultType: "string",
+				value: resultContent,
+			};
 		} else if (this.onConflict === "appendEnd") {
 			if (this.isJsonMergeable(sourceType, targetType)) {
 				throw new ModularMcError(
@@ -720,7 +797,27 @@ export class MapTsEntry {
 				);
 			}
 			// Read existing target content
-			const targetContent = await Deno.readTextFile(targetPath);
+			let targetContent: string;
+			switch (previousApplyResult?.resultType) {
+				case "copyFile":
+					targetContent = await Deno.readTextFile(
+						previousApplyResult.sourcePath
+					);
+					break;
+				case "json":
+					targetContent = JSON.stringify(previousApplyResult.value, null, "\t");
+					break;
+				case "string":
+					targetContent = previousApplyResult.value;
+					break;
+				case undefined:
+				case "skip":
+					targetContent = await Deno.readTextFile(targetPath);
+					break;
+				default:
+					previousApplyResult satisfies never;
+					throw new ModularMcError("Unexpected error.");
+			}
 
 			// Process source content if textTemplate is enabled
 			let processedSourceContent = sourceContent;
@@ -741,9 +838,11 @@ export class MapTsEntry {
 				(needsBoundaryNewlineEnd ? eolStyle : "") +
 				processedSourceContent;
 
-			// Write the combined content
-			await Deno.mkdir(dirname(targetPath), { recursive: true });
-			await Deno.writeTextFile(targetPath, resultContent);
+			// Return the combined content
+			return {
+				resultType: "string",
+				value: resultContent,
+			};
 		} else if (this.onConflict === "merge") {
 			if (!this.isJsonMergeable(sourceType, targetType)) {
 				throw new ModularMcError(
@@ -777,23 +876,46 @@ export class MapTsEntry {
 			// Merge with an existing file
 			try {
 				// Read target file
-				const targetContent = await Deno.readTextFile(targetPath);
-
-				try {
-					const targetJSON: any = JSONC.parse(targetContent);
-
-					// Merge the files using APPEND for lists
+				let targetContent: string | undefined = undefined;
+				if (previousApplyResult?.resultType === "json") {
 					sourceJSON = deepMergeObjects(
-						targetJSON,
+						previousApplyResult.value,
 						sourceJSON,
 						ListMergePolicy.APPEND
 					);
-				} catch (error: unknown) {
-					throw new ModularMcError(
-						dedent`
-						Failed to parse existing JSON.
-						File: ${targetPath}`
-					).moreInfo(error);
+				} else {
+					switch (previousApplyResult?.resultType) {
+						case "copyFile":
+							targetContent = await Deno.readTextFile(
+								previousApplyResult.sourcePath
+							);
+							break;
+						// case "json": // Checked in if-else
+						case "string":
+							targetContent = previousApplyResult.value;
+							break;
+						case undefined:
+						case "skip":
+							targetContent = await Deno.readTextFile(targetPath);
+							break;
+						default:
+							previousApplyResult satisfies never;
+							throw new ModularMcError("Unexpected error.");
+					}
+					try {
+						const targetJSON: any = JSONC.parse(targetContent);
+						sourceJSON = deepMergeObjects(
+							targetJSON,
+							sourceJSON,
+							ListMergePolicy.APPEND
+						);
+					} catch (error: unknown) {
+						throw new ModularMcError(
+							dedent`
+							Failed to parse existing JSON.
+							File: ${targetPath}`
+						).moreInfo(error);
+					}
 				}
 			} catch (error: unknown) {
 				// If error is not related to file not existing, rethrow
@@ -801,13 +923,10 @@ export class MapTsEntry {
 					throw error;
 				}
 			}
-
-			// Stringify the JSON with nice formatting
-			const resultContent = JSON.stringify(sourceJSON, null, "\t");
-
-			// Write the result to the target file
-			await Deno.mkdir(dirname(targetPath), { recursive: true });
-			await Deno.writeTextFile(targetPath, resultContent);
+			return {
+				resultType: "json",
+				value: sourceJSON,
+			};
 		} else if (this.onConflict === "stop") {
 			throw new ModularMcError(
 				`Target file already exists. Use onConflict: "skip", "merge", ` +
@@ -818,6 +937,12 @@ export class MapTsEntry {
 			console.log(
 				`Skipped exporting ${sourcePath} to ${targetPath}. Target already exists.`
 			);
+			if (previousApplyResult !== undefined) {
+				return previousApplyResult;
+			}
+			return {
+				resultType: "skip",
+			};
 		} else {
 			// Hopefully should never happen, this would be embarassing if it did.
 
@@ -946,13 +1071,16 @@ export class MapTs {
 
 		for (const [index, entry] of this.entries.entries()) {
 			const sequence = startSequence + index;
-			const job = await entry.createApplyJob(sequence);
+			const job = await entry.planApply().then((plannedExecution) => ({
+				...plannedExecution,
+				sequence,
+			}));
 			jobs.push({
 				sequence: job.sequence,
 				targetPath: job.targetPath,
-				run: async () => {
+				run: async (previousResult?: PlannedMapEntryJobResult) => {
 					try {
-						await job.run();
+						return await job.run(previousResult);
 					} catch (error: unknown) {
 						throw new ModularMcError(
 							dedent`
@@ -1126,15 +1254,23 @@ export async function applyModules(
 		}
 		orderedJobs.sort((a, b) => a.sequence - b.sequence);
 		for (const job of orderedJobs) {
-			await job.run();
+			applyPlannedMapEntryJobResult(job, await job.run());
 		}
 		return;
 	}
 	const jobQueues = Array.from(plannedJobsByTargetPath.values()).map(
 		async (targetJobs) => {
+			let previousResult: PlannedMapEntryJobResult | undefined = undefined;
 			for (const job of targetJobs) {
-				await job.run();
+				previousResult = await job.run(previousResult);
 			}
+			if (previousResult === undefined) {
+				return;
+			}
+			applyPlannedMapEntryJobResult(
+				targetJobs[targetJobs.length - 1],
+				previousResult
+			);
 		}
 	);
 	await Promise.all(jobQueues);
