@@ -657,12 +657,9 @@ export class MapTsEntry {
 							`File: ${this.mapFilePath}`
 					);
 				}
-				const sourceContent = await Deno.readTextFile(sourcePath);
-				const resultContent = evaluateText(sourceContent, this.scope);
-
 				return {
 					resultType: "string",
-					value: resultContent,
+					value: evaluateText(sourceContent, this.scope),
 				};
 			} else if (this.jsonTemplate) {
 				let sourceJSON: any;
