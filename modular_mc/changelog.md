@@ -1,4 +1,10 @@
 # Change log
+## 1.1.1
+Optimized performance.
+- The _map.ts files are read in parallel.
+- Modules are executed in parallel but the changes applied to individual files are still sequential so the order of the changes is consistent.
+- ModularMC now avoids reading the same file multiple times when multiple modules modify it (the result of previous module is passed to the next one). The file is written to disk only after all the modules have been applied to it.
+
 ## 1.1.0
 Added whitelist/blacklist module filtering for modules.
 

@@ -38,17 +38,11 @@ Deno.test("resolveAutoPath - preserve directory structure with :auto", () => {
 });
 
 // Test with :autoFlat (flatten directory structure)
-Deno.test(
-	"resolveAutoPath - flatten directory structure with :autoFlat",
-	() => {
-		const resolver = new AutoMapResolver(TEST_AUTO_MAP);
-		const result = resolver.resolveAutoPath(
-			"mobs/dragon/dragon.geo.json",
-			true
-		);
-		assertEquals(result, "RP/models/entity/dragon.geo.json");
-	}
-);
+Deno.test("resolveAutoPath - flatten directory structure with :autoFlat", () => {
+	const resolver = new AutoMapResolver(TEST_AUTO_MAP);
+	const result = resolver.resolveAutoPath("mobs/dragon/dragon.geo.json", true);
+	assertEquals(result, "RP/models/entity/dragon.geo.json");
+});
 
 // Test object-based mappings with extension replacement
 Deno.test("resolveAutoPath - extension replacement", () => {

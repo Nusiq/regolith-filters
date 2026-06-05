@@ -27,6 +27,27 @@ export type OnConflictStrategy =
 	| "appendStart"
 	| "appendEnd";
 
+export type ModuleApplyMode = "concurrent" | "sequential";
+
+type PlannedMapEntryJobResult =
+	| {
+			resultType: "string";
+			value: string;
+	  }
+	| {
+			resultType: "json";
+			value: any;
+	  }
+	| {
+			resultType: "copyFile";
+			sourcePath: string;
+	  }
+	| {
+			resultType: "skip";
+	  };
+
+type PlannedJobMap = Map<string, PlannedMapEntryJob[]>;
+
 // New types for the target property
 export interface MapTargetObject {
 	path: string;
@@ -52,8 +73,7 @@ async function getAutoMapResolver(): Promise<AutoMapResolver> {
 		try {
 			autoMapResolver = await AutoMapResolver.fromFile(getAutoMapFilePath());
 		} catch (error: unknown) {
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
 			console.error(`Warning: Failed to load AUTO_MAP: ${errorMessage}`);
 			// Create an empty resolver as fallback
 			autoMapResolver = new AutoMapResolver({});
@@ -145,6 +165,9 @@ export class MapTsEntry {
 						resolvedSources.push(entry);
 					}
 				});
+				resolvedSources.sort((a, b) =>
+					asPosix(a.path).localeCompare(asPosix(b.path))
+				);
 				for (const entry of resolvedSources) {
 					if (entry.isFile) {
 						entries.push(
@@ -478,9 +501,7 @@ export class MapTsEntry {
 	private isJsonMergeable(sourceType: string, targetType: string): boolean {
 		// Currently only JSON and material files are mergeable
 		const mergeableTypes = ["json", "material"];
-		return (
-			mergeableTypes.includes(sourceType) && mergeableTypes.includes(targetType)
-		);
+		return mergeableTypes.includes(sourceType) && mergeableTypes.includes(targetType);
 	}
 
 	/**
@@ -526,10 +547,7 @@ export class MapTsEntry {
 		// Handle MapTargetObject
 		const { path, subpath, name } = this.target;
 		let resolvedPath = path;
-		if (
-			path === MapTsEntry.AUTO_KEYWORD ||
-			path === MapTsEntry.AUTO_FLAT_KEYWORD
-		) {
+		if (path === MapTsEntry.AUTO_KEYWORD || path === MapTsEntry.AUTO_FLAT_KEYWORD) {
 			const isFlat = path === MapTsEntry.AUTO_FLAT_KEYWORD;
 			const autoPath = resolver.resolveAutoPath(sourcePath, isFlat);
 			if (!autoPath) {
@@ -561,36 +579,46 @@ export class MapTsEntry {
 		return finalPath;
 	}
 
-	/**
-	 * Applies this entry by copying the source file to the target location.
-	 * If jsonTemplate is true, processes the source as a JSON template.
-	 * Handles conflicts according to onConflict setting.
-	 */
-	async apply(): Promise<void> {
-		// Get the full path to the source file
-		// If source is already absolute, use it as-is; otherwise resolve it
-		const sourcePath = isAbsolute(this.source)
-			? this.source
-			: resolve(this.source);
+	private resolveSourcePath(): string {
+		return isAbsolute(this.source) ? this.source : resolve(this.source);
+	}
 
-		// Resolve auto target if needed
+	async createPlannedJob(): Promise<PlannedMapEntryJob> {
+		const sourcePath = this.resolveSourcePath();
 		const resolvedTarget = await this.resolveTargetPath();
-
-		// Get the full path to the target file
 		const targetPath = resolve(resolvedTarget);
+		return new PlannedMapEntryJob(this, sourcePath, targetPath);
+	}
 
+	/**
+	 * Computes the result of applying a single entry from _map.ts.
+	 * WARNING: This function doesn't modify the file system.
+	 * @param sourcePath
+	 * @param targetPath
+	 * @param previousApplyResult if executed in chain, the previous MapTsEntry
+	 * can pass its result to the next one to skip unnecessary IO operations
+	 * in the file system.
+	 */
+	async computeApplyResult(
+		sourcePath: string,
+		targetPath: string,
+		previousApplyResult?: PlannedMapEntryJobResult
+	): Promise<PlannedMapEntryJobResult> {
 		// Get file types
 		const sourceType = this.getFileType(sourcePath, this.fileType);
 		const targetType = this.getFileType(targetPath, this.fileType);
 
 		// Check if target file exists
-		const targetExists = await Deno.stat(targetPath).then(
-			() => true,
-			() => false
-		);
+		const hasPreviousResult = previousApplyResult !== undefined;
+		const targetExists =
+			(hasPreviousResult && previousApplyResult.resultType != "skip") ||
+			(await Deno.stat(targetPath).then(
+				() => true,
+				() => false
+			));
 
 		// Handle conflict if target exists
-		if (targetExists) {
+		if (targetExists && !hasPreviousResult) {
 			// Check if target is a directory
 			const targetStat = await Deno.stat(targetPath);
 			if (targetStat.isDirectory) {
@@ -629,11 +657,10 @@ export class MapTsEntry {
 							`File: ${this.mapFilePath}`
 					);
 				}
-				const sourceContent = await Deno.readTextFile(sourcePath);
-				const resultContent = evaluateText(sourceContent, this.scope);
-
-				await Deno.mkdir(dirname(targetPath), { recursive: true });
-				await Deno.writeTextFile(targetPath, resultContent);
+				return {
+					resultType: "string",
+					value: evaluateText(sourceContent, this.scope),
+				};
 			} else if (this.jsonTemplate) {
 				let sourceJSON: any;
 				try {
@@ -648,15 +675,16 @@ export class MapTsEntry {
 				sourceJSON = evaluate(sourceJSON, this.scope);
 
 				// Write the result to the target file
-				await Deno.mkdir(dirname(targetPath), { recursive: true });
-				await Deno.writeTextFile(
-					targetPath,
-					JSON.stringify(sourceJSON, null, "\t")
-				);
+				return {
+					resultType: "json",
+					value: sourceJSON,
+				};
 			} else {
 				// Simple copy for new files or overwrite
-				await Deno.mkdir(dirname(targetPath), { recursive: true });
-				await Deno.copyFile(sourcePath, targetPath);
+				return {
+					resultType: "copyFile",
+					sourcePath: sourcePath,
+				};
 			}
 		} else if (this.onConflict === "appendStart") {
 			if (this.isJsonMergeable(sourceType, targetType)) {
@@ -667,7 +695,27 @@ export class MapTsEntry {
 				);
 			}
 			// Read existing target content
-			const targetContent = await Deno.readTextFile(targetPath);
+			let targetContent: string;
+			switch (previousApplyResult?.resultType) {
+				case "copyFile":
+					targetContent = await Deno.readTextFile(
+						previousApplyResult.sourcePath
+					);
+					break;
+				case "json":
+					targetContent = JSON.stringify(previousApplyResult.value, null, "\t");
+					break;
+				case "string":
+					targetContent = previousApplyResult.value;
+					break;
+				case "skip":
+				case undefined: // undefined || "skip"
+					targetContent = await Deno.readTextFile(targetPath);
+					break;
+				default:
+					previousApplyResult satisfies never;
+					throw new ModularMcError("Unexpected error.");
+			}
 
 			// Process source content if textTemplate is enabled
 			let processedSourceContent = sourceContent;
@@ -688,9 +736,11 @@ export class MapTsEntry {
 				(needsBoundaryNewlineStart ? eolStyle : "") +
 				targetContent;
 
-			// Write the combined content
-			await Deno.mkdir(dirname(targetPath), { recursive: true });
-			await Deno.writeTextFile(targetPath, resultContent);
+			// Return the combined content
+			return {
+				resultType: "string",
+				value: resultContent,
+			};
 		} else if (this.onConflict === "appendEnd") {
 			if (this.isJsonMergeable(sourceType, targetType)) {
 				throw new ModularMcError(
@@ -700,7 +750,27 @@ export class MapTsEntry {
 				);
 			}
 			// Read existing target content
-			const targetContent = await Deno.readTextFile(targetPath);
+			let targetContent: string;
+			switch (previousApplyResult?.resultType) {
+				case "copyFile":
+					targetContent = await Deno.readTextFile(
+						previousApplyResult.sourcePath
+					);
+					break;
+				case "json":
+					targetContent = JSON.stringify(previousApplyResult.value, null, "\t");
+					break;
+				case "string":
+					targetContent = previousApplyResult.value;
+					break;
+				case undefined:
+				case "skip":
+					targetContent = await Deno.readTextFile(targetPath);
+					break;
+				default:
+					previousApplyResult satisfies never;
+					throw new ModularMcError("Unexpected error.");
+			}
 
 			// Process source content if textTemplate is enabled
 			let processedSourceContent = sourceContent;
@@ -721,9 +791,11 @@ export class MapTsEntry {
 				(needsBoundaryNewlineEnd ? eolStyle : "") +
 				processedSourceContent;
 
-			// Write the combined content
-			await Deno.mkdir(dirname(targetPath), { recursive: true });
-			await Deno.writeTextFile(targetPath, resultContent);
+			// Return the combined content
+			return {
+				resultType: "string",
+				value: resultContent,
+			};
 		} else if (this.onConflict === "merge") {
 			if (!this.isJsonMergeable(sourceType, targetType)) {
 				throw new ModularMcError(
@@ -757,23 +829,46 @@ export class MapTsEntry {
 			// Merge with an existing file
 			try {
 				// Read target file
-				const targetContent = await Deno.readTextFile(targetPath);
-
-				try {
-					const targetJSON: any = JSONC.parse(targetContent);
-
-					// Merge the files using APPEND for lists
+				let targetContent: string | undefined = undefined;
+				if (previousApplyResult?.resultType === "json") {
 					sourceJSON = deepMergeObjects(
-						targetJSON,
+						previousApplyResult.value,
 						sourceJSON,
 						ListMergePolicy.APPEND
 					);
-				} catch (error: unknown) {
-					throw new ModularMcError(
-						dedent`
-						Failed to parse existing JSON.
-						File: ${targetPath}`
-					).moreInfo(error);
+				} else {
+					switch (previousApplyResult?.resultType) {
+						case "copyFile":
+							targetContent = await Deno.readTextFile(
+								previousApplyResult.sourcePath
+							);
+							break;
+						// case "json": // Checked in if-else
+						case "string":
+							targetContent = previousApplyResult.value;
+							break;
+						case undefined:
+						case "skip":
+							targetContent = await Deno.readTextFile(targetPath);
+							break;
+						default:
+							previousApplyResult satisfies never;
+							throw new ModularMcError("Unexpected error.");
+					}
+					try {
+						const targetJSON: any = JSONC.parse(targetContent);
+						sourceJSON = deepMergeObjects(
+							targetJSON,
+							sourceJSON,
+							ListMergePolicy.APPEND
+						);
+					} catch (error: unknown) {
+						throw new ModularMcError(
+							dedent`
+							Failed to parse existing JSON.
+							File: ${targetPath}`
+						).moreInfo(error);
+					}
 				}
 			} catch (error: unknown) {
 				// If error is not related to file not existing, rethrow
@@ -781,13 +876,10 @@ export class MapTsEntry {
 					throw error;
 				}
 			}
-
-			// Stringify the JSON with nice formatting
-			const resultContent = JSON.stringify(sourceJSON, null, "\t");
-
-			// Write the result to the target file
-			await Deno.mkdir(dirname(targetPath), { recursive: true });
-			await Deno.writeTextFile(targetPath, resultContent);
+			return {
+				resultType: "json",
+				value: sourceJSON,
+			};
 		} else if (this.onConflict === "stop") {
 			throw new ModularMcError(
 				`Target file already exists. Use onConflict: "skip", "merge", ` +
@@ -798,6 +890,12 @@ export class MapTsEntry {
 			console.log(
 				`Skipped exporting ${sourcePath} to ${targetPath}. Target already exists.`
 			);
+			if (previousApplyResult !== undefined) {
+				return previousApplyResult;
+			}
+			return {
+				resultType: "skip",
+			};
 		} else {
 			// Hopefully should never happen, this would be embarassing if it did.
 
@@ -817,6 +915,77 @@ export class MapTsEntry {
 	}
 }
 
+export class PlannedMapEntryJob {
+	readonly targetPath: string;
+	private readonly sourcePath: string;
+	private readonly entry: MapTsEntry;
+	private mapFilePath?: string;
+	sequence?: number;
+
+	constructor(entry: MapTsEntry, sourcePath: string, targetPath: string) {
+		this.entry = entry;
+		this.sourcePath = sourcePath;
+		this.targetPath = targetPath;
+	}
+
+	setSequence(sequence: number): this {
+		this.sequence = sequence;
+		return this;
+	}
+
+	setMapFilePath(mapFilePath: string): this {
+		this.mapFilePath = mapFilePath;
+		return this;
+	}
+
+	async compute(
+		previousResult?: PlannedMapEntryJobResult
+	): Promise<PlannedMapEntryJobResult> {
+		try {
+			return await this.entry.computeApplyResult(
+				this.sourcePath,
+				this.targetPath,
+				previousResult
+			);
+		} catch (error: unknown) {
+			if (this.mapFilePath === undefined) {
+				throw error;
+			}
+			throw new ModularMcError(
+				dedent`
+				Failed to apply MAP entry.
+				File: ${this.mapFilePath}`
+			).moreInfo(error);
+		}
+	}
+
+	async writeResult(result: PlannedMapEntryJobResult): Promise<void> {
+		if (result.resultType === "skip") {
+			return;
+		}
+
+		await Deno.mkdir(dirname(this.targetPath), { recursive: true });
+
+		switch (result.resultType) {
+			case "copyFile":
+				await Deno.copyFile(result.sourcePath, this.targetPath);
+				break;
+			case "string":
+				await Deno.writeTextFile(this.targetPath, result.value);
+				break;
+			case "json":
+				await Deno.writeTextFile(
+					this.targetPath,
+					JSON.stringify(result.value, null, "\t")
+				);
+				break;
+			default:
+				result satisfies never;
+				throw new ModularMcError("Unexpected error.");
+		}
+	}
+}
+
 /**
  * Represents a single _map.ts file and its module.
  */
@@ -825,11 +994,7 @@ export class MapTs {
 	entries: MapTsEntry[];
 	scripts: string[] = [];
 
-	private constructor(
-		path: string,
-		entries: MapTsEntry[],
-		scripts: string[] = []
-	) {
+	private constructor(path: string, entries: MapTsEntry[], scripts: string[] = []) {
 		this.path = path;
 		this.entries = entries;
 		this.scripts = scripts;
@@ -925,18 +1090,16 @@ export class MapTs {
 	/**
 	 * Applies the map by copying all source files to their target locations
 	 */
-	async apply(): Promise<void> {
-		for (const entry of this.entries) {
-			try {
-				await entry.apply();
-			} catch (error: unknown) {
-				throw new ModularMcError(
-					dedent`
-					Failed to apply MAP entry.
-					File: ${this.path}`
-				).moreInfo(error);
-			}
+	async planApplyJobs(startSequence: number): Promise<PlannedMapEntryJob[]> {
+		const jobs: PlannedMapEntryJob[] = [];
+
+		for (const [index, entry] of this.entries.entries()) {
+			const job = await entry.createPlannedJob();
+			job.setSequence(startSequence + index).setMapFilePath(this.path);
+			jobs.push(job);
 		}
+
+		return jobs;
 	}
 
 	/**
@@ -981,11 +1144,7 @@ export class MapTs {
 			}
 
 			// 3. Combine ROOT_DIR + dataPath + moduleRelativePath to get the absolute path to the original file
-			const absolutePath = join(
-				rootDir,
-				configJsonDataPath,
-				moduleRelativePath
-			);
+			const absolutePath = join(rootDir, configJsonDataPath, moduleRelativePath);
 			resolvedScripts.push(absolutePath);
 		}
 
@@ -1060,16 +1219,57 @@ export async function processModules(
 	// Normalize the root directory path - ensure forward slashes
 	const normalizedRootDir = asPosix(normalize(rootDir));
 	const mapFiles = await findMapFiles(normalizedRootDir);
-	const modules: MapTs[] = [];
-
-	for (const mapFile of mapFiles) {
+	const includedMapFiles = mapFiles.filter((mapFile) => {
 		const modulePath = relative(normalizedRootDir, dirname(mapFile));
-		if (!isModulePathIncluded(modulePath, whitelist, blacklist)) {
-			continue;
-		}
-		const module = await MapTs.fromFile(mapFile);
-		modules.push(module);
-	}
+		return isModulePathIncluded(modulePath, whitelist, blacklist);
+	});
 
-	return modules;
+	return await Promise.all(includedMapFiles.map((mapFile) => MapTs.fromFile(mapFile)));
+}
+
+export async function applyModules(
+	modules: MapTs[],
+	mode: ModuleApplyMode = "concurrent"
+): Promise<void> {
+	// Plan all jobs
+	const plannedJobsByTargetPath: PlannedJobMap = new Map();
+	let nextSequence = 0;
+	for (const module of modules) {
+		const moduleJobs = await module.planApplyJobs(nextSequence);
+		for (const job of moduleJobs) {
+			const targetJobs = plannedJobsByTargetPath.get(job.targetPath);
+			if (targetJobs === undefined) {
+				plannedJobsByTargetPath.set(job.targetPath, [job]);
+				continue;
+			}
+			targetJobs.push(job);
+		}
+		nextSequence += moduleJobs.length;
+	}
+	// Run planned jobs
+	if (mode === "sequential") {
+		// Flatten and sort the jobs using their sequence numbers
+		const orderedJobs: PlannedMapEntryJob[] = [];
+		for (const targetJobs of plannedJobsByTargetPath.values()) {
+			orderedJobs.push(...targetJobs);
+		}
+		orderedJobs.sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+		for (const job of orderedJobs) {
+			await job.writeResult(await job.compute());
+		}
+		return;
+	}
+	const jobQueues = Array.from(plannedJobsByTargetPath.values()).map(
+		async (targetJobs) => {
+			let previousResult: PlannedMapEntryJobResult | undefined = undefined;
+			for (const job of targetJobs) {
+				previousResult = await job.compute(previousResult);
+			}
+			if (previousResult === undefined) {
+				return;
+			}
+			await targetJobs[targetJobs.length - 1].writeResult(previousResult);
+		}
+	);
+	await Promise.all(jobQueues);
 }

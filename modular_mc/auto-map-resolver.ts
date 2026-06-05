@@ -51,8 +51,7 @@ export class AutoMapResolver {
 
 			return new AutoMapResolver(autoMapModule.AUTO_MAP);
 		} catch (error: unknown) {
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
 			throw new Error(
 				`Failed to load AUTO_MAP from ${autoMapPath}: ${errorMessage}`
 			);
@@ -105,10 +104,7 @@ export class AutoMapResolver {
 		}
 
 		// Get the base filename without the matching pattern
-		let baseFilename = filename.slice(
-			0,
-			filename.length - matchingPattern.length
-		);
+		let baseFilename = filename.slice(0, filename.length - matchingPattern.length);
 
 		// Add the target extension if specified, otherwise keep original extension
 		if (targetExtension) {

@@ -128,9 +128,7 @@ function main() {
 		join(FILTER_DIR, "deno.json"),
 		JSON.stringify(mergedConfig, null, "\t")
 	);
-	console.log(
-		"Syncing deno.json files from %ROOT_DIR% to %FILTER_DIR% complete."
-	);
+	console.log("Syncing deno.json files from %ROOT_DIR% to %FILTER_DIR% complete.");
 }
 
 if (import.meta.main) {

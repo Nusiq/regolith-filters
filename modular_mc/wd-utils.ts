@@ -10,10 +10,7 @@
  * @returns The result of the executed function
  * @throws If the directory change fails or if the function throws an error
  */
-export async function withWd<T>(
-	dir: string,
-	fn: () => Promise<T> | T
-): Promise<T> {
+export async function withWd<T>(dir: string, fn: () => Promise<T> | T): Promise<T> {
 	const originalDir = Deno.cwd();
 	try {
 		// Change to the specified directory

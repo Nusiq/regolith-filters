@@ -69,10 +69,7 @@ Deno.test("deepMergeLists - GREATER_LENGTH policy", () => {
 	const arrB = [5, 6, 7];
 	const expected = [5, 6, 7, 4];
 
-	assertEquals(
-		deepMergeLists(arrA, arrB, ListMergePolicy.GREATER_LENGTH),
-		expected
-	);
+	assertEquals(deepMergeLists(arrA, arrB, ListMergePolicy.GREATER_LENGTH), expected);
 });
 
 Deno.test("deepMergeLists - SMALLER_LENGTH policy", () => {
@@ -80,10 +77,7 @@ Deno.test("deepMergeLists - SMALLER_LENGTH policy", () => {
 	const arrB = [5, 6, 7];
 	const expected = [5, 6, 7];
 
-	assertEquals(
-		deepMergeLists(arrA, arrB, ListMergePolicy.SMALLER_LENGTH),
-		expected
-	);
+	assertEquals(deepMergeLists(arrA, arrB, ListMergePolicy.SMALLER_LENGTH), expected);
 });
 
 Deno.test("deepMergeLists - B_LENGTH policy", () => {
@@ -98,10 +92,7 @@ Deno.test("deepMergeLists - B_LENGTH policy", () => {
 	const arrD = [5, 6, 7, 8];
 	const expectedCD = [5, 6, 7, 8];
 
-	assertEquals(
-		deepMergeLists(arrC, arrD, ListMergePolicy.B_LENGTH),
-		expectedCD
-	);
+	assertEquals(deepMergeLists(arrC, arrD, ListMergePolicy.B_LENGTH), expectedCD);
 });
 
 Deno.test("deepMergeLists - APPEND policy", () => {

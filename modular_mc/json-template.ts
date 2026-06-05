@@ -81,10 +81,7 @@ function evaluateExpression(expr: string, scope: Record<string, any>): any {
  * Evaluates an __unpack__ expression, which can be either a ::-prefixed expression
  * that evaluates to an array or a direct array value.
  */
-function evaluateUnpackExpression(
-	item: any,
-	scope: Record<string, any>
-): any[] {
+function evaluateUnpackExpression(item: any, scope: Record<string, any>): any[] {
 	if (isExpression(item.__unpack__)) {
 		const expr = item.__unpack__.slice(2); // Remove "::" prefix
 		const evaluatedUnpack = evaluateExpression(expr, scope);
@@ -224,7 +221,10 @@ export function evaluate(template: any, scope: Record<string, any> = {}): any {
 					if (evaluatedKey.every((item) => item instanceof K)) {
 						// Array of K instances
 						for (const k of evaluatedKey) {
-							const evaluatedValue = evaluate(value, { ...scope, ...k.scope });
+							const evaluatedValue = evaluate(value, {
+								...scope,
+								...k.scope,
+							});
 							if (evaluatedValue !== undefined) {
 								result[k.identifier] = evaluatedValue;
 							}

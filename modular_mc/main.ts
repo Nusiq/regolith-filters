@@ -1,5 +1,5 @@
 import { compileWithEsbuild } from "./esbuild.ts";
-import { processModules } from "./map-ts.ts";
+import { applyModules, processModules } from "./map-ts.ts";
 import { join } from "./path-utils.ts";
 import { getDataPath, getRootDir } from "./regolith.ts";
 import dedent from "npm:dedent";
@@ -28,7 +28,9 @@ if (import.meta.main) {
 					console.error("whitelist must be an array");
 					Deno.exit(1);
 				}
-				whitelist = input.whitelist.filter((item: unknown) => typeof item === 'string') as string[];
+				whitelist = input.whitelist.filter(
+					(item: unknown) => typeof item === "string"
+				) as string[];
 			}
 
 			// Get blacklist if provided
@@ -37,7 +39,9 @@ if (import.meta.main) {
 					console.error("blacklist must be an array");
 					Deno.exit(1);
 				}
-				blacklist = input.blacklist.filter((item: unknown) => typeof item === 'string') as string[];
+				blacklist = input.blacklist.filter(
+					(item: unknown) => typeof item === "string"
+				) as string[];
 			}
 		} catch (error) {
 			console.error("Error processing input:", error);
@@ -63,9 +67,7 @@ if (import.meta.main) {
 			// Resolve script paths to absolute paths pointing to original files
 			const absoluteScriptPaths: string[] = [];
 			for (const module of modules) {
-				absoluteScriptPaths.push(
-					...module.resolveScriptPaths(rootDir, dataPath)
-				);
+				absoluteScriptPaths.push(...module.resolveScriptPaths(rootDir, dataPath));
 			}
 
 			// Debug log to see the resolved paths
@@ -84,27 +86,21 @@ if (import.meta.main) {
 				buildPath
 			);
 		} catch (error) {
-			console.error(
-				"Error during script path resolution or compilation:\n",
-				error
-			);
+			console.error("Error during script path resolution or compilation:\n", error);
 			Deno.exit(1);
 		}
 	}
 
 	// Apply all modules
-	for (const module of modules) {
-		try {
-			await module.apply();
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
-			console.error(
-				dedent`
-				Error during evaluation of the MAP files:
-				${errorMessage}`
-			);
-			Deno.exit(1);
-		}
+	try {
+		await applyModules(modules);
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		console.error(
+			dedent`
+			Error during evaluation of the MAP files:
+			${errorMessage}`
+		);
+		Deno.exit(1);
 	}
 }
