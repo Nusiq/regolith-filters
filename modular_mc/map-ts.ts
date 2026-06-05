@@ -1222,18 +1222,14 @@ export async function processModules(
 	// Normalize the root directory path - ensure forward slashes
 	const normalizedRootDir = asPosix(normalize(rootDir));
 	const mapFiles = await findMapFiles(normalizedRootDir);
-	const modules: MapTs[] = [];
-
-	for (const mapFile of mapFiles) {
+	const includedMapFiles = mapFiles.filter((mapFile) => {
 		const modulePath = relative(normalizedRootDir, dirname(mapFile));
-		if (!isModulePathIncluded(modulePath, whitelist, blacklist)) {
-			continue;
-		}
-		const module = await MapTs.fromFile(mapFile);
-		modules.push(module);
-	}
+		return isModulePathIncluded(modulePath, whitelist, blacklist);
+	});
 
-	return modules;
+	return await Promise.all(
+		includedMapFiles.map((mapFile) => MapTs.fromFile(mapFile))
+	);
 }
 
 export async function applyModules(
