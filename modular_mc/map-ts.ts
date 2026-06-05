@@ -46,43 +46,6 @@ type PlannedMapEntryJobResult =
 			resultType: "skip";
 	  };
 
-interface PartialPlannedMapEntryJob {
-	targetPath: string;
-	run: (previousResult?: PlannedMapEntryJobResult) => Promise<PlannedMapEntryJobResult>;
-}
-
-export interface PlannedMapEntryJob extends PartialPlannedMapEntryJob {
-	sequence: number;
-}
-
-async function applyPlannedMapEntryJobResult(
-	job: PlannedMapEntryJob,
-	result: PlannedMapEntryJobResult
-) {
-	if (result.resultType !== "skip") {
-		await Deno.mkdir(dirname(job.targetPath), { recursive: true });
-	} else {
-		return;
-	}
-	switch (result.resultType) {
-		case "copyFile":
-			await Deno.copyFile(result.sourcePath, job.targetPath);
-			break;
-		case "string":
-			await Deno.writeTextFile(job.targetPath, result.value);
-			break;
-		case "json":
-			await Deno.writeTextFile(
-				job.targetPath,
-				JSON.stringify(result.value, null, "\t")
-			);
-			break;
-		default:
-			result satisfies never;
-			throw new ModularMcError("Unexpected error.");
-	}
-}
-
 type PlannedJobMap = Map<string, PlannedMapEntryJob[]>;
 
 // New types for the target property
@@ -620,30 +583,23 @@ export class MapTsEntry {
 		return isAbsolute(this.source) ? this.source : resolve(this.source);
 	}
 
-	async planApply(): Promise<PartialPlannedMapEntryJob> {
+	async createPlannedJob(): Promise<PlannedMapEntryJob> {
 		const sourcePath = this.resolveSourcePath();
 		const resolvedTarget = await this.resolveTargetPath();
 		const targetPath = resolve(resolvedTarget);
-
-		return {
-			targetPath,
-			run: async (previousResult?: PlannedMapEntryJobResult) => {
-				return await this.applyPlanned(sourcePath, targetPath, previousResult);
-			},
-		};
+		return new PlannedMapEntryJob(this, sourcePath, targetPath);
 	}
 
 	/**
-	 * Applies a single entry from _map.ts returns the result object after
-	 * applying the opreation. WARNING: This function doesn't actually modify
-	 * the file system.
+	 * Computes the result of applying a single entry from _map.ts.
+	 * WARNING: This function doesn't modify the file system.
 	 * @param sourcePath
 	 * @param targetPath
 	 * @param previousApplyResult if executed in chain, the previous MapTsEntry
 	 * can pass its result to the next one to skip unnecessary IO operations
 	 * in the file system.
 	 */
-	private async applyPlanned(
+	async computeApplyResult(
 		sourcePath: string,
 		targetPath: string,
 		previousApplyResult?: PlannedMapEntryJobResult
@@ -962,6 +918,77 @@ export class MapTsEntry {
 	}
 }
 
+export class PlannedMapEntryJob {
+	readonly targetPath: string;
+	private readonly sourcePath: string;
+	private readonly entry: MapTsEntry;
+	private mapFilePath?: string;
+	sequence?: number;
+
+	constructor(entry: MapTsEntry, sourcePath: string, targetPath: string) {
+		this.entry = entry;
+		this.sourcePath = sourcePath;
+		this.targetPath = targetPath;
+	}
+
+	setSequence(sequence: number): this {
+		this.sequence = sequence;
+		return this;
+	}
+
+	setMapFilePath(mapFilePath: string): this {
+		this.mapFilePath = mapFilePath;
+		return this;
+	}
+
+	async compute(
+		previousResult?: PlannedMapEntryJobResult
+	): Promise<PlannedMapEntryJobResult> {
+		try {
+			return await this.entry.computeApplyResult(
+				this.sourcePath,
+				this.targetPath,
+				previousResult
+			);
+		} catch (error: unknown) {
+			if (this.mapFilePath === undefined) {
+				throw error;
+			}
+			throw new ModularMcError(
+				dedent`
+				Failed to apply MAP entry.
+				File: ${this.mapFilePath}`
+			).moreInfo(error);
+		}
+	}
+
+	async writeResult(result: PlannedMapEntryJobResult): Promise<void> {
+		if (result.resultType === "skip") {
+			return;
+		}
+
+		await Deno.mkdir(dirname(this.targetPath), { recursive: true });
+
+		switch (result.resultType) {
+			case "copyFile":
+				await Deno.copyFile(result.sourcePath, this.targetPath);
+				break;
+			case "string":
+				await Deno.writeTextFile(this.targetPath, result.value);
+				break;
+			case "json":
+				await Deno.writeTextFile(
+					this.targetPath,
+					JSON.stringify(result.value, null, "\t")
+				);
+				break;
+			default:
+				result satisfies never;
+				throw new ModularMcError("Unexpected error.");
+		}
+	}
+}
+
 /**
  * Represents a single _map.ts file and its module.
  */
@@ -1070,26 +1097,9 @@ export class MapTs {
 		const jobs: PlannedMapEntryJob[] = [];
 
 		for (const [index, entry] of this.entries.entries()) {
-			const sequence = startSequence + index;
-			const job = await entry.planApply().then((plannedExecution) => ({
-				...plannedExecution,
-				sequence,
-			}));
-			jobs.push({
-				sequence: job.sequence,
-				targetPath: job.targetPath,
-				run: async (previousResult?: PlannedMapEntryJobResult) => {
-					try {
-						return await job.run(previousResult);
-					} catch (error: unknown) {
-						throw new ModularMcError(
-							dedent`
-							Failed to apply MAP entry.
-							File: ${this.path}`
-						).moreInfo(error);
-					}
-				},
-			});
+			const job = await entry.createPlannedJob();
+			job.setSequence(startSequence + index).setMapFilePath(this.path);
+			jobs.push(job);
 		}
 
 		return jobs;
@@ -1252,9 +1262,9 @@ export async function applyModules(
 		for (const targetJobs of plannedJobsByTargetPath.values()) {
 			orderedJobs.push(...targetJobs);
 		}
-		orderedJobs.sort((a, b) => a.sequence - b.sequence);
+		orderedJobs.sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
 		for (const job of orderedJobs) {
-			await applyPlannedMapEntryJobResult(job, await job.run());
+			await job.writeResult(await job.compute());
 		}
 		return;
 	}
@@ -1262,15 +1272,12 @@ export async function applyModules(
 		async (targetJobs) => {
 			let previousResult: PlannedMapEntryJobResult | undefined = undefined;
 			for (const job of targetJobs) {
-				previousResult = await job.run(previousResult);
+				previousResult = await job.compute(previousResult);
 			}
 			if (previousResult === undefined) {
 				return;
 			}
-			await applyPlannedMapEntryJobResult(
-				targetJobs[targetJobs.length - 1],
-				previousResult
-			);
+			await targetJobs[targetJobs.length - 1].writeResult(previousResult);
 		}
 	);
 	await Promise.all(jobQueues);
