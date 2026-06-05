@@ -109,10 +109,7 @@ export async function compileWithEsbuild(
 		}
 
 		// Handle multiple entry points by creating a temporary entry file
-		const tempEntryFile = join(
-			Deno.cwd(),
-			`.temp_esbuild_entry_${Date.now()}.ts`
-		);
+		const tempEntryFile = join(Deno.cwd(), `.temp_esbuild_entry_${Date.now()}.ts`);
 		// Create a temporary entry file that imports all the other files
 		const imports = entryPoints
 			.map((file) => {

@@ -1224,9 +1224,7 @@ export async function processModules(
 		return isModulePathIncluded(modulePath, whitelist, blacklist);
 	});
 
-	return await Promise.all(
-		includedMapFiles.map((mapFile) => MapTs.fromFile(mapFile))
-	);
+	return await Promise.all(includedMapFiles.map((mapFile) => MapTs.fromFile(mapFile)));
 }
 
 export async function applyModules(

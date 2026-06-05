@@ -13,8 +13,8 @@ function isMultiStatementTS(expr: string): boolean {
 	try {
 		// Parse the expression as TypeScript
 		return (
-			ts.createSourceFile("temp.ts", expr, ts.ScriptTarget.Latest)
-				.statements.length > 1
+			ts.createSourceFile("temp.ts", expr, ts.ScriptTarget.Latest).statements
+				.length > 1
 		);
 	} catch {
 		return false;
@@ -59,10 +59,7 @@ function evaluateExpression(expr: string, scope: Record<string, any>): any {
 	}
 }
 
-export function evaluate(
-	content: string,
-	scope: Record<string, any> = {}
-): string {
+export function evaluate(content: string, scope: Record<string, any> = {}): string {
 	return content.replace(TS_EXPRESSION_REGEX, (_, expression) => {
 		const result = evaluateExpression(expression.trim(), scope);
 		return String(result);

@@ -1,10 +1,6 @@
 import { assert, assertEquals } from "@std/assert";
 import { dirname, basename, join } from "@std/path";
-import {
-	applyModules,
-	isModulePathIncluded,
-	processModules,
-} from "./map-ts.ts";
+import { applyModules, isModulePathIncluded, processModules } from "./map-ts.ts";
 
 async function withTempProject(
 	files: Record<string, string>,
@@ -74,21 +70,15 @@ Deno.test("isModulePathIncluded - whitelist and blacklist combination", () => {
 	assert(isModulePathIncluded("other", ["sub"], []) === false);
 });
 
-Deno.test(
-	"isModulePathIncluded - normalize trailing slashes in whitelist",
-	() => {
-		assert(isModulePathIncluded("sub", ["sub/"], []) === true);
-		assert(isModulePathIncluded("sub/dir", ["sub/"], []) === true);
-	}
-);
+Deno.test("isModulePathIncluded - normalize trailing slashes in whitelist", () => {
+	assert(isModulePathIncluded("sub", ["sub/"], []) === true);
+	assert(isModulePathIncluded("sub/dir", ["sub/"], []) === true);
+});
 
-Deno.test(
-	"isModulePathIncluded - normalize trailing slashes in blacklist",
-	() => {
-		assert(isModulePathIncluded("sub", [""], ["sub/"]) === false);
-		assert(isModulePathIncluded("sub/dir", [""], ["sub/"]) === false);
-	}
-);
+Deno.test("isModulePathIncluded - normalize trailing slashes in blacklist", () => {
+	assert(isModulePathIncluded("sub", [""], ["sub/"]) === false);
+	assert(isModulePathIncluded("sub/dir", [""], ["sub/"]) === false);
+});
 
 Deno.test("isModulePathIncluded - empty modulePath (root)", () => {
 	assert(isModulePathIncluded("", [""], []) === true);
@@ -134,31 +124,28 @@ Deno.test("processModules sorts glob-expanded sources deterministically", async 
 	);
 });
 
-Deno.test(
-	"applyModules preserves same-target append order across modules",
-	async () => {
-		await withTempProject(
-			{
-				"data/modular_mc/01_base/_map.ts":
-					'export const MAP = [{ source: "base.txt", target: "BP/out.txt" }];\n',
-				"data/modular_mc/01_base/base.txt": "BASE\n",
-				"data/modular_mc/02_prefix/_map.ts":
-					'export const MAP = [{ source: "prefix.txt", target: "BP/out.txt", onConflict: "appendStart" }];\n',
-				"data/modular_mc/02_prefix/prefix.txt": "START\n",
-				"data/modular_mc/03_suffix/_map.ts":
-					'export const MAP = [{ source: "suffix.txt", target: "BP/out.txt", onConflict: "appendEnd" }];\n',
-				"data/modular_mc/03_suffix/suffix.txt": "END\n",
-			},
-			async () => {
-				const modules = await processModules("data/modular_mc");
-				await applyModules(modules);
+Deno.test("applyModules preserves same-target append order across modules", async () => {
+	await withTempProject(
+		{
+			"data/modular_mc/01_base/_map.ts":
+				'export const MAP = [{ source: "base.txt", target: "BP/out.txt" }];\n',
+			"data/modular_mc/01_base/base.txt": "BASE\n",
+			"data/modular_mc/02_prefix/_map.ts":
+				'export const MAP = [{ source: "prefix.txt", target: "BP/out.txt", onConflict: "appendStart" }];\n',
+			"data/modular_mc/02_prefix/prefix.txt": "START\n",
+			"data/modular_mc/03_suffix/_map.ts":
+				'export const MAP = [{ source: "suffix.txt", target: "BP/out.txt", onConflict: "appendEnd" }];\n',
+			"data/modular_mc/03_suffix/suffix.txt": "END\n",
+		},
+		async () => {
+			const modules = await processModules("data/modular_mc");
+			await applyModules(modules);
 
-				const output = await Deno.readTextFile("BP/out.txt");
-				assertEquals(output, "START\nBASE\nEND\n");
-			}
-		);
-	}
-);
+			const output = await Deno.readTextFile("BP/out.txt");
+			assertEquals(output, "START\nBASE\nEND\n");
+		}
+	);
+});
 
 Deno.test(
 	"applyModules preserves same-target merge and skip order across modules",
