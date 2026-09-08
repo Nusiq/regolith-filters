@@ -1,0 +1,10 @@
+{
+	"description": "Replaces all occurrences of a string with another string in text files of the behavior and the resource packs.",
+	"filters": [
+		{
+			"runWith": "deno",
+			"script": "./main.ts",
+			"name": "nusiq:text_replacer"
+		}
+	]
+}

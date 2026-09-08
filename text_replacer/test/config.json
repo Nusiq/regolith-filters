@@ -1,0 +1,47 @@
+{
+	"$schema": "https://raw.githubusercontent.com/Bedrock-OSS/regolith-schemas/main/config/v1.7.json",
+	"author": "Nusiq",
+	"name": "text_replacer_test",
+	"packs": {
+		"behaviorPack": "./packs/BP",
+		"resourcePack": "./packs/RP"
+	},
+	"regolith": {
+		"dataPath": "./data",
+		"filterDefinitions": {
+			"text_replacer": {
+				"runWith": "deno",
+				"script": "../main.ts"
+			},
+			"filter_tester": {
+				"url": "github.com/Bedrock-OSS/regolith-filters",
+				"version": "1.0.0"
+			}
+		},
+		"formatVersion": "1.7.0",
+		"profiles": {
+			"default": {
+				"export": {
+					"target": "exact",
+					"bpPath": "./build/BP",
+					"rpPath": "./build/RP"
+				},
+				"filters": [
+					{
+						"filter": "text_replacer",
+						"settings": {
+							"replace_from": "@namespace",
+							"replace_to": "test_namespace"
+						}
+					},
+					{
+						"filter": "filter_tester",
+						"settings": {
+							"errors_stop_execution": false
+						}
+					}
+				]
+			}
+		}
+	}
+}

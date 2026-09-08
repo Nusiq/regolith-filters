@@ -1,0 +1,17 @@
+{
+	"format_version": 2,
+	"header": {
+		"name": "@namespace Behavior Pack",
+		"description": "Behavior pack of the @namespace test project",
+		"uuid": "1e6ea41c-9702-4d7b-bfd0-97e69a1b40e8",
+		"version": [1, 0, 0],
+		"min_engine_version": [1, 21, 0]
+	},
+	"modules": [
+		{
+			"type": "data",
+			"uuid": "34b3874c-c5ee-4a7e-9d47-9c1e5f9f4b31",
+			"version": [1, 0, 0]
+		}
+	]
+}

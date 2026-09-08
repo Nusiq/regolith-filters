@@ -1,0 +1,1 @@
+A subpack without a textures folder.

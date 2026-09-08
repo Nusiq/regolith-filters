@@ -1,0 +1,10 @@
+{
+	"description": "Generates textures_list.json files for the resource pack and its subpacks. Skips textures with the _mer and _mers suffix to avoid errors reported by Minecraft Creator Tools (mctools.dev).",
+	"filters": [
+		{
+			"runWith": "python",
+			"script": "./main.py",
+			"name": "nusiq:texture_list_no_mers"
+		}
+	]
+}

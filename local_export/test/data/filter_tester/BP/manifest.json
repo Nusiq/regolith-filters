@@ -1,0 +1,16 @@
+{
+	"format_version": 2,
+	"header": {
+		"name": "local_export Test BP",
+		"uuid": "3b7a9d02-5c44-4a2e-9a1f-6f3d8f7f2b10",
+		"version": [1, 0, 0],
+		"min_engine_version": [1, 21, 0]
+	},
+	"modules": [
+		{
+			"type": "data",
+			"uuid": "8f2e5c11-9d3a-4b7e-8c6d-2a5f1e4b9c20",
+			"version": [1, 0, 0]
+		}
+	]
+}

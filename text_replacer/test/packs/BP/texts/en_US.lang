@@ -1,0 +1,2 @@
+tile.bp_test_block.name=@namespace:block
+item.bp_test_item.name=Test item from @namespace

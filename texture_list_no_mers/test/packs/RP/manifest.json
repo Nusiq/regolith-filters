@@ -1,0 +1,16 @@
+{
+	"format_version": 2,
+	"header": {
+		"name": "texture_list_no_mers Test RP",
+		"uuid": "1f7b3d9c-8e2a-4b6f-9c5d-4a8e2f7b1c40",
+		"version": [1, 0, 0],
+		"min_engine_version": [1, 21, 0]
+	},
+	"modules": [
+		{
+			"type": "resources",
+			"uuid": "6c2e8f4b-9d1a-4e7c-b3f8-5b9d2e6a4f50",
+			"version": [1, 0, 0]
+		}
+	]
+}

@@ -1,0 +1,16 @@
+{
+	"format_version": 2,
+	"header": {
+		"name": "texture_list_no_mers Test BP",
+		"uuid": "5d9c1e7a-2f4b-4c8d-9e6a-1b3f7c5d8e20",
+		"version": [1, 0, 0],
+		"min_engine_version": [1, 21, 0]
+	},
+	"modules": [
+		{
+			"type": "data",
+			"uuid": "9e4b2c8f-6a1d-4f5e-b7c8-3d2a9f1e6b30",
+			"version": [1, 0, 0]
+		}
+	]
+}

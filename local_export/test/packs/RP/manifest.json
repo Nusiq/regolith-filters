@@ -1,0 +1,16 @@
+{
+	"format_version": 2,
+	"header": {
+		"name": "local_export Test RP",
+		"uuid": "a1c4e8f2-6b3d-4c9a-8e7f-5d2b1a4c3e90",
+		"version": [1, 0, 0],
+		"min_engine_version": [1, 21, 0]
+	},
+	"modules": [
+		{
+			"type": "resources",
+			"uuid": "c9d2f7b1-4e8a-4f3c-9b6d-7e1a5c2f8b40",
+			"version": [1, 0, 0]
+		}
+	]
+}

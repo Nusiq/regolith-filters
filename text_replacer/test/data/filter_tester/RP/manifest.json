@@ -1,0 +1,17 @@
+{
+	"format_version": 2,
+	"header": {
+		"name": "test_namespace Resource Pack",
+		"description": "Resource pack of the test_namespace test project",
+		"uuid": "6f4ea8ab-9c1d-4c22-a3d5-8f5b5f1c2f62",
+		"version": [1, 0, 0],
+		"min_engine_version": [1, 21, 0]
+	},
+	"modules": [
+		{
+			"type": "resources",
+			"uuid": "9a2b1c50-3a19-4d70-b98d-6a99e5a5f1a4",
+			"version": [1, 0, 0]
+		}
+	]
+}

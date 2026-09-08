@@ -1,0 +1,10 @@
+{
+	"description": "Exports files created during the Regolith run (e.g. generated into the data folder or the packs) to the root directory of the Regolith project.",
+	"filters": [
+		{
+			"runWith": "python",
+			"script": "./main.py",
+			"name": "nusiq:local_export"
+		}
+	]
+}

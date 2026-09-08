@@ -1,0 +1,53 @@
+{
+	"$schema": "https://raw.githubusercontent.com/Bedrock-OSS/regolith-schemas/main/config/v1.7.json",
+	"author": "Nusiq",
+	"name": "local_export_test",
+	"packs": {
+		"behaviorPack": "./packs/BP",
+		"resourcePack": "./packs/RP"
+	},
+	"regolith": {
+		"dataPath": "./data",
+		"filterDefinitions": {
+			"local_export": {
+				"runWith": "python",
+				"script": "../main.py"
+			},
+			"filter_tester": {
+				"url": "github.com/Bedrock-OSS/regolith-filters",
+				"version": "1.0.0"
+			}
+		},
+		"formatVersion": "1.7.0",
+		"profiles": {
+			"default": {
+				"export": {
+					"target": "none"
+				},
+				"filters": [
+					{
+						"filter": "local_export",
+						"settings": {
+							"map": [
+								{
+									"source": "BP/texts/credits.md",
+									"target": "exported_credits.md"
+								},
+								{
+									"source": "data/local_export/source.md",
+									"target": "exported_docs/source.md"
+								}
+							]
+						}
+					},
+					{
+						"filter": "filter_tester",
+						"settings": {
+							"errors_stop_execution": false
+						}
+					}
+				]
+			}
+		}
+	}
+}
