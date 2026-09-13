@@ -1,4 +1,36 @@
 # Change log
+## 1.2.0
+### Updated where generated deno.json is placed
+Updated where ModularMC generates custom `deno.json` for Regolith's temporary directory.
+
+In previous version ModularMC used to modify its own deno.json (in the `.regolith/cache/filters/modular_mc/deno.json` by default). Now it simply creates a new file in the working directory of Regolith (`.regolith/tmp/deno.json`).
+
+Deno 2.6 changed how `deno.json` files are discovered by scripts. Now Deno recursively searches outwards through the parent paths looking for `deno.json` files. This makes putting the `deno.json` file in `.regolith/tmp` possible.
+
+Example:
+```
+.regolith/
+    cache/filters/modular_mc/
+        deno.json // (1)
+    tmp/
+        RP/
+        BP/
+        data/
+        deno.json // (2) This is the new file created by ModularMC 1.2.0
+packs
+    RP/
+    BP/
+    data/
+deno.json // (3)
+```
+
+- On ModularMC pre 1.2.0 deno.json (2) wouldn't be generated. The deno.json (1) would be modified to contain the modules defined in deno.json (3) with relative "import" paths modified to point at files directories inside `.regolith/tmp`
+    - Deno 2.5 would use deno.json (1) ✅ (with properly modified relative imports)
+    - Deno 2.6+ would use deno.json (3) (filters run in the tmp folder) ❌ (relative imports point at files inside `packs/...`)
+- ModularMC 1.2.0 doesn't modiy deno.json (1) but it creates deno.json (2) instead.
+    - Deno 2.5 would use deno.json (1) ❌ (file doesn't have the updated "imports" definition)
+    - Deno 2.6+ would use deno.json (2) ✅ (custom file with properly modified "imports")
+
 ## 1.1.1
 Optimized performance.
 - The _map.ts files are read in parallel.

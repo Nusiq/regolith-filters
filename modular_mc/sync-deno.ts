@@ -1,50 +1,23 @@
-import { deepMergeObjects, ListMergePolicy } from "./json-merge.ts";
+import * as JSONC from "@std/jsonc";
 import { join, resolve, relative } from "./path-utils.ts";
 import { toFileUrl } from "@std/path";
-import * as JSONC from "@std/jsonc";
 import { readFileSync, writeFileSync } from "node:fs";
 
 function main() {
 	const ROOT_DIR = Deno.env.get("ROOT_DIR");
-	const FILTER_DIR = Deno.env.get("FILTER_DIR");
 
-	if (!ROOT_DIR || !FILTER_DIR) {
-		console.error("%ROOT_DIR% or %FILTER_DIR% not set");
+	if (!ROOT_DIR) {
+		console.error("%ROOT_DIR% not set");
 		Deno.exit(1);
 	}
 
-	const filterDenoJsonPath = join(FILTER_DIR, "deno.json");
-
-	// Check if FILTER_DIR/deno.json exists
-	try {
-		Deno.statSync(filterDenoJsonPath);
-	} catch {
-		console.log("%FILTER_DIR%/deno.json not found, skipping dependency sync.");
-		return;
-	}
-
-	console.log("Reading %FILTER_DIR%/deno.json...");
-	const filterConfig = JSON.parse(readFileSync(filterDenoJsonPath, "utf-8"));
-
-	// Preserve original FILTER_DIR/deno.json
-	const oldDenoJsonPath = join(FILTER_DIR, "old_deno.json");
-	try {
-		Deno.statSync(oldDenoJsonPath);
-		// old_deno.json exists, restore original
-		console.log("Restoring original %FILTER_DIR%/deno.json from old_deno.json...");
-		Deno.copyFileSync(oldDenoJsonPath, filterDenoJsonPath);
-	} catch {
-		// old_deno.json doesn't exist, backup current
-		console.log("Backing up original %FILTER_DIR%/deno.json to old_deno.json...");
-		Deno.copyFileSync(filterDenoJsonPath, oldDenoJsonPath);
-	}
-
 	// Read ROOT_DIR/deno.json if exists
+	let rootConfig: any = {};
 	let rootImports: Record<string, any> = {};
 	const rootDenoJsonPath = join(ROOT_DIR, "deno.json");
 	try {
 		console.log("Reading %ROOT_DIR%/deno.json...");
-		const rootConfig: any = JSON.parse(readFileSync(rootDenoJsonPath, "utf-8"));
+		rootConfig = JSON.parse(readFileSync(rootDenoJsonPath, "utf-8"));
 		if (
 			rootConfig.imports &&
 			typeof rootConfig.imports === "object" &&
@@ -111,24 +84,20 @@ function main() {
 		}
 	}
 
-	// Merge imports: rootImports + filterConfig.imports
-	console.log("Merging imports...");
-	const mergedImports = deepMergeObjects(
-		rootImports,
-		filterConfig.imports || {},
-		ListMergePolicy.APPEND
-	);
-
-	// Create final config: filterConfig with merged imports
-	const mergedConfig = { ...filterConfig, imports: mergedImports };
-
-	// Write to FILTER_DIR/deno.json
-	console.log("Writing merged deno.json to %FILTER_DIR%...");
+	// Write a modified copy of ROOT_DIR/deno.json to the working directory.
+	// The copy keeps the original config content but the relative import paths
+	// are resolved to absolute paths. Since Deno 2.6, dynamically imported
+	// modules resolve their config by walking up their own directory tree, so
+	// this copy is the config that gets applied to the files imported by
+	// main.ts from the working directory.
+	console.log("Writing deno.json to the working directory...");
 	writeFileSync(
-		join(FILTER_DIR, "deno.json"),
-		JSON.stringify(mergedConfig, null, "\t")
+		join(Deno.cwd(), "deno.json"),
+		JSON.stringify({ ...rootConfig, imports: rootImports }, null, "\t")
 	);
-	console.log("Syncing deno.json files from %ROOT_DIR% to %FILTER_DIR% complete.");
+	console.log(
+		"Syncing deno.json from %ROOT_DIR% to the working directory complete."
+	);
 }
 
 if (import.meta.main) {
