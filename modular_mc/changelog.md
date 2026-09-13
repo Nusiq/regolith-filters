@@ -1,22 +1,20 @@
 # Change log
 ## 1.2.0
-### Updated where generated deno.json is placed
-Updated where ModularMC generates custom `deno.json` for Regolith's temporary directory.
+### Fixed `imports` resolution for Deno 2.6+
+ModularMC still modifies its own `deno.json` (in the `.regolith/cache/filters/modular_mc/deno.json` by default) like in the previous versions, but now it also creates an **empty** `deno.json` file (with just `{}` as its content) in the working directory of Regolith (`.regolith/tmp/deno.json`).
 
-In previous version ModularMC used to modify its own deno.json (in the `.regolith/cache/filters/modular_mc/deno.json` by default). Now it simply creates a new file in the working directory of Regolith (`.regolith/tmp/deno.json`).
-
-Deno 2.6 changed how `deno.json` files are discovered by scripts. Now Deno recursively searches outwards through the parent paths looking for `deno.json` files. This makes putting the `deno.json` file in `.regolith/tmp` possible.
+Deno 2.6 changed how `deno.json` files are discovered by scripts. Now Deno recursively searches outwards through the parent paths looking for `deno.json` files. Without the empty file, this search would reach the `deno.json` of the Regolith project and Deno would use it for the files that ModularMC dynamically imports from the working directory. The empty file stops the search, so the properly modified "imports" from the filter's `deno.json` keep being used.
 
 Example:
 ```
 .regolith/
     cache/filters/modular_mc/
-        deno.json // (1)
+        deno.json // (1) Modified by ModularMC (same as in previous versions)
     tmp/
         RP/
         BP/
         data/
-        deno.json // (2) This is the new file created by ModularMC 1.2.0
+        deno.json // (2) Empty file (`{}`) created by ModularMC 1.2.0 - it stops Deno's outward config search
 packs
     RP/
     BP/
@@ -26,10 +24,10 @@ deno.json // (3)
 
 - On ModularMC pre 1.2.0 deno.json (2) wouldn't be generated. The deno.json (1) would be modified to contain the modules defined in deno.json (3) with relative "import" paths modified to point at files directories inside `.regolith/tmp`
     - Deno 2.5 would use deno.json (1) ✅ (with properly modified relative imports)
-    - Deno 2.6+ would use deno.json (3) (filters run in the tmp folder) ❌ (relative imports point at files inside `packs/...`)
-- ModularMC 1.2.0 doesn't modify deno.json (1) but it creates deno.json (2) instead.
-    - Deno 2.5 would use deno.json (1) ❌ (file doesn't have the updated "imports" definition)
-    - Deno 2.6+ would use deno.json (2) ✅ (custom file with properly modified "imports")
+    - Deno 2.6+ would use deno.json (3) (Deno searches outwards and finds it) ❌ (relative imports point at files inside `packs/...`)
+- ModularMC 1.2.0 modifies deno.json (1) like in the previous versions but it also creates the empty deno.json (2).
+    - Deno 2.5 would use deno.json (1) ✅ (with properly modified relative imports)
+    - Deno 2.6+ would use deno.json (1) ✅ (deno.json (2) stops the outward search before it reaches deno.json (3), so the config of the entry point keeps being used)
 
 ### Fixed leftover files from the Esbuild compilation
 When ModularMC compiles multiple script entry points with Esbuild, it creates a temporary entry file (`.temp_esbuild_entry_<timestamp>.ts`) in Regolith's working directory. Previously this file was left behind after every `regolith run` (it piled up in `.regolith/tmp/`). Now the file is removed as soon as the compilation finishes. This also covers failed compilations, since the cleanup happens no matter if the compilation succeeded or not.
