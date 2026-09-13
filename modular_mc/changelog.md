@@ -29,6 +29,9 @@ deno.json // (3)
     - Deno 2.5 would use deno.json (1) ✅ (with properly modified relative imports)
     - Deno 2.6+ would use deno.json (1) ✅ (deno.json (2) stops the outward search before it reaches deno.json (3), so the config of the entry point keeps being used)
 
+### The filter’s `deno.json` is now properly cleaned up before regeneration
+Previously, the `deno.json` file inside the filter directory was not cleared correctly before being regenerated from the project’s root `deno.json`. This issue has now been fixed.
+
 ### Fixed leftover files from the Esbuild compilation
 When ModularMC compiles multiple script entry points with Esbuild, it creates a temporary entry file (`.temp_esbuild_entry_<timestamp>.ts`) in Regolith's working directory. Previously this file was left behind after every `regolith run` (it piled up in `.regolith/tmp/`). Now the file is removed as soon as the compilation finishes. This also covers failed compilations, since the cleanup happens no matter if the compilation succeeded or not.
 
