@@ -13,6 +13,17 @@ function main() {
 		Deno.exit(1);
 	}
 
+	// Write an empty deno.json to the working directory (Regolith's temporary
+	// directory). Starting from Deno 2.6, Deno searches outwards through the
+	// parent paths looking for deno.json files when resolving the config for
+	// dynamically imported modules. Without this file Deno would find the
+	// deno.json of the Regolith project and use it for the files that the main
+	// script imports from the working directory. The empty file stops that
+	// search, so the config of the entry point (the filter's deno.json with
+	// the "imports" synced below) keeps being used instead.
+	console.log("Writing empty deno.json to the working directory...");
+	writeFileSync(join(Deno.cwd(), "deno.json"), "{}");
+
 	const filterDenoJsonPath = join(FILTER_DIR, "deno.json");
 
 	// Check if FILTER_DIR/deno.json exists
@@ -22,9 +33,6 @@ function main() {
 		console.log("%FILTER_DIR%/deno.json not found, skipping dependency sync.");
 		return;
 	}
-
-	console.log("Reading %FILTER_DIR%/deno.json...");
-	const filterConfig = JSON.parse(readFileSync(filterDenoJsonPath, "utf-8"));
 
 	// Preserve original FILTER_DIR/deno.json
 	const oldDenoJsonPath = join(FILTER_DIR, "old_deno.json");
@@ -38,6 +46,10 @@ function main() {
 		console.log("Backing up original %FILTER_DIR%/deno.json to old_deno.json...");
 		Deno.copyFileSync(filterDenoJsonPath, oldDenoJsonPath);
 	}
+
+	// Read FILTER_DIR/deno.json AFTER restoring it from old_deno.json.
+	console.log("Reading %FILTER_DIR%/deno.json...");
+	const filterConfig = JSON.parse(readFileSync(filterDenoJsonPath, "utf-8"));
 
 	// Read ROOT_DIR/deno.json if exists
 	let rootImports: Record<string, any> = {};

@@ -69,6 +69,10 @@ export async function compileWithEsbuild(
 		externalPackages.push("@minecraft/server");
 	}
 
+	// Temporary entry point file used when compiling multiple entry points.
+	// Declared outside of the try block so that the finally block can always
+	// clean it up, even when the compilation fails.
+	let tempEntryFile: string | undefined;
 	try {
 		// Ensure output directory exists
 		ensureDirSync(dirname(outfile));
@@ -109,7 +113,7 @@ export async function compileWithEsbuild(
 		}
 
 		// Handle multiple entry points by creating a temporary entry file
-		const tempEntryFile = join(Deno.cwd(), `.temp_esbuild_entry_${Date.now()}.ts`);
+		tempEntryFile = join(Deno.cwd(), `.temp_esbuild_entry_${Date.now()}.ts`);
 		// Create a temporary entry file that imports all the other files
 		const imports = entryPoints
 			.map((file) => {
@@ -154,8 +158,20 @@ export async function compileWithEsbuild(
 			console.log(`Copied compiled file to ${outfile}`);
 		}
 	} finally {
-		// We don't need to clean up the temporary entry file because it's created
-		// in Regolith's temporary directory and Regolith will handle it.
+		// Remove the temporary entry file. It's only needed for the duration of
+		// the compilation and leaving it behind would pollute Regolith's
+		// temporary directory with junk files.
+		if (tempEntryFile !== undefined) {
+			try {
+				await Deno.remove(tempEntryFile);
+			} catch (error) {
+				if (!(error instanceof Deno.errors.NotFound)) {
+					console.warn(
+						`Failed to remove the temporary esbuild entry file: ${error}`
+					);
+				}
+			}
+		}
 
 		// Stop esbuild service. This is helpful to stop the child process when
 		// running with Deno.
