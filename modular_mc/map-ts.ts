@@ -93,6 +93,7 @@ export class MapTsEntry {
 	onConflict: OnConflictStrategy;
 	fileType?: string;
 	scope: Record<string, any>;
+	executionOrder: number;
 
 	// Used for error reporting only!
 	private readonly mapFilePath: string | undefined;
@@ -117,6 +118,7 @@ export class MapTsEntry {
 		jsonTemplate: boolean = false,
 		textTemplate: boolean = false,
 		onConflict: OnConflictStrategy = "stop",
+		executionOrder: number = 0,
 		fileType?: string,
 		scope?: Record<string, any>,
 		mapFilePath?: string
@@ -129,6 +131,7 @@ export class MapTsEntry {
 		this.fileType = fileType;
 		this.scope = scope || {};
 		this.mapFilePath = mapFilePath;
+		this.executionOrder = executionOrder;
 	}
 
 	/**
@@ -144,6 +147,7 @@ export class MapTsEntry {
 		const jsonTemplate = validatedObj.jsonTemplate || false;
 		const textTemplate = validatedObj.textTemplate || false;
 		const onConflict = validatedObj.onConflict || "stop";
+		const executionOrder = validatedObj.executionOrder || 0;
 		const fileType = validatedObj.fileType;
 		const scope = validatedObj.scope;
 
@@ -177,6 +181,7 @@ export class MapTsEntry {
 								jsonTemplate,
 								textTemplate,
 								onConflict,
+								executionOrder,
 								fileType,
 								scope,
 								mapFilePath
@@ -212,6 +217,7 @@ export class MapTsEntry {
 					jsonTemplate,
 					textTemplate,
 					onConflict,
+					executionOrder,
 					fileType,
 					scope,
 					mapFilePath
@@ -233,6 +239,7 @@ export class MapTsEntry {
 		jsonTemplate?: boolean;
 		textTemplate?: boolean;
 		onConflict?: OnConflictStrategy;
+		executionOrder?: number;
 		fileType?: string;
 		scope?: Record<string, any>;
 	} {
@@ -258,6 +265,7 @@ export class MapTsEntry {
 			jsonTemplate,
 			textTemplate,
 			onConflict,
+			executionOrder,
 			fileType,
 			scope,
 		} = obj as {
@@ -266,6 +274,7 @@ export class MapTsEntry {
 			jsonTemplate?: boolean;
 			textTemplate?: boolean;
 			onConflict?: OnConflictStrategy;
+			executionOrder?: number;
 			fileType?: string;
 			scope?: Record<string, any>;
 		};
@@ -294,7 +303,7 @@ export class MapTsEntry {
 			) {
 				throw new ModularMcError(
 					dedent`
-					Invalid MAP entry. Target 'path' and 'name' must be strings.
+					Invalid MAP enonConflicttry. Target 'path' and 'name' must be strings.
 					File: ${mapFilePath}`
 				);
 			}
@@ -366,6 +375,15 @@ export class MapTsEntry {
 			}
 		}
 
+		// Validate executionOrder if present
+		if (executionOrder !== undefined && typeof executionOrder !== "number") {
+			throw new ModularMcError(
+				dedent`
+				Invalid executionOrder property. executionOrder must be a number.
+				File: ${mapFilePath}`
+			);
+		}
+
 		// Validate fileType if present
 		if (fileType !== undefined && typeof fileType !== "string") {
 			throw new ModularMcError(
@@ -395,6 +413,7 @@ export class MapTsEntry {
 				jsonTemplate,
 				textTemplate,
 				onConflict,
+				executionOrder,
 				fileType,
 				scope,
 			};
@@ -473,6 +492,7 @@ export class MapTsEntry {
 			jsonTemplate,
 			textTemplate,
 			onConflict,
+			executionOrder,
 			fileType,
 			scope,
 		};
@@ -917,8 +937,8 @@ export class MapTsEntry {
 
 export class PlannedMapEntryJob {
 	readonly targetPath: string;
-	private readonly sourcePath: string;
-	private readonly entry: MapTsEntry;
+	readonly sourcePath: string;
+	readonly entry: MapTsEntry;
 	private mapFilePath?: string;
 	sequence?: number;
 
@@ -1233,20 +1253,52 @@ export async function applyModules(
 ): Promise<void> {
 	// Plan all jobs
 	const plannedJobsByTargetPath: PlannedJobMap = new Map();
+	const orderedJobs = new Map<number, PlannedMapEntryJob[]>();
 	let nextSequence = 0;
 	for (const module of modules) {
 		const moduleJobs = await module.planApplyJobs(nextSequence);
 		for (const job of moduleJobs) {
-			const targetJobs = plannedJobsByTargetPath.get(job.targetPath);
-			if (targetJobs === undefined) {
-				plannedJobsByTargetPath.set(job.targetPath, [job]);
-				continue;
+			const currExecutionOrder = job.entry.executionOrder;
+			if (currExecutionOrder === 0) {
+				// 0 is the default value, it allows non-sequential execution
+				const targetJobs = plannedJobsByTargetPath.get(job.targetPath);
+				if (targetJobs === undefined) {
+					plannedJobsByTargetPath.set(job.targetPath, [job]);
+					continue;
+				}
+				targetJobs.push(job);
+			} else {
+				const currOrderJobs = orderedJobs.get(currExecutionOrder);
+				if (currOrderJobs === undefined) {
+					orderedJobs.set(currExecutionOrder, [job]);
+					continue;
+				}
+				currOrderJobs.push(job);
 			}
-			targetJobs.push(job);
 		}
 		nextSequence += moduleJobs.length;
 	}
-	// Run planned jobs
+	// Sort the jobs order
+	const orderedJobsKeys = [...orderedJobs.keys()];
+	orderedJobsKeys.sort();
+	const before0Keys: number[] = [];
+	const after0Keys: number[] = [];
+	for (const k of orderedJobsKeys) {
+		if (k < 0) {
+			before0Keys.push(k);
+		} else {
+			after0Keys.push(k);
+		}
+	}
+
+	// Run jobs with order below 0
+	for (const k of before0Keys) {
+		for (const job of orderedJobs.get(k)!) {
+			await job.writeResult(await job.compute());
+		}
+	}
+
+	// Run jobs with order 0
 	if (mode === "sequential") {
 		// Flatten and sort the jobs using their sequence numbers
 		const orderedJobs: PlannedMapEntryJob[] = [];
@@ -1257,19 +1309,26 @@ export async function applyModules(
 		for (const job of orderedJobs) {
 			await job.writeResult(await job.compute());
 		}
-		return;
+	} else {
+		const jobQueues = Array.from(plannedJobsByTargetPath.values()).map(
+			async (targetJobs) => {
+				let previousResult: PlannedMapEntryJobResult | undefined = undefined;
+				for (const job of targetJobs) {
+					previousResult = await job.compute(previousResult);
+				}
+				if (previousResult === undefined) {
+					return;
+				}
+				await targetJobs[targetJobs.length - 1].writeResult(previousResult);
+			}
+		);
+		await Promise.all(jobQueues);
 	}
-	const jobQueues = Array.from(plannedJobsByTargetPath.values()).map(
-		async (targetJobs) => {
-			let previousResult: PlannedMapEntryJobResult | undefined = undefined;
-			for (const job of targetJobs) {
-				previousResult = await job.compute(previousResult);
-			}
-			if (previousResult === undefined) {
-				return;
-			}
-			await targetJobs[targetJobs.length - 1].writeResult(previousResult);
+
+	// Run jobs with order above 0
+	for (const k of after0Keys) {
+		for (const job of orderedJobs.get(k)!) {
+			await job.writeResult(await job.compute());
 		}
-	);
-	await Promise.all(jobQueues);
+	}
 }

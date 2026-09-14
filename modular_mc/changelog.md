@@ -1,4 +1,11 @@
 # Change log
+## 1.3.0
+### `executionOrder`
+Added new property to the `MAP` entries - `executionOrder: number`. It is set to 0 by default. Entries with `executionOrder < 0` are generated before the entries executed asynchronously (see notes from update `1.1.1`). Entries with `executionOrder > 0` are generated after the entries executed asynchronously. Entries with `executionOrder == 0` are executed asynchronously (this is the default and it doesn't need to be specfied). The entries with lower values are executed before the entries with higher values.
+
+### map-ts.ts
+Updated the mapping in the default `map-ts.ts`. Now some output paths are namespaced by default.
+
 ## 1.2.0
 ### Fixed `imports` resolution for Deno 2.6+
 ModularMC still modifies its own `deno.json` (in the `.regolith/cache/filters/modular_mc/deno.json` by default) like in the previous versions, but now it also creates an **empty** `deno.json` file (with just `{}` as its content) in the working directory of Regolith (`.regolith/tmp/deno.json`).
